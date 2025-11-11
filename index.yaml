@@ -1,0 +1,30 @@
+apiVersion: v1
+entries:
+  runtime-enforcer:
+  - annotations:
+      catalog.cattle.io/certified: rancher
+      catalog.cattle.io/display-name: RuntimeEnforcer
+      catalog.cattle.io/namespace: cattle-runtime-enforcer-system
+      catalog.cattle.io/os: linux
+      catalog.cattle.io/provides-gvr: security.rancher.io/v1
+      catalog.cattle.io/rancher-version: '>= 2.6.0-0 <= 2.12.100-0'
+      catalog.cattle.io/release-name: rancher-runtime-enforcer
+      catalog.cattle.io/requests-cpu: 500m
+      catalog.cattle.io/requests-memory: 128Mi
+      catalog.cattle.io/type: cluster-tool
+      catalog.cattle.io/ui-component: runtime-enforcer
+    apiVersion: v2
+    appVersion: v0.0.2
+    created: "2025-11-11T18:28:33.990232148Z"
+    dependencies:
+    - name: tetragon
+      repository: https://helm.cilium.io
+      version: 1.6.0
+    description: SUSE Security Runtime Enforcer helm chart
+    digest: 1f2d93d7165ee775117cfd3716206c2e7fe76a936c9623e225d5734305cca3ee
+    name: runtime-enforcer
+    type: application
+    urls:
+    - https://github.com/neuvector/runtime-enforcer/releases/download/runtime-enforcer-chart-0.1.1/runtime-enforcer-0.1.1.tgz
+    version: 0.1.1
+generated: "2025-11-11T18:28:33.990237107Z"
