@@ -1,4 +1,4 @@
-name: Create a new release for RuntimeEnforcement stack
+name: Create a new release for RuntimeEnforcer stack
 
 on:
   push:
@@ -44,7 +44,7 @@ jobs:
       - name: Download attestation artifacts
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
-          pattern: attestation-RuntimeEnforcement-*
+          pattern: attestation-RuntimeEnforcer-*
           merge-multiple: true
       - name: Display structure of downloaded files
         run: ls -R
@@ -53,7 +53,7 @@ jobs:
         run: |
           for arch in "amd64"; do
             for component in "operator" "daemon" ; do
-              tar -czf attestation-RuntimeEnforcement-$component-$arch.tar.gz $(ls RuntimeEnforcement-$component-attestation-$arch-*)
+              tar -czf attestation-RuntimeEnforcer-$component-$arch.tar.gz $(ls RuntimeEnforcer-$component-attestation-$arch-*)
             done
           done
       - name: Upload release assets
@@ -64,8 +64,8 @@ jobs:
             let fs = require('fs');
             let path = require('path');
             let files = [
-                'attestation-RuntimeEnforcement-operator-amd64.tar.gz',
-                'attestation-RuntimeEnforcement-daemon-amd64.tar.gz',
+                'attestation-RuntimeEnforcer-operator-amd64.tar.gz',
+                'attestation-RuntimeEnforcer-daemon-amd64.tar.gz',
                 ]
             const {RELEASE_ID} = process.env
             for (const file of files) {
@@ -91,7 +91,7 @@ jobs:
               release_id: `${RELEASE_ID}`,
               draft: false,
               tag_name: `${TAG_NAME}`,
-              name: `RuntimeEnforcement ${TAG_NAME}`,
+              name: `RuntimeEnforcer ${TAG_NAME}`,
               prerelease: isPreRelease,
               make_latest: !isPreRelease
             });

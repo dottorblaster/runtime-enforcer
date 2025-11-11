@@ -6,14 +6,14 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/neuvector/runtime-enforcement/internal/eventhandler"
+	"github.com/neuvector/runtime-enforcer/internal/eventhandler"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	securityv1alpha1 "github.com/neuvector/runtime-enforcement/api/v1alpha1"
-	internalTetragon "github.com/neuvector/runtime-enforcement/internal/tetragon"
-	"github.com/neuvector/runtime-enforcement/internal/traces"
+	securityv1alpha1 "github.com/neuvector/runtime-enforcer/api/v1alpha1"
+	internalTetragon "github.com/neuvector/runtime-enforcer/internal/tetragon"
+	"github.com/neuvector/runtime-enforcer/internal/traces"
 
 	"log/slog"
 )

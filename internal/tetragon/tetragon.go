@@ -15,7 +15,7 @@ import (
 
 	retry "github.com/avast/retry-go/v4"
 	"github.com/cilium/tetragon/api/v1/tetragon"
-	"github.com/neuvector/runtime-enforcement/internal/eventhandler"
+	"github.com/neuvector/runtime-enforcer/internal/eventhandler"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -52,7 +52,7 @@ func CreateConnector(
 	conn := &Connector{
 		logger:      logger.With("component", "tetragon_connector"),
 		enqueueFunc: enqueueFunc,
-		tracer:      otel.Tracer("runtime-enforcement-enforcer"),
+		tracer:      otel.Tracer("runtime-enforcer-enforcer"),
 		// by default we only listen for process kprobe events
 		tetragonEvents: []tetragon.EventType{tetragon.EventType_PROCESS_KPROBE},
 	}

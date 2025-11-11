@@ -1,4 +1,4 @@
-# runtime-enforcement
+# runtime-enforcer
 A runtime enforcement solution for your Kubernetes cluster.
 
 Still under development. For further information, please see the [RFCs](docs/rfc). 

@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	tragonv1alpha1 "github.com/cilium/tetragon/pkg/k8s/apis/cilium.io/v1alpha1"
-	"github.com/neuvector/runtime-enforcement/api/v1alpha1"
-	"github.com/neuvector/runtime-enforcement/internal/tetragon"
+	"github.com/neuvector/runtime-enforcer/api/v1alpha1"
+	"github.com/neuvector/runtime-enforcer/internal/tetragon"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/collector/pdata/pcommon"

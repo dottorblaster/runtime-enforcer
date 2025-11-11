@@ -12,8 +12,8 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	securityv1alpha1 "github.com/neuvector/runtime-enforcement/api/v1alpha1"
-	"github.com/neuvector/runtime-enforcement/internal/controller"
+	securityv1alpha1 "github.com/neuvector/runtime-enforcer/api/v1alpha1"
+	"github.com/neuvector/runtime-enforcer/internal/controller"
 )
 
 var _ = Describe("WorkloadSecurityPolicy Controller", func() {

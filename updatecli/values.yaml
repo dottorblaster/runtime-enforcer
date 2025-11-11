@@ -2,6 +2,6 @@ github:
   owner: "UPDATECLI_GITHUB_OWNER"
   token: "UPDATECLI_GITHUB_TOKEN"
   branch: "main"
-  author: "RuntimeEnforcement bot"
+  author: "RuntimeEnforcer bot"
   user: "UPDATECLI_GITHUB_OWNER"
-  email: "runtime-enforcement-bot@users.noreply.github.com"
+  email: "runtime-enforcer-bot@users.noreply.github.com"

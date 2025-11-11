@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	securityv1alpha1 "github.com/neuvector/runtime-enforcement/api/v1alpha1"
+	securityv1alpha1 "github.com/neuvector/runtime-enforcer/api/v1alpha1"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -79,7 +79,7 @@ func NewTetragonEventReconciler(client client.Client, scheme *runtime.Scheme) *T
 		Client:    client,
 		Scheme:    scheme,
 		eventChan: make(chan event.TypedGenericEvent[ProcessLearningEvent], DefaultEventChannelBufferSize),
-		tracer:    otel.Tracer("runtime-enforcement-learner"),
+		tracer:    otel.Tracer("runtime-enforcer-learner"),
 	}
 }
 

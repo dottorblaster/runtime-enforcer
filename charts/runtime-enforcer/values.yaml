@@ -11,7 +11,7 @@ operator:
         drop:
         - ALL
     image:
-      repository: ghcr.io/neuvector/runtime-enforcement/operator
+      repository: ghcr.io/neuvector/runtime-enforcer/operator
       tag: v0.0.2
       pullPolicy: IfNotPresent
     resources:
@@ -39,7 +39,7 @@ daemon:
         drop:
         - ALL
     image:
-      repository: ghcr.io/neuvector/runtime-enforcement/daemon
+      repository: ghcr.io/neuvector/runtime-enforcer/daemon
       tag: v0.0.2
       pullPolicy: IfNotPresent
     resources:
@@ -64,11 +64,11 @@ imagePullSecrets: []
 # Learning mode configuration
 learning:
   # learning.enabled controls whether learning mode is enabled for the entire cluster.
-  # When disabled, no process learning occurs. Process enforcement remains unaffected.
+  # When disabled, no process learning occurs. Process enforcer remains unaffected.
   enabled: true
 
 telemetry:
-  # Runtime-enforcement telemetry configuration allow one OpenTelemetry
+  # runtime-enforcer telemetry configuration allow one OpenTelemetry
   # collector communication options: 
   # - custom: It will configure the controller and policy server to send metrics
   # and traces to a custom collector

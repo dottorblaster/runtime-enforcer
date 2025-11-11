@@ -3,9 +3,9 @@
 package fake
 
 import (
-	v1alpha1 "github.com/neuvector/runtime-enforcement/api/v1alpha1"
-	apiv1alpha1 "github.com/neuvector/runtime-enforcement/pkg/generated/applyconfiguration/api/v1alpha1"
-	typedapiv1alpha1 "github.com/neuvector/runtime-enforcement/pkg/generated/clientset/versioned/typed/api/v1alpha1"
+	v1alpha1 "github.com/neuvector/runtime-enforcer/api/v1alpha1"
+	apiv1alpha1 "github.com/neuvector/runtime-enforcer/pkg/generated/applyconfiguration/api/v1alpha1"
+	typedapiv1alpha1 "github.com/neuvector/runtime-enforcer/pkg/generated/clientset/versioned/typed/api/v1alpha1"
 	gentype "k8s.io/client-go/gentype"
 )
 

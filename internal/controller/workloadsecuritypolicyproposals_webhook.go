@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	securityv1alpha1 "github.com/neuvector/runtime-enforcement/api/v1alpha1"
+	securityv1alpha1 "github.com/neuvector/runtime-enforcer/api/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"

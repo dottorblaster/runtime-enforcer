@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"sync"
 
-	securityv1alpha1 "github.com/neuvector/runtime-enforcement/api/v1alpha1"
-	"github.com/neuvector/runtime-enforcement/internal/eventhandler"
+	securityv1alpha1 "github.com/neuvector/runtime-enforcer/api/v1alpha1"
+	"github.com/neuvector/runtime-enforcer/internal/eventhandler"
 
 	. "github.com/onsi/ginkgo/v2" //nolint:revive // Required for testing
 	. "github.com/onsi/gomega"    //nolint:revive // Required for testing

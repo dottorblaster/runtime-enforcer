@@ -5,8 +5,8 @@ package v1alpha1
 import (
 	http "net/http"
 
-	apiv1alpha1 "github.com/neuvector/runtime-enforcement/api/v1alpha1"
-	scheme "github.com/neuvector/runtime-enforcement/pkg/generated/clientset/versioned/scheme"
+	apiv1alpha1 "github.com/neuvector/runtime-enforcer/api/v1alpha1"
+	scheme "github.com/neuvector/runtime-enforcer/pkg/generated/clientset/versioned/scheme"
 	rest "k8s.io/client-go/rest"
 )
 

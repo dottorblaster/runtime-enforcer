@@ -58,7 +58,7 @@ actions:
       mergemethod: squash
       description: |
         Automatic Golang version {{ source "go" }} update.
-        This PR has been created by the automation used to automatically update the Golang version in the runtime-enforcement project
+        This PR has been created by the automation used to automatically update the Golang version in the runtime-enforcer project
         REMEMBER IF YOU WANT TO MERGE IN A SINGLE COMMIT CHANGES AND VERSION BUMP, YOU MUST SQUASH THE COMMIT BEFORE MERGING THIS PR!
       draft: false
       labels:
@@ -72,7 +72,7 @@ scms:
       user: "{{ .github.author }}"
       email: "{{ .github.email }}"
       owner: "{{ requiredEnv .github.owner }}"
-      repository: "runtime-enforcement"
+      repository: "runtime-enforcer"
       token: "{{ requiredEnv .github.token }}"
       username: "{{ requiredEnv .github.user }}"
       branch: "{{ .github.branch }}"
@@ -81,4 +81,4 @@ scms:
         scope: deps
         title: "update Golang version"
         hidecredit: true
-        footers: "Signed-off-by: RuntimeEnforcement bot <runtime-enforcement-bot@users.noreply.github.com>"
+        footers: "Signed-off-by: RuntimeEnforcer bot <runtime-enforcer-bot@users.noreply.github.com>"

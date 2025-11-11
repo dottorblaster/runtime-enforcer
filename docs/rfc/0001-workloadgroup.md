@@ -1,6 +1,6 @@
 |              |                                                          |
 | :----------- | :------------------------------------------------------- |
-| Feature Name | runtime-enforcement                                      |
+| Feature Name | runtime-enforcer                                         |
 | Start Date   | Apr. 4th, 2025                                           |
 | Category     | CRDs, APIs                                               |
 | RFC PR       | https://github.com/neuvector/runtime-enforcement/pull/30 |
@@ -38,7 +38,7 @@
 
 [summary]: #summary
 
-Runtime Enforcement: Auto-Grouping and Behavior-Learning
+Runtime Enforcer: Auto-Grouping and Behavior-Learning
 
 # Motivation
 
@@ -287,7 +287,7 @@ spec:
       app.kubernetes.io/name: ingress-nginx
 ```
 
-As background, Tetragon has [three methods](https://tetragon.io/docs/concepts/enforcement/) to enforce a policy. 
+As background, Tetragon has [three methods](https://tetragon.io/docs/concepts/enforcer/) to enforce a policy. 
 - Kprobe override: https://tetragon.io/docs/concepts/tracing-policy/selectors/#override-action, which requires CONFIG_BPF_KPROBE_OVERRIDE kernel build option.
 - Undocumented LSM override, which requires LSM bpf to be enabled in the system.  At the time of writing, it works great in our experiments. 
 - Inline kill signal, which can be used to kill a process that violates a policy.

@@ -1,6 +1,6 @@
 apiVersion: v2
-name: runtime-enforcement
-description: SUSE Security Runtime Enforcement helm chart
+name: runtime-enforcer
+description: SUSE Security Runtime Enforcer helm chart
 type: application
 version: 0.1.1
 appVersion: v0.0.2
@@ -12,10 +12,10 @@ dependencies:
 
 annotations:
   catalog.cattle.io/certified: rancher # Any application we are adding as a helm chart
-  catalog.cattle.io/namespace: cattle-runtime-enforcement-system # Must prefix with cattle- and suffix with -system
-  catalog.cattle.io/release-name: rancher-runtime-enforcement # If this is an upstream app, prefixing with rancher is the preferred naming choice.
-  catalog.cattle.io/ui-component: runtime-enforcement # This is added for custom UI deployment of a chart
-  catalog.cattle.io/display-name: RuntimeEnforcement # Only for Charts with custom UI
+  catalog.cattle.io/namespace: cattle-runtime-enforcer-system # Must prefix with cattle- and suffix with -system
+  catalog.cattle.io/release-name: rancher-runtime-enforcer # If this is an upstream app, prefixing with rancher is the preferred naming choice.
+  catalog.cattle.io/ui-component: runtime-enforcer # This is added for custom UI deployment of a chart
+  catalog.cattle.io/display-name: RuntimeEnforcer # Only for Charts with custom UI
   catalog.cattle.io/os: linux # this means linux only, other choice here is "windows". For charts that support both, don't add this annotation
   # optional ones:
   catalog.cattle.io/provides-gvr: "security.rancher.io/v1" # Declare that this chart provides a type, which other charts may use in `requires-gvr`. Only add to parent, not CRD chart.

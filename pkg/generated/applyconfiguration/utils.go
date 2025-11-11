@@ -3,9 +3,9 @@
 package applyconfiguration
 
 import (
-	v1alpha1 "github.com/neuvector/runtime-enforcement/api/v1alpha1"
-	apiv1alpha1 "github.com/neuvector/runtime-enforcement/pkg/generated/applyconfiguration/api/v1alpha1"
-	internal "github.com/neuvector/runtime-enforcement/pkg/generated/applyconfiguration/internal"
+	v1alpha1 "github.com/neuvector/runtime-enforcer/api/v1alpha1"
+	apiv1alpha1 "github.com/neuvector/runtime-enforcer/pkg/generated/applyconfiguration/api/v1alpha1"
+	internal "github.com/neuvector/runtime-enforcer/pkg/generated/applyconfiguration/internal"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	managedfields "k8s.io/apimachinery/pkg/util/managedfields"
@@ -26,10 +26,6 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &apiv1alpha1.WorkloadSecurityPolicyProposalApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("WorkloadSecurityPolicyProposalCondition"):
 		return &apiv1alpha1.WorkloadSecurityPolicyProposalConditionApplyConfiguration{}
-	case v1alpha1.SchemeGroupVersion.WithKind("WorkloadSecurityPolicyProposalExecutables"):
-		return &apiv1alpha1.WorkloadSecurityPolicyProposalExecutablesApplyConfiguration{}
-	case v1alpha1.SchemeGroupVersion.WithKind("WorkloadSecurityPolicyProposalRules"):
-		return &apiv1alpha1.WorkloadSecurityPolicyProposalRulesApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("WorkloadSecurityPolicyProposalSpec"):
 		return &apiv1alpha1.WorkloadSecurityPolicyProposalSpecApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("WorkloadSecurityPolicyProposalStatus"):

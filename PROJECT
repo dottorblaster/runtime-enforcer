@@ -5,8 +5,8 @@
 domain: rancher.io
 layout:
 - go.kubebuilder.io/v4
-projectName: runtime-enforcement
-repo: github.com/neuvector/runtime-enforcement
+projectName: runtime-enforcer
+repo: github.com/neuvector/runtime-enforcer
 resources:
 - controller: true
   core: true
@@ -33,7 +33,7 @@ resources:
   domain: rancher.io
   group: security
   kind: WorkloadSecurityPolicyProposal
-  path: github.com/neuvector/runtime-enforcement/api/v1alpha1
+  path: github.com/neuvector/runtime-enforcer/api/v1alpha1
   version: v1alpha1
 - api:
     crdVersion: v1
@@ -42,7 +42,7 @@ resources:
   domain: rancher.io
   group: security
   kind: WorkloadSecurityPolicy
-  path: github.com/neuvector/runtime-enforcement/api/v1alpha1
+  path: github.com/neuvector/runtime-enforcer/api/v1alpha1
   version: v1alpha1
 - controller: true
   core: true
@@ -75,6 +75,6 @@ resources:
   domain: rancher.io
   group: security
   kind: ClusterWorkloadSecurityPolicy
-  path: github.com/neuvector/runtime-enforcement/api/v1alpha1
+  path: github.com/neuvector/runtime-enforcer/api/v1alpha1
   version: v1alpha1
 version: "3"

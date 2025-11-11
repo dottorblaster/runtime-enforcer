@@ -38,7 +38,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@318604b99e75e41977312d83839a89be02ca4893 # v5.9.0
         with:
-          images: ghcr.io/${{ github.repository_owner }}/runtime-enforcement/${{ matrix.component }}
+          images: ghcr.io/${{ github.repository_owner }}/runtime-enforcer/${{ matrix.component }}
       - name: Build and push ${{ matrix.component }} for ${{ matrix.arch }}
         id: build-image
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
@@ -50,7 +50,7 @@ jobs:
           push: true
           sbom: true
           provenance: mode=max
-          tags: ghcr.io/${{ github.repository_owner }}/runtime-enforcement/${{ matrix.component }}
+          tags: ghcr.io/${{ github.repository_owner }}/runtime-enforcer/${{ matrix.component }}
           outputs: |
             type=image,push=true,push-by-digest=true,name-canonical=true
       - name: Export digest
@@ -108,10 +108,10 @@ jobs:
           amd64_digest=$(cat ${{ matrix.component }}-amd64.txt)
 
           docker buildx imagetools create \
-            -t ghcr.io/${{ github.repository_owner }}/runtime-enforcement/${{ matrix.component }}:${{ env.TAG_NAME }} \
-            ghcr.io/${{ github.repository_owner }}/runtime-enforcement/${{ matrix.component }}@${amd64_digest} \
+            -t ghcr.io/${{ github.repository_owner }}/runtime-enforcer/${{ matrix.component }}:${{ env.TAG_NAME }} \
+            ghcr.io/${{ github.repository_owner }}/runtime-enforcer/${{ matrix.component }}@${amd64_digest} \
 
-          docker buildx imagetools inspect ghcr.io/${{ github.repository_owner }}/runtime-enforcement/${{ matrix.component }}:${{ env.TAG_NAME }}
+          docker buildx imagetools inspect ghcr.io/${{ github.repository_owner }}/runtime-enforcer/${{ matrix.component }}:${{ env.TAG_NAME }}
 
   attest:
     needs: [merge]

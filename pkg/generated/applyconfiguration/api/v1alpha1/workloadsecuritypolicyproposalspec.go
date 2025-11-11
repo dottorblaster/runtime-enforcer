@@ -9,8 +9,8 @@ import (
 // WorkloadSecurityPolicyProposalSpecApplyConfiguration represents a declarative configuration of the WorkloadSecurityPolicyProposalSpec type for use
 // with apply.
 type WorkloadSecurityPolicyProposalSpecApplyConfiguration struct {
-	Selector *v1.LabelSelectorApplyConfiguration                    `json:"selector,omitempty"`
-	Rules    *WorkloadSecurityPolicyProposalRulesApplyConfiguration `json:"rules,omitempty"`
+	Selector *v1.LabelSelectorApplyConfiguration            `json:"selector,omitempty"`
+	Rules    *WorkloadSecurityPolicyRulesApplyConfiguration `json:"rules,omitempty"`
 }
 
 // WorkloadSecurityPolicyProposalSpecApplyConfiguration constructs a declarative configuration of the WorkloadSecurityPolicyProposalSpec type for use with
@@ -30,7 +30,7 @@ func (b *WorkloadSecurityPolicyProposalSpecApplyConfiguration) WithSelector(valu
 // WithRules sets the Rules field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Rules field is set to the value of the last call.
-func (b *WorkloadSecurityPolicyProposalSpecApplyConfiguration) WithRules(value *WorkloadSecurityPolicyProposalRulesApplyConfiguration) *WorkloadSecurityPolicyProposalSpecApplyConfiguration {
+func (b *WorkloadSecurityPolicyProposalSpecApplyConfiguration) WithRules(value *WorkloadSecurityPolicyRulesApplyConfiguration) *WorkloadSecurityPolicyProposalSpecApplyConfiguration {
 	b.Rules = value
 	return b
 }

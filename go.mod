@@ -1,4 +1,4 @@
-module github.com/neuvector/runtime-enforcement
+module github.com/neuvector/runtime-enforcer
 
 go 1.25.3
 

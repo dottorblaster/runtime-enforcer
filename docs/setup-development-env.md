@@ -7,7 +7,7 @@
 
 # Setup Development Environments
 
-Runtime enforcement supports Tilt to run development environment in your local.
+Runtime enforcer supports Tilt to run development environment in your local.
 
 ## Pre-requisite
 

@@ -16,7 +16,7 @@ deploy_cert_manager(version="v1.18.2")
 # Create the namespace
 # This is required since the helm() function doesn't support the create_namespace flag
 load("ext://namespace", "namespace_create")
-namespace_create("runtime-enforcement")
+namespace_create("runtime-enforcer")
 
 # Install open telemetry collector
 load("ext://helm_resource", "helm_resource", "helm_repo")
@@ -24,7 +24,7 @@ helm_repo("open-telemetry", "http://open-telemetry.github.io/opentelemetry-helm-
 helm_resource(
     "open-telemetry-collector",
     "open-telemetry/opentelemetry-collector",
-    namespace="runtime-enforcement",
+    namespace="runtime-enforcer",
     flags=[
         "--set",
         "image.repository=otel/opentelemetry-collector-k8s",
@@ -59,14 +59,14 @@ if settings.get("daemon").get("enable-otel-tracing"):
     helm_options += [
         "telemetry.mode=custom",
         "telemetry.tracing=true",
-        "telemetry.custom.endpoint=http://open-telemetry-collector-opentelemetry-collector.runtime-enforcement.svc.cluster.local:4317",
+        "telemetry.custom.endpoint=http://open-telemetry-collector-opentelemetry-collector.runtime-enforcer.svc.cluster.local:4317",
         "telemetry.custom.insecure=true",
     ]
 
 yaml = helm(
-    "./charts/runtime-enforcement",
-    name="runtime-enforcement",
-    namespace="runtime-enforcement",
+    "./charts/runtime-enforcer",
+    name="runtime-enforcer",
+    namespace="runtime-enforcer",
     set=helm_options
 )
 

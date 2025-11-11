@@ -39,18 +39,18 @@ func TestMain(m *testing.M) {
 		envfuncs.CreateCluster(kind.NewProvider(), kindClusterName),
 		envfuncs.CreateNamespace(namespace),
 		envfuncs.LoadImageToCluster(kindClusterName,
-			"ghcr.io/neuvector/runtime-enforcement/operator:latest",
+			"ghcr.io/neuvector/runtime-enforcer/operator:latest",
 			"--verbose",
 			"--mode",
 			"direct"),
 		envfuncs.LoadImageToCluster(kindClusterName,
-			"ghcr.io/neuvector/runtime-enforcement/daemon:latest",
+			"ghcr.io/neuvector/runtime-enforcer/daemon:latest",
 			"--verbose",
 			"--mode",
 			"direct"),
 		InstallOtelCollector(),
 		InstallCertManager(),
-		InstallRuntimeEnforcement(),
+		InstallRuntimeEnforcer(),
 	)
 
 	testEnv.Finish(
@@ -93,13 +93,13 @@ func InstallCertManager() env.Func {
 	}
 }
 
-func InstallRuntimeEnforcement() env.Func {
+func InstallRuntimeEnforcer() env.Func {
 	return func(ctx context.Context, config *envconf.Config) (context.Context, error) {
 		manager := helm.New(config.KubeconfigFile())
 		err := manager.RunInstall(
-			helm.WithName("runtime-enforcement"),
+			helm.WithName("runtime-enforcer"),
 			helm.WithNamespace(namespace),
-			helm.WithChart("../../charts/runtime-enforcement/"),
+			helm.WithChart("../../charts/runtime-enforcer/"),
 			helm.WithArgs("--set", "operator.manager.image.tag=latest"),
 			helm.WithArgs("--set", "daemon.daemon.image.tag=latest"),
 			helm.WithArgs("--set", "telemetry.mode=custom"),

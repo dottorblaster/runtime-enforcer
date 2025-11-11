@@ -12,7 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	tetragonv1alpha1 "github.com/cilium/tetragon/pkg/k8s/apis/cilium.io/v1alpha1"
-	securityv1alpha1 "github.com/neuvector/runtime-enforcement/api/v1alpha1"
+	securityv1alpha1 "github.com/neuvector/runtime-enforcer/api/v1alpha1"
 )
 
 // ClusterWorkloadSecurityPolicyReconciler reconciles a ClusterWorkloadSecurityPolicy object.

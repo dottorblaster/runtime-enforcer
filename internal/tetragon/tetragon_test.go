@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	tetragonv1 "github.com/cilium/tetragon/api/v1/tetragon"
-	"github.com/neuvector/runtime-enforcement/internal/eventhandler"
-	"github.com/neuvector/runtime-enforcement/internal/tetragon"
+	"github.com/neuvector/runtime-enforcer/internal/eventhandler"
+	"github.com/neuvector/runtime-enforcer/internal/tetragon"
 	"github.com/stretchr/testify/require"
 )
 

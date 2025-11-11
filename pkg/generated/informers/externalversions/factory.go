@@ -7,9 +7,9 @@ import (
 	sync "sync"
 	time "time"
 
-	versioned "github.com/neuvector/runtime-enforcement/pkg/generated/clientset/versioned"
-	api "github.com/neuvector/runtime-enforcement/pkg/generated/informers/externalversions/api"
-	internalinterfaces "github.com/neuvector/runtime-enforcement/pkg/generated/informers/externalversions/internalinterfaces"
+	versioned "github.com/neuvector/runtime-enforcer/pkg/generated/clientset/versioned"
+	api "github.com/neuvector/runtime-enforcer/pkg/generated/informers/externalversions/api"
+	internalinterfaces "github.com/neuvector/runtime-enforcer/pkg/generated/informers/externalversions/internalinterfaces"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

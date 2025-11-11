@@ -49,7 +49,7 @@ questions:
     label: Enable Cluster-wide Learning Mode
     description: |
       Enable cluster-wide learning mode. If disabled, no process learning occurs.
-      Process enforcement remains unaffected.
+      Process enforcer remains unaffected.
     group: Learning
 
   ###############################################################################
@@ -61,7 +61,7 @@ questions:
     required: true
     label: Telemetry mode
     description: |
-      Custom mode will allow you to configure the OpenTelemetry Collector by your own and runtime enforcement will send data to it.
+      Custom mode will allow you to configure the OpenTelemetry Collector by your own and runtime enforcer will send data to it.
     group: OpenTelemetry
 
   - variable: telemetry.metrics
@@ -70,7 +70,7 @@ questions:
     required: true
     label: Enable Metrics
     description: |
-      Enable metrics collection for all components installed by runtime enforcement.
+      Enable metrics collection for all components installed by runtime enforcer.
       Important: Requires OpenTelemetry CRDs available.
     group: OpenTelemetry
 
@@ -80,7 +80,7 @@ questions:
     required: true
     label: Enable Tracing
     description: |
-      Enable tracing collection for all components installed by runtime enforcement.
+      Enable tracing collection for all components installed by runtime enforcer.
       Important: Requires OpenTelemetry CRDs available.
     group: OpenTelemetry
 

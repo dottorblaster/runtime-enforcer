@@ -23,7 +23,7 @@ import (
 	tetragonv1alpha1 "github.com/cilium/tetragon/pkg/k8s/apis/cilium.io/v1alpha1"
 	batchv1 "k8s.io/api/batch/v1"
 
-	securityv1alpha1 "github.com/neuvector/runtime-enforcement/api/v1alpha1"
+	securityv1alpha1 "github.com/neuvector/runtime-enforcer/api/v1alpha1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -72,7 +72,7 @@ var _ = BeforeSuite(func() {
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths: []string{
-			filepath.Join("..", "..", "charts", "runtime-enforcement", "templates", "crd"),
+			filepath.Join("..", "..", "charts", "runtime-enforcer", "templates", "crd"),
 			filepath.Join("..", "..", "test", "testdata"),
 		},
 		ErrorIfCRDPathMissing: true,

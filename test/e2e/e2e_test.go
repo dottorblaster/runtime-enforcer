@@ -6,7 +6,7 @@ import (
 	"time"
 
 	tragonv1alpha1 "github.com/cilium/tetragon/pkg/k8s/apis/cilium.io/v1alpha1"
-	"github.com/neuvector/runtime-enforcement/api/v1alpha1"
+	"github.com/neuvector/runtime-enforcer/api/v1alpha1"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -43,7 +43,7 @@ func IfRequiredResourcesAreCreated(ctx context.Context, t *testing.T, _ *envconf
 
 	err = wait.For(
 		conditions.New(r).DeploymentAvailable(
-			"runtime-enforcement-controller-manager",
+			"runtime-enforcer-controller-manager",
 			namespace,
 		),
 		wait.WithTimeout(DefaultOperationTimeout),
@@ -53,7 +53,7 @@ func IfRequiredResourcesAreCreated(ctx context.Context, t *testing.T, _ *envconf
 	err = wait.For(conditions.New(r).DaemonSetReady(
 		&appsv1.DaemonSet{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "runtime-enforcement-daemon",
+				Name:      "runtime-enforcer-daemon",
 				Namespace: namespace,
 			},
 		}),

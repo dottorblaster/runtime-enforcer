@@ -2,17 +2,17 @@
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
-  name: {{ include "runtime-enforcement.fullname" . }}-mutating-webhook-configuration
+  name: {{ include "runtime-enforcer.fullname" . }}-mutating-webhook-configuration
   annotations:
-    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "runtime-enforcement.fullname" . }}-ca
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "runtime-enforcer.fullname" . }}-ca
   labels:
-  {{- include "runtime-enforcement.labels" . | nindent 4 }}
+  {{- include "runtime-enforcer.labels" . | nindent 4 }}
 webhooks:
 - admissionReviewVersions:
   - v1
   clientConfig:
     service:
-      name: {{ include "runtime-enforcement.fullname" . }}-mutating-webhook
+      name: {{ include "runtime-enforcer.fullname" . }}-mutating-webhook
       namespace: {{ .Release.Namespace }}
       path: /mutate-security-rancher-io-v1alpha1-workloadsecuritypolicyproposal
   failurePolicy: Fail

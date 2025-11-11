@@ -1,6 +1,6 @@
 name: "Bug report"
 labels: ["bug", "triage"]
-description: Create a report to help runtime-enforcement to improve
+description: Create a report to help runtime-enforcer to improve
 body:
   - type: checkboxes
     attributes:

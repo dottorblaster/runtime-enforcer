@@ -43,12 +43,12 @@ help: ## Display this help.
 
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) rbac:roleName=operator-role crd webhook paths="./api/v1alpha1" paths="./internal/controller" output:crd:artifacts:config=charts/runtime-enforcement/templates/crd output:rbac:artifacts:config=charts/runtime-enforcement/templates/operator
-	$(CONTROLLER_GEN) rbac:roleName=daemon-role paths="./internal/tetragon" paths="./internal/eventhandler" output:rbac:artifacts:config=charts/runtime-enforcement/templates/daemon
-	sed -i 's/operator-role/{{ include "runtime-enforcement.fullname" . }}-operator/' charts/runtime-enforcement/templates/operator/role.yaml
-	sed -i 's/daemon-role/{{ include "runtime-enforcement.fullname" . }}-daemon/' charts/runtime-enforcement/templates/daemon/role.yaml
+	$(CONTROLLER_GEN) rbac:roleName=operator-role crd webhook paths="./api/v1alpha1" paths="./internal/controller" output:crd:artifacts:config=charts/runtime-enforcer/templates/crd output:rbac:artifacts:config=charts/runtime-enforcer/templates/operator
+	$(CONTROLLER_GEN) rbac:roleName=daemon-role paths="./internal/tetragon" paths="./internal/eventhandler" output:rbac:artifacts:config=charts/runtime-enforcer/templates/daemon
+	sed -i 's/operator-role/{{ include "runtime-enforcer.fullname" . }}-operator/' charts/runtime-enforcer/templates/operator/role.yaml
+	sed -i 's/daemon-role/{{ include "runtime-enforcer.fullname" . }}-daemon/' charts/runtime-enforcer/templates/daemon/role.yaml
 
-REPO ?= ghcr.io/neuvector/runtime-enforcement
+REPO ?= ghcr.io/neuvector/runtime-enforcer
 TAG ?= latest
 
 define BUILD_template =
@@ -82,7 +82,7 @@ test: vet setup-envtest ## Run tests.
 
 .PHONY: helm-unittest
 helm-unittest:
-	helm unittest charts/runtime-enforcement/ --file "tests/**/*_test.yaml"
+	helm unittest charts/runtime-enforcer/ --file "tests/**/*_test.yaml"
 
 .PHONY: test-e2e
 test-e2e: vet
@@ -139,10 +139,10 @@ PLATFORMS ?= linux/arm64,linux/amd64,linux/s390x,linux/ppc64le
 docker-buildx: ## Build and push docker image for the manager for cross-platform support
 	# copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
 	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' Dockerfile > Dockerfile.cross
-	- $(CONTAINER_TOOL) buildx create --name runtime-enforcement-builder
-	$(CONTAINER_TOOL) buildx use runtime-enforcement-builder
+	- $(CONTAINER_TOOL) buildx create --name runtime-enforcer-builder
+	$(CONTAINER_TOOL) buildx use runtime-enforcer-builder
 	- $(CONTAINER_TOOL) buildx build --push --platform=$(PLATFORMS) --tag ${IMG} -f Dockerfile.cross .
-	- $(CONTAINER_TOOL) buildx rm runtime-enforcement-builder
+	- $(CONTAINER_TOOL) buildx rm runtime-enforcer-builder
 	rm Dockerfile.cross
 
 .PHONY: build-installer

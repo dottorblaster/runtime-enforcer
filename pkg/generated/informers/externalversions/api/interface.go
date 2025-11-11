@@ -3,8 +3,8 @@
 package api
 
 import (
-	v1alpha1 "github.com/neuvector/runtime-enforcement/pkg/generated/informers/externalversions/api/v1alpha1"
-	internalinterfaces "github.com/neuvector/runtime-enforcement/pkg/generated/informers/externalversions/internalinterfaces"
+	v1alpha1 "github.com/neuvector/runtime-enforcer/pkg/generated/informers/externalversions/api/v1alpha1"
+	internalinterfaces "github.com/neuvector/runtime-enforcer/pkg/generated/informers/externalversions/internalinterfaces"
 )
 
 // Interface provides access to each of this group's versions.

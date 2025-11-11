@@ -6,10 +6,10 @@ import (
 	context "context"
 	time "time"
 
-	runtimeenforcementapiv1alpha1 "github.com/neuvector/runtime-enforcement/api/v1alpha1"
-	versioned "github.com/neuvector/runtime-enforcement/pkg/generated/clientset/versioned"
-	internalinterfaces "github.com/neuvector/runtime-enforcement/pkg/generated/informers/externalversions/internalinterfaces"
-	apiv1alpha1 "github.com/neuvector/runtime-enforcement/pkg/generated/listers/api/v1alpha1"
+	runtimeenforcerapiv1alpha1 "github.com/neuvector/runtime-enforcer/api/v1alpha1"
+	versioned "github.com/neuvector/runtime-enforcer/pkg/generated/clientset/versioned"
+	internalinterfaces "github.com/neuvector/runtime-enforcer/pkg/generated/informers/externalversions/internalinterfaces"
+	apiv1alpha1 "github.com/neuvector/runtime-enforcer/pkg/generated/listers/api/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -67,7 +67,7 @@ func NewFilteredWorkloadSecurityPolicyInformer(client versioned.Interface, names
 				return client.SecurityV1alpha1().WorkloadSecurityPolicies(namespace).Watch(ctx, options)
 			},
 		},
-		&runtimeenforcementapiv1alpha1.WorkloadSecurityPolicy{},
+		&runtimeenforcerapiv1alpha1.WorkloadSecurityPolicy{},
 		resyncPeriod,
 		indexers,
 	)
@@ -78,7 +78,7 @@ func (f *workloadSecurityPolicyInformer) defaultInformer(client versioned.Interf
 }
 
 func (f *workloadSecurityPolicyInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&runtimeenforcementapiv1alpha1.WorkloadSecurityPolicy{}, f.defaultInformer)
+	return f.factory.InformerFor(&runtimeenforcerapiv1alpha1.WorkloadSecurityPolicy{}, f.defaultInformer)
 }
 
 func (f *workloadSecurityPolicyInformer) Lister() apiv1alpha1.WorkloadSecurityPolicyLister {

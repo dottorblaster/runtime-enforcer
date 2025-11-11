@@ -3,7 +3,7 @@
 package v1alpha1
 
 import (
-	internalinterfaces "github.com/neuvector/runtime-enforcement/pkg/generated/informers/externalversions/internalinterfaces"
+	internalinterfaces "github.com/neuvector/runtime-enforcer/pkg/generated/informers/externalversions/internalinterfaces"
 )
 
 // Interface provides access to all the informers in this group version.

@@ -28,7 +28,7 @@ CODEGEN_PKG="$GOPATH/pkg/mod/k8s.io/code-generator@$CODE_GENERATOR_VERSION"
 
 source "${CODEGEN_PKG}/kube_codegen.sh"
 
-THIS_PKG="github.com/neuvector/runtime-enforcement"
+THIS_PKG="github.com/neuvector/runtime-enforcer"
 
 kube::codegen::gen_helpers \
     --boilerplate "${SCRIPT_ROOT}/hack/boilerplate.go.txt" \
