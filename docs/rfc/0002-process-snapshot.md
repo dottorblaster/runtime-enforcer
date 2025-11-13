@@ -1,10 +1,10 @@
-|              |                                                           |
-| :----------- | :-------------------------------------------------------- |
-| Feature Name | Generate Process Snapshot using Tetragon                  |
-| Start Date   | Sep. 9, 2025                                              |
-| Category     | Learner                                                   |
-| RFC PR       | https://github.com/neuvector/runtime-enforcement/pull/193 |
-| State        | **ACCEPTED**                                              |
+|              |                                          |
+| :----------- | :--------------------------------------- |
+| Feature Name | Generate Process Snapshot using Tetragon |
+| Start Date   | Sep. 9, 2025                             |
+| Category     | Learner                                  |
+| RFC PR       |                                          |
+| State        | **ACCEPTED**                             |
 
 # Summary
 

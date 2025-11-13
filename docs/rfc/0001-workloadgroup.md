@@ -1,10 +1,10 @@
-|              |                                                          |
-| :----------- | :------------------------------------------------------- |
-| Feature Name | runtime-enforcer                                         |
-| Start Date   | Apr. 4th, 2025                                           |
-| Category     | CRDs, APIs                                               |
-| RFC PR       | https://github.com/neuvector/runtime-enforcement/pull/30 |
-| State        | **ACCEPTED**                                             |
+|              |                     |
+| :----------- | :------------------ |
+| Feature Name | runtime-enforcement |
+| Start Date   | Apr. 4th, 2025      |
+| Category     | CRDs, APIs          |
+| RFC PR       |                     |
+| State        | **ACCEPTED**        |
 
 - [Summary](#summary)
 - [Motivation](#motivation)
