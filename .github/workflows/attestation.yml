@@ -68,41 +68,43 @@ jobs:
                         | select(.annotations["in-toto.io/predicate-type"] == "https://slsa.dev/provenance/v0.2")
                         | .digest')
           echo "PROVENANCE_DIGEST=${DIGEST}" >> "$GITHUB_ENV"
-      - name: Sign provenance manifest
-        run: |
-          cosign sign --yes \
-          ghcr.io/${{github.repository_owner}}/runtime-enforcer/${{ inputs.component }}@${{ env.PROVENANCE_DIGEST}}
-          cosign verify \
-            --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
-            --certificate-identity="https://github.com/${{github.repository_owner}}/runtime-enforcer/.github/workflows/attestation.yml@${{ github.ref }}" \
-            ghcr.io/${{github.repository_owner}}/runtime-enforcer/${{ inputs.component }}@${{ env.PROVENANCE_DIGEST}}
       - name: Find SBOM manifest layer digest
         run: |
           set -e
           DIGEST=$(crane manifest ghcr.io/${{github.repository_owner}}/runtime-enforcer/${{ inputs.component }}@${{ env.ATTESTATION_MANIFEST_DIGEST}} |  \
             jq '.layers | map(select(.annotations["in-toto.io/predicate-type"] == "https://spdx.dev/Document")) | map(.digest) | join(" ")')
           echo "SBOM_DIGEST=${DIGEST}" >> "$GITHUB_ENV"
+
+      # We need to upload provenance and SBOM files, plus their signatures under the GitHub Release page.
+      # Moreover, the files have to be named in a certain way.
+      # This is required by [ossf](https://github.com/ossf/scorecard/blob/main/docs/checks.md#signed-releases)
       - name: Download provenance and SBOM files
         run: |
           set -e
           crane blob ghcr.io/${{github.repository_owner}}/runtime-enforcer/${{ inputs.component }}@${{ env.PROVENANCE_DIGEST}} \
-            > RuntimeEnforcer-${{ inputs.component }}-attestation-${{ inputs.arch }}-provenance.json
-          sha256sum RuntimeEnforcer-${{ inputs.component }}-attestation-${{ inputs.arch }}-provenance.json \
-            >> RuntimeEnforcer-${{ inputs.component }}-attestation-${{ inputs.arch }}-checksum.txt
+            > RuntimeEnforcer-${{ inputs.component }}-attestation-${{ inputs.arch }}-provenance.intoto.jsonl
           crane blob ghcr.io/${{github.repository_owner}}/runtime-enforcer/${{ inputs.component }}@${{ env.SBOM_DIGEST}} \
             > RuntimeEnforcer-${{ inputs.component }}-attestation-${{ inputs.arch }}-sbom.json
-          sha256sum RuntimeEnforcer-${{ inputs.component }}-attestation-${{ inputs.arch }}-sbom.json \
-            >> RuntimeEnforcer-${{ inputs.component }}-attestation-${{ inputs.arch }}-checksum.txt
-      - name: Sign checksum file
+      - name: Sign provenance and SBOM files
         run: |
+          set -e
           cosign sign-blob --yes \
-            --bundle RuntimeEnforcer-${{ inputs.component }}-attestation-${{ inputs.arch }}-checksum-cosign.bundle \
-            RuntimeEnforcer-${{ inputs.component }}-attestation-${{ inputs.arch }}-checksum.txt
+            --bundle RuntimeEnforcer-${{ inputs.component }}-attestation-${{ inputs.arch }}-provenance.intoto.jsonl.bundle.sigstore \
+            RuntimeEnforcer-${{ inputs.component }}-attestation-${{ inputs.arch }}-provenance.intoto.jsonl
           cosign verify-blob \
-            --bundle RuntimeEnforcer-${{ inputs.component }}-attestation-${{ inputs.arch }}-checksum-cosign.bundle \
+            --bundle RuntimeEnforcer-${{ inputs.component }}-attestation-${{ inputs.arch }}-provenance.intoto.jsonl.bundle.sigstore \
             --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
             --certificate-identity="https://github.com/${{github.repository_owner}}/runtime-enforcer/.github/workflows/attestation.yml@${{ github.ref }}" \
-            RuntimeEnforcer-${{ inputs.component }}-attestation-${{ inputs.arch }}-checksum.txt
+            RuntimeEnforcer-${{ inputs.component }}-attestation-${{ inputs.arch }}-provenance.intoto.jsonl
+
+          cosign sign-blob --yes \
+            --bundle RuntimeEnforcer-${{ inputs.component }}-attestation-${{ inputs.arch }}-sbom.json.bundle.sigstore \
+            RuntimeEnforcer-${{ inputs.component }}-attestation-${{ inputs.arch }}-sbom.json
+          cosign verify-blob \
+            --bundle RuntimeEnforcer-${{ inputs.component }}-attestation-${{ inputs.arch }}-sbom.json.bundle.sigstore \
+            --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
+            --certificate-identity="https://github.com/${{github.repository_owner}}/runtime-enforcer/.github/workflows/attestation.yml@${{ github.ref }}" \
+            RuntimeEnforcer-${{ inputs.component }}-attestation-${{ inputs.arch }}-sbom.json
       - name: Upload SBOMs as artifacts
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
