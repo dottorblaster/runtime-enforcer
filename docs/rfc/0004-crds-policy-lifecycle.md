@@ -87,6 +87,7 @@ spec:
 
 Changes compared to the current implementation:
 - The rules section has been replaced by rulesByContainer. This new field holds a map with the name of the containers as key, and the list of the container rules as value.
+- The `selector` field has been removed from the CRD. 
 
 Notes on the behavior:
 
