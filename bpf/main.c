@@ -5,6 +5,7 @@
 #include <bpf/bpf_core_read.h>
 #include <bpf/bpf_tracing.h>
 #include "load_conf.h"
+#include "debug.h"
 #include "helpers.h"
 #include "string_maps.h"
 #include "d_path_resolution.h"
