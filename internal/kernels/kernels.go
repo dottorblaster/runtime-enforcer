@@ -7,6 +7,41 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+var (
+	//nolint:gochecknoglobals // it makes sense to have a global variable for current kernel version
+	currKernelVersion int
+)
+
+//nolint:gochecknoinits // we need to initialize currKernelVersion at init time
+func init() {
+	// at init time, determine the current kernel version
+	var err error
+	currKernelVersion, err = getKernelVersionFromSystem()
+	if err != nil {
+		panic("unable to determine kernel version from system: " + err.Error())
+	}
+}
+
+func getKernelVersionFromSystem() (int, error) {
+	var uname unix.Utsname
+	if err := unix.Uname(&uname); err != nil {
+		return 0, err
+	}
+	release := strings.TrimSuffix(
+		strings.Split(unix.ByteSliceToString(uname.Release[:]), "-")[0],
+		"+")
+	return int(KernelStringToNumeric(release)), nil
+}
+
+func CurrVersionIsLowerThan(kernel string) bool {
+	intVersion := int(KernelStringToNumeric(kernel))
+	return currKernelVersion < intVersion
+}
+
+func CurrVersionIsGreaterOrEqualThan(kernel string) bool {
+	return !CurrVersionIsLowerThan(kernel)
+}
+
 func KernelStringToNumeric(ver string) int64 {
 	// vendors like to define kernel 4.14.128-foo but
 	// everything after '-' is meaningless from BPF
@@ -55,23 +90,4 @@ func KernelStringToNumeric(ver string) int64 {
 	}
 
 	return ((major << kernelVersionMajorShift) + (minor << kernelVersionMinorShift) + patch)
-}
-
-func MinKernelVersion(kernel string) bool {
-	var uname unix.Utsname
-
-	if err := unix.Uname(&uname); err != nil {
-		return true
-	}
-	// vendors like to define kernel 4.14.128-foo but
-	// everything after '-' is meaningless from BPF
-	// side so toss it out.
-	release := strings.TrimSuffix(
-		strings.Split(unix.ByteSliceToString(uname.Release[:]), "-")[0],
-		"+")
-
-	runningVersion := int(KernelStringToNumeric(release))
-	minVersion := int(KernelStringToNumeric(kernel))
-
-	return minVersion <= runningVersion
 }

@@ -85,12 +85,10 @@ func stringPaddedLen(s int) int {
 		}
 		return paddedLen
 	}
-	// The '-2' is to reduce the key size to the key string size -
-	// the key includes a string length that is 2 bytes long.
 	if s <= stringMapSize6 {
 		return stringMapSize6
 	}
-	if kernels.MinKernelVersion("5.11") {
+	if kernels.CurrVersionIsGreaterOrEqualThan("5.11") {
 		if s <= stringMapSize7 {
 			return stringMapSize7
 		}
@@ -121,16 +119,18 @@ func argStringSelectorValue(v string, removeNul bool) ([MaxStringMapsSize]byte, 
 	}
 
 	switch {
-	case kernels.MinKernelVersion("5.11"):
-		if s > MaxStringMapsSize {
-			return ret, 0, errors.New("string is too long")
-		}
-	case kernels.MinKernelVersion("5.4"):
+	// this is for now the lowest supported kernel version (5.8 for the BPF ring buff usage)
+	case kernels.CurrVersionIsLowerThan("5.8"):
+		return ret, 0, errors.New("unsupported kernel version")
+	case kernels.CurrVersionIsLowerThan("5.11"):
+		// Until 5.11 we have max size of 512
 		if s > stringMapSize7 {
 			return ret, 0, errors.New("string is too long")
 		}
 	default:
-		return ret, 0, errors.New("unsupported kernel version")
+		if s > MaxStringMapsSize {
+			return ret, 0, errors.New("string is too long")
+		}
 	}
 	// Calculate length of string padded to next multiple of key increment size
 	paddedLen := stringPaddedLen(s)
@@ -139,31 +139,79 @@ func argStringSelectorValue(v string, removeNul bool) ([MaxStringMapsSize]byte, 
 	return ret, paddedLen, nil
 }
 
+func putValueInMap(m SelectorStringMaps, v string) error {
+	value, size, err := argStringSelectorValue(v, false)
+	if err != nil {
+		return fmt.Errorf("value %s invalid: %w", v, err)
+	}
+
+	// Here we are sure the size matches one of the supported map sizes for the current kernel version
+	for sizeIdx := range StringMapsNumSubMaps {
+		if size == stringMapsSizes[sizeIdx] {
+			m[sizeIdx][value] = struct{}{}
+			return nil
+		}
+	}
+	// if we arrive here it means that no map was found for the given size this is an error
+	return fmt.Errorf("value %s has unsupported padded size %d", v, size)
+}
+
 func convertValuesToMaps(values []string) (SelectorStringMaps, error) {
 	maps := createStringMaps()
 	for _, v := range values {
-		value, size, err := argStringSelectorValue(v, false)
-		if err != nil {
-			return maps, fmt.Errorf("value %s invalid: %w", v, err)
-		}
-		numSubMaps := StringMapsNumSubMaps
-		if !kernels.MinKernelVersion("5.11") {
-			numSubMaps = StringMapsNumSubMapsSmall
-		}
-
-		for sizeIdx := range numSubMaps {
-			stringMapSize := stringMapsSizes[sizeIdx]
-			if sizeIdx == 7 && !kernels.MinKernelVersion("5.11") {
-				stringMapSize = stringMapSize7
-			}
-
-			if size == stringMapSize {
-				maps[sizeIdx][value] = struct{}{}
-				break
-			}
+		if err := putValueInMap(maps, v); err != nil {
+			return maps, err
 		}
 	}
 	return maps, nil
+}
+
+func (m *Manager) generateInnerBPFMaps(policyID uint64,
+	index int, isPre5_9 bool, subMap map[[MaxStringMapsSize]byte]struct{}) error {
+	mapKeySize := stringMapsSizes[index]
+	name := fmt.Sprintf("p_%d_str_map_%d", policyID, index)
+	innerSpec := &ebpf.MapSpec{
+		Name:       name,
+		Type:       ebpf.Hash,
+		KeySize:    uint32(mapKeySize), //nolint:gosec // mapKeySize cannot be larger than math.MaxUint32
+		ValueSize:  uint32(1),
+		MaxEntries: uint32(len(subMap)), //nolint:gosec // len(...) cannot be larger than math.MaxUint32
+	}
+
+	// Versions before 5.9 do not allow inner maps to have different sizes.
+	// See: https://lore.kernel.org/bpf/20200828011800.1970018-1-kafai@fb.com/
+	if isPre5_9 {
+		innerSpec.Flags = uint32(BPFFNoPrealloc)
+		innerSpec.MaxEntries = uint32(fixedMaxEntriesPre5_9)
+	}
+
+	inner, err := ebpf.NewMap(innerSpec)
+	if err != nil {
+		return fmt.Errorf("failed to create inner_map: %w", err)
+	}
+	defer inner.Close()
+
+	// update values
+	// todo: ideally we should rollback if any of these fail
+	one := uint8(1)
+	for rawVal := range subMap {
+		val := rawVal[:mapKeySize]
+		err = inner.Update(val, one, 0)
+		if err != nil {
+			return fmt.Errorf("failed to insert value into %s: %w", name, err)
+		}
+	}
+
+	err = m.policyStringMaps[index].Update(policyID, inner, ebpf.UpdateNoExist)
+	if err != nil && errors.Is(err, ebpf.ErrKeyExist) {
+		m.logger.Warn("inner policy map entry already exists, retrying update", "map", name, "policyID", policyID)
+		err = m.policyStringMaps[index].Update(policyID, inner, 0)
+	}
+	if err != nil {
+		return fmt.Errorf("failed to insert inner policy (id=%d) map: %w", policyID, err)
+	}
+	m.logger.Info("handler: add new inner map inside policy str", "name", name)
+	return nil
 }
 
 func (m *Manager) generateBPFMaps(policyID uint64, values []string) error {
@@ -172,64 +220,16 @@ func (m *Manager) generateBPFMaps(policyID uint64, values []string) error {
 		return err
 	}
 
-	preKernelVersion5_9 := !kernels.MinKernelVersion("5.9")
-	preKernelVersion5_11 := !kernels.MinKernelVersion("5.11")
-
-	// todo!: here we can probably use the number of maps that the manager successfully loaded, so that we avoid all the kernel version checks again
+	isPre5_9 := kernels.CurrVersionIsLowerThan("5.9")
 	for i := range subMaps {
 		// if the subMap is empty we skip it
 		if len(subMaps[i]) == 0 {
 			continue
 		}
 
-		mapKeySize := stringMapsSizes[i]
-		if i == 7 && preKernelVersion5_11 {
-			mapKeySize = stringMapSize7
+		if err = m.generateInnerBPFMaps(policyID, i, isPre5_9, subMaps[i]); err != nil {
+			return err
 		}
-
-		name := fmt.Sprintf("p_%d_str_map_%d", policyID, i)
-		innerSpec := &ebpf.MapSpec{
-			Name:       name,
-			Type:       ebpf.Hash,
-			KeySize:    uint32(mapKeySize), //nolint:gosec // mapKeySize cannot be larger than math.MaxUint32
-			ValueSize:  uint32(1),
-			MaxEntries: uint32(len(subMaps[i])), //nolint:gosec // len(...) cannot be larger than math.MaxUint32
-		}
-
-		// Versions before 5.9 do not allow inner maps to have different sizes.
-		// See: https://lore.kernel.org/bpf/20200828011800.1970018-1-kafai@fb.com/
-		if preKernelVersion5_9 {
-			innerSpec.Flags = uint32(BPFFNoPrealloc)
-			innerSpec.MaxEntries = uint32(fixedMaxEntriesPre5_9)
-		}
-
-		var inner *ebpf.Map
-		inner, err = ebpf.NewMap(innerSpec)
-		if err != nil {
-			return fmt.Errorf("failed to create inner_map: %w", err)
-		}
-
-		// update values
-		// todo: ideally we should rollback if any of these fail
-		one := uint8(1)
-		for rawVal := range subMaps[i] {
-			val := rawVal[:mapKeySize]
-			err = inner.Update(val, one, 0)
-			if err != nil {
-				return fmt.Errorf("failed to insert value into %s: %w", name, err)
-			}
-		}
-
-		err = m.policyStringMaps[i].Update(policyID, inner, ebpf.UpdateNoExist)
-		if err != nil && errors.Is(err, ebpf.ErrKeyExist) {
-			m.logger.Warn("inner policy map entry already exists, retrying update", "map", name, "policyID", policyID)
-			err = m.policyStringMaps[i].Update(policyID, inner, 0)
-		}
-		_ = inner.Close()
-		if err != nil {
-			return fmt.Errorf("failed to insert inner policy (id=%d) map: %w", policyID, err)
-		}
-		m.logger.Info("handler: add new inner map inside policy str", "name", name)
 	}
 	return nil
 }
