@@ -110,7 +110,7 @@ lint-config: golangci-lint ## Verify golangci-lint linter configuration
 ##@ Build
 
 .PHONY: operator
-operator: fmt vet ## Build manager binary.
+operator: fmt ## Build manager binary.
 	CGO_ENABLED=0 GOOS=linux go build -o bin/operator ./cmd/operator
 
 .PHONY: test-bpf
@@ -118,7 +118,7 @@ test-bpf: generate-ebpf ## Run bpf tests.
 	go test -v ./internal/bpf -count=1 -exec "sudo -E"
 
 .PHONY: daemon
-daemon: generate-ebpf fmt vet ## Build daemon binary.
+daemon: generate-ebpf fmt ## Build daemon binary.
 	CGO_ENABLED=0 GOOS=linux go build -o bin/daemon ./cmd/daemon
 
 .PHONY: run
