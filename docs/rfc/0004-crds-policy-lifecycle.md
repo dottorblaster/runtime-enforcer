@@ -140,12 +140,7 @@ Notes on the behavior:
 ## Binding a WorkloadPolicy
 A workload is protected by a WorkloadPolicy the usage of a unique label `security.rancher.io/policy: <policy-name>`.
 
-When the label is applied, a rollout could be triggered as follows:
-
-- Basic user -> use default k8s workload selectors -> everything works out of the box, no rollout required.
-- Advanced user (real production scenario) -> enforce a unique label on workloads and use this label as a selector -> a rollout could be required if the workload was initially created without the label
-
-Since the label is mandatory, we can rely on it to understand if a workload is covered by a policy or not. 
+Since the label is mandatory, we can rely on it to understand if a workload is covered by a policy or not.  A rollout could be required if the workload was initially created without the label.
 
 ## Using the ImagePolicy to inherit rules from pre-made templates
 
