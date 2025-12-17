@@ -19,7 +19,7 @@ Runtime enforcer supports Tilt to run development environment in your local.
 1. Install [kubectl](https://kubernetes.io/docs/reference/kubectl/) and [helm](https://helm.sh/).
 2. Install [tilt](https://docs.tilt.dev/install.html).
 3. Install [libbpf](https://github.com/libbpf/libbpf), so you can build ebpf programs at your local.
-4. Create `tilt-settings.yaml` based on `tilt-settings.yaml.example`. You should use 
+4. Create `tilt-settings.yaml` based on `tilt-settings.yaml.example`.
 5. Run `tilt up`.  Related resources should be built and deployed.
 
 
