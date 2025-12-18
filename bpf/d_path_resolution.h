@@ -4,16 +4,19 @@
 // kernel's max dentry name length that is 255
 // (https://elixir.bootlin.com/linux/v5.10/source/include/uapi/linux/limits.h#L12) + 1 for the `/`
 #define MAX_COMPONENT_LEN 256
-// Max iterations when unrolling loops
-#define UNROLL_PATH_ITERATIONS 128
-// Max iterations when looping paths
-#define LOOP_PATH_ITERATIONS 2048
+// Max iterations when looping paths, we can reach at least 1024 but the verification time
+// increases, so for now we keep it conservative, and moreover 512 should be more than enough.
+#define FALLBACK_PATH_ITERATIONS 512
+// With numeric code iterators we have no limits.
+#define PATH_ITERATIONS 2048
 
 #define DELETED_STRING " (deleted)"
 
 #define SAFE_PATH_LEN(x) (x) & (MAX_PATH_LEN - 1)
 #define SAFE_PATH_ACCESS(x) (x) & (MAX_PATH_LEN * 2 - 1)
 #define SAFE_COMPONENT_ACCESS(x) (x) & (MAX_COMPONENT_LEN - 1)
+
+extern int bpf_iter_num_new(struct bpf_iter_num *it, int start, int end) __ksym __weak;
 
 struct path_read_data {
 	struct dentry *root_dentry;
@@ -93,10 +96,6 @@ static __always_inline long path_read(struct path_read_data *data) {
 	return 0;
 }
 
-static long path_read_loop(__u32 index, void *data) {
-	return path_read(data);
-}
-
 // this method is inspired by Tetragon https://github.com/cilium/tetragon/pull/90
 // but simplified and reworked in light of our specific use case
 static __always_inline int bpf_d_path_approx(const struct path *path, char *buf) {
@@ -134,11 +133,25 @@ static __always_inline int bpf_d_path_approx(const struct path *path, char *buf)
 	        struct mount,
 	        mnt);  // container_of comes from bpf_helpers.h and it is already adapted for CO-RE
 
-	if(bpf_core_enum_value_exists(enum bpf_func_id, BPF_FUNC_loop)) {
-		bpf_loop(LOOP_PATH_ITERATIONS, path_read_loop, (void *)&data, 0);
+	if(bpf_ksym_exists(bpf_iter_num_new)) {
+		// Numeric code iterators are available from kernel 6.4
+		// (https://docs.ebpf.io/linux/kfuncs/bpf_iter_num_new/) so we check if the kfunc is
+		// available.
+		// `bpf_repeat` is a macro defined by libbpf that uses `bpf_iter_num_new` under
+		// the hood.
+		// The initial implementation used `bpf_loop`, but this is not so handy to use with CO-RE,
+		// you can find more info here
+		// https://lore.kernel.org/bpf/CAGQdkDt9zyQwr5JyftXqL=OLKscNcqUtEteY4hvOkx2S4GdEkQ@mail.gmail.com/T/#u
+		// and here https://github.com/falcosecurity/libs/pull/2027#issuecomment-2568997393
+		// TL;DR; we need 2 ebpf programs, one with `bpf_loop` on kernels >= 5.13 and another
+		// without it on older kernels.
+		bpf_repeat(PATH_ITERATIONS) {
+			if(path_read(&data)) {
+				break;
+			}
+		}
 	} else {
-#pragma unroll
-		for(int i = 0; i < UNROLL_PATH_ITERATIONS; ++i) {
+		for(int i = 0; i < FALLBACK_PATH_ITERATIONS; ++i) {
 			if(path_read(&data)) {
 				break;
 			}
