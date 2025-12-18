@@ -24,6 +24,7 @@ extern int LINUX_KERNEL_VERSION __kconfig;
 struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
 	__uint(max_entries, TRACKER_MAP_MAX_ENTRIES);
+	__uint(map_flags, BPF_F_NO_PREALLOC);
 	__type(key, __u64);   /* cgroup id */
 	__type(value, __u64); /* tracker cgroup id */
 } cgtracker_map SEC(".maps");
