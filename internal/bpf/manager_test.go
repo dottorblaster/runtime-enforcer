@@ -277,3 +277,18 @@ func TestMonitorProtectMode(t *testing.T) {
 	err = manager.findEventInChannel(monitoringChannel, cgInfo.id, command)
 	require.NoError(t, err, "Failed to find event for allowed binary")
 }
+
+func TestMultiplePolicies(t *testing.T) {
+	enableLearning := false
+	manager, cleanup := startManager(t, enableLearning)
+	defer cleanup()
+
+	mockPolicyID1 := uint64(42)
+	err := manager.GetPolicyValuesUpdateFunc()(mockPolicyID1, []string{"/usr/bin/true"}, AddValuesToPolicy)
+	require.NoError(t, err, "Failed to add policy 1 values")
+
+	// Check if max entries for string maps is really greater than 1
+	mockPolicyID2 := uint64(43)
+	err = manager.GetPolicyValuesUpdateFunc()(mockPolicyID2, []string{"/usr/bin/who"}, AddValuesToPolicy)
+	require.NoError(t, err, "Failed to add policy 2 values")
+}

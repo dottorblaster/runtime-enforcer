@@ -1,6 +1,7 @@
 #pragma once
 
-#define POLICY_STR_OUTER_MAX_ENTRIES 1
+// we will decrese the number of entries in userspace if the map is not used (<5.11)
+#define POLICY_STR_OUTER_MAX_ENTRIES 65536
 #define POLICY_STR_INNER_MAX_ENTRIES 1
 
 /* Taken and adapted from https://github.com/cilium/tetragon/pull/1408
