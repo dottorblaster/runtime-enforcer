@@ -2,23 +2,23 @@
 
 package v1alpha1
 
-// WorkloadSecurityPolicyExecutablesApplyConfiguration represents a declarative configuration of the WorkloadSecurityPolicyExecutables type for use
+// WorkloadPolicyExecutablesApplyConfiguration represents a declarative configuration of the WorkloadPolicyExecutables type for use
 // with apply.
-type WorkloadSecurityPolicyExecutablesApplyConfiguration struct {
+type WorkloadPolicyExecutablesApplyConfiguration struct {
 	Allowed         []string `json:"allowed,omitempty"`
 	AllowedPrefixes []string `json:"allowedPrefixes,omitempty"`
 }
 
-// WorkloadSecurityPolicyExecutablesApplyConfiguration constructs a declarative configuration of the WorkloadSecurityPolicyExecutables type for use with
+// WorkloadPolicyExecutablesApplyConfiguration constructs a declarative configuration of the WorkloadPolicyExecutables type for use with
 // apply.
-func WorkloadSecurityPolicyExecutables() *WorkloadSecurityPolicyExecutablesApplyConfiguration {
-	return &WorkloadSecurityPolicyExecutablesApplyConfiguration{}
+func WorkloadPolicyExecutables() *WorkloadPolicyExecutablesApplyConfiguration {
+	return &WorkloadPolicyExecutablesApplyConfiguration{}
 }
 
 // WithAllowed adds the given value to the Allowed field in the declarative configuration
 // and returns the receiver, so that objects can be build by chaining "With" function invocations.
 // If called multiple times, values provided by each call will be appended to the Allowed field.
-func (b *WorkloadSecurityPolicyExecutablesApplyConfiguration) WithAllowed(values ...string) *WorkloadSecurityPolicyExecutablesApplyConfiguration {
+func (b *WorkloadPolicyExecutablesApplyConfiguration) WithAllowed(values ...string) *WorkloadPolicyExecutablesApplyConfiguration {
 	for i := range values {
 		b.Allowed = append(b.Allowed, values[i])
 	}
@@ -28,7 +28,7 @@ func (b *WorkloadSecurityPolicyExecutablesApplyConfiguration) WithAllowed(values
 // WithAllowedPrefixes adds the given value to the AllowedPrefixes field in the declarative configuration
 // and returns the receiver, so that objects can be build by chaining "With" function invocations.
 // If called multiple times, values provided by each call will be appended to the AllowedPrefixes field.
-func (b *WorkloadSecurityPolicyExecutablesApplyConfiguration) WithAllowedPrefixes(values ...string) *WorkloadSecurityPolicyExecutablesApplyConfiguration {
+func (b *WorkloadPolicyExecutablesApplyConfiguration) WithAllowedPrefixes(values ...string) *WorkloadPolicyExecutablesApplyConfiguration {
 	for i := range values {
 		b.AllowedPrefixes = append(b.AllowedPrefixes, values[i])
 	}

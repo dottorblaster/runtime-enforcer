@@ -125,7 +125,7 @@ func verifyExpectedResult(
 	}
 }
 
-func createWorkloadSecurityPolicy(ctx context.Context, t *testing.T, policy *v1alpha1.WorkloadSecurityPolicy) {
+func createWorkloadPolicy(ctx context.Context, t *testing.T, policy *v1alpha1.WorkloadPolicy) {
 	r := ctx.Value(key("client")).(*resources.Resources)
 
 	// 1. Create the resource and wait for the status to be updated
@@ -136,11 +136,11 @@ func createWorkloadSecurityPolicy(ctx context.Context, t *testing.T, policy *v1a
 	time.Sleep(5 * time.Second)
 }
 
-func deleteWorkloadSecurityPolicy(ctx context.Context, t *testing.T, policy *v1alpha1.WorkloadSecurityPolicy) {
+func deleteWorkloadPolicy(ctx context.Context, t *testing.T, policy *v1alpha1.WorkloadPolicy) {
 	var err error
 	r := ctx.Value(key("client")).(*resources.Resources)
 
-	// Delete WorkloadSecurityPolicy
+	// Delete WorkloadPolicy
 	err = r.Delete(ctx, policy)
 	require.NoError(t, err)
 }
@@ -269,21 +269,23 @@ func getMonitoringTest() types.Feature {
 				t.Log("create a security policy")
 				namespace := ctx.Value(key("namespace")).(string)
 
-				policy := &v1alpha1.WorkloadSecurityPolicy{
+				policy := &v1alpha1.WorkloadPolicy{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test-policy",
 						Namespace: namespace,
 					},
-					Spec: v1alpha1.WorkloadSecurityPolicySpec{
+					Spec: v1alpha1.WorkloadPolicySpec{
 						Mode: "monitor",
-						Rules: v1alpha1.WorkloadSecurityPolicyRules{
-							Executables: v1alpha1.WorkloadSecurityPolicyExecutables{
-								Allowed: []string{
-									"/usr/bin/ls",
-									"/usr/bin/bash",
-									"/usr/bin/sleep",
+						RulesByContainer: map[string]*v1alpha1.WorkloadPolicyRules{
+							"ubuntu": &v1alpha1.WorkloadPolicyRules{
+								Executables: v1alpha1.WorkloadPolicyExecutables{
+									Allowed: []string{
+										"/usr/bin/ls",
+										"/usr/bin/bash",
+										"/usr/bin/sleep",
+									},
+									AllowedPrefixes: []string{},
 								},
-								AllowedPrefixes: []string{},
 							},
 						},
 						Severity: 9,
@@ -314,11 +316,11 @@ func getMonitoringTest() types.Feature {
 					},
 				}
 
-				createWorkloadSecurityPolicy(ctx, t, policy.DeepCopy())
+				createWorkloadPolicy(ctx, t, policy.DeepCopy())
 				for _, tc := range testcases {
 					runMonitoringTestCase(ctx, t, tc)
 				}
-				deleteWorkloadSecurityPolicy(ctx, t, policy.DeepCopy())
+				deleteWorkloadPolicy(ctx, t, policy.DeepCopy())
 
 				return ctx
 			}).

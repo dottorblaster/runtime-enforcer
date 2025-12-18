@@ -59,7 +59,7 @@ func getPromotionTest() types.Feature {
 			func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
 				r := ctx.Value(key("client")).(*resources.Resources)
 
-				proposal := v1alpha1.WorkloadSecurityPolicyProposal{
+				proposal := v1alpha1.WorkloadPolicyProposal{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "deploy-ubuntu-deployment",
 						Namespace: workloadNamespace, // to be consistent with test data.
@@ -68,7 +68,7 @@ func getPromotionTest() types.Feature {
 				err := wait.For(conditions.New(r).ResourceMatch(
 					&proposal,
 					func(object k8s.Object) bool {
-						obj := object.(*v1alpha1.WorkloadSecurityPolicyProposal)
+						obj := object.(*v1alpha1.WorkloadPolicyProposal)
 						if obj.OwnerReferences[0].Name == "ubuntu-deployment" &&
 							obj.OwnerReferences[0].Kind == "Deployment" {
 							return true
@@ -88,7 +88,7 @@ func getPromotionTest() types.Feature {
 
 				t.Log("waiting for security policy proposal to be created: ", id)
 
-				proposal := v1alpha1.WorkloadSecurityPolicyProposal{
+				proposal := v1alpha1.WorkloadPolicyProposal{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      id,
 						Namespace: workloadNamespace, // to be consistent with test data.
@@ -103,7 +103,13 @@ func getPromotionTest() types.Feature {
 				err := wait.For(conditions.New(r).ResourceMatch(
 					&proposal,
 					func(_ k8s.Object) bool {
-						return verifyUbuntuLearnedProcesses(proposal.Spec.Rules.Executables.Allowed)
+						rules, ok := proposal.Spec.RulesByContainer["ubuntu"]
+
+						if !ok {
+							return false
+						}
+
+						return verifyUbuntuLearnedProcesses(rules.Executables.Allowed)
 					}),
 					wait.WithTimeout(DefaultOperationTimeout),
 				)
@@ -116,7 +122,7 @@ func getPromotionTest() types.Feature {
 				t.Log("create a security policy")
 
 				r := ctx.Value(key("client")).(*resources.Resources)
-				proposal := ctx.Value(key("proposal")).(*v1alpha1.WorkloadSecurityPolicyProposal)
+				proposal := ctx.Value(key("proposal")).(*v1alpha1.WorkloadPolicyProposal)
 
 				t.Log("applying the label to the policy proposal: ", proposal.Name, v1alpha1.ApprovalLabelKey)
 
@@ -133,17 +139,19 @@ func getPromotionTest() types.Feature {
 
 				t.Log("waiting for the policy to be created: ", proposal.Name)
 
-				policy := v1alpha1.WorkloadSecurityPolicy{
+				policy := v1alpha1.WorkloadPolicy{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      proposal.ObjectMeta.Name,
 						Namespace: proposal.ObjectMeta.Namespace,
 					},
-					Spec: v1alpha1.WorkloadSecurityPolicySpec{
+					Spec: v1alpha1.WorkloadPolicySpec{
 						Mode: "monitor",
-						Rules: v1alpha1.WorkloadSecurityPolicyRules{
-							Executables: v1alpha1.WorkloadSecurityPolicyExecutables{
-								Allowed:         proposal.Spec.Rules.Executables.Allowed,
-								AllowedPrefixes: proposal.Spec.Rules.Executables.AllowedPrefixes,
+						RulesByContainer: map[string]*v1alpha1.WorkloadPolicyRules{
+							"ubuntu": &v1alpha1.WorkloadPolicyRules{
+								Executables: v1alpha1.WorkloadPolicyExecutables{
+									Allowed:         proposal.Spec.RulesByContainer["ubuntu"].Executables.Allowed,
+									AllowedPrefixes: proposal.Spec.RulesByContainer["ubuntu"].Executables.AllowedPrefixes,
+								},
 							},
 						},
 						Severity: 10,
@@ -184,8 +192,8 @@ func getPromotionTest() types.Feature {
 			}).
 		Assess("delete security policy", func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
 			r := ctx.Value(key("client")).(*resources.Resources)
-			policy := ctx.Value(key("policy")).(*v1alpha1.WorkloadSecurityPolicy)
-			proposal := ctx.Value(key("proposal")).(*v1alpha1.WorkloadSecurityPolicyProposal)
+			policy := ctx.Value(key("policy")).(*v1alpha1.WorkloadPolicy)
+			proposal := ctx.Value(key("proposal")).(*v1alpha1.WorkloadPolicyProposal)
 
 			err := r.Delete(ctx, proposal)
 			require.NoError(t, err)

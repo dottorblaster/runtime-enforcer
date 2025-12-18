@@ -37,7 +37,7 @@ type Config struct {
 	enableLearning    bool
 }
 
-// +kubebuilder:rbac:groups=security.rancher.io,resources=workloadsecuritypolicies,verbs=get;list;watch
+// +kubebuilder:rbac:groups=security.rancher.io,resources=workloadpolicies,verbs=get;list;watch
 // used by the resolver
 // +kubebuilder:rbac:groups="",resources=pods;nodes,verbs=get;list;watch
 
@@ -154,9 +154,9 @@ func startDaemon(ctx context.Context, logger *slog.Logger, enableLearning bool) 
 	//////////////////////
 	// Setup Policy Generator with the workload informer
 	//////////////////////
-	workloadPolicyInformer, err := ctrlMgr.GetCache().GetInformer(ctx, &securityv1alpha1.WorkloadSecurityPolicy{})
+	workloadPolicyInformer, err := ctrlMgr.GetCache().GetInformer(ctx, &securityv1alpha1.WorkloadPolicy{})
 	if err != nil {
-		return fmt.Errorf("cannot get workload security policy informer: %w", err)
+		return fmt.Errorf("cannot get workload policy informer: %w", err)
 	}
 	policygenerator.SetupPolicyGenerator(
 		logger,

@@ -8,8 +8,13 @@ import (
 	"github.com/neuvector/runtime-enforcer/internal/bpf"
 	"github.com/neuvector/runtime-enforcer/internal/resolver"
 	"github.com/neuvector/runtime-enforcer/internal/types/policymode"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
 	cmCache "sigs.k8s.io/controller-runtime/pkg/cache"
+)
+
+const (
+	policyLabelKey = "security.rancher.io/policy"
 )
 
 type policyID = uint64
@@ -20,7 +25,7 @@ type PolicyGenerator struct {
 	nextPolicyID         policyID
 	policyValuesFunc     func(policyID uint64, values []string, op bpf.PolicyValuesOperation) error
 	policyModeUpdateFunc func(policyID uint64, mode policymode.Mode, op bpf.PolicyModeOperation) error
-	wpState              map[string]policyID
+	wpState              map[string]map[string]policyID
 }
 
 func SetupPolicyGenerator(
@@ -35,7 +40,7 @@ func SetupPolicyGenerator(
 		resolver:             resolver,
 		nextPolicyID:         1,
 		policyValuesFunc:     policyValuesFunc,
-		wpState:              make(map[string]policyID),
+		wpState:              make(map[string]map[string]policyID),
 		policyModeUpdateFunc: policyModeUpdateFunc,
 	}
 	// We deliberately ignore the returned cache.ResourceEventHandlerRegistration and error here because
@@ -45,13 +50,13 @@ func SetupPolicyGenerator(
 }
 
 func (p *PolicyGenerator) allocPolicyID() policyID {
-	ret := p.nextPolicyID
+	id := p.nextPolicyID
 	p.nextPolicyID++
-	return ret
+	return id
 }
 
-func resourceCheck(logger *slog.Logger, prefix string, obj interface{}) *securityv1alpha1.WorkloadSecurityPolicy {
-	wp, ok := obj.(*securityv1alpha1.WorkloadSecurityPolicy)
+func resourceCheck(logger *slog.Logger, prefix string, obj interface{}) *securityv1alpha1.WorkloadPolicy {
+	wp, ok := obj.(*securityv1alpha1.WorkloadPolicy)
 	if !ok {
 		logger.Error("unexpected object type", "method", prefix, "object", obj)
 		return nil
@@ -59,7 +64,7 @@ func resourceCheck(logger *slog.Logger, prefix string, obj interface{}) *securit
 	return wp
 }
 
-func (p *PolicyGenerator) addPolicy(wp *securityv1alpha1.WorkloadSecurityPolicy) error {
+func (p *PolicyGenerator) addPolicy(wp *securityv1alpha1.WorkloadPolicy) error {
 	p.logger.Info(
 		"handler called",
 		"method", "add-policy",
@@ -70,31 +75,52 @@ func (p *PolicyGenerator) addPolicy(wp *securityv1alpha1.WorkloadSecurityPolicy)
 	if _, exists := p.wpState[wpKey]; exists {
 		return fmt.Errorf("workload policy already exists in internal state: %s", wpKey)
 	}
-	polID := p.allocPolicyID()
-	p.logger.Info("create policy", "id", polID, "wp", wpKey)
 
-	// Populate policy values
-	if err := p.policyValuesFunc(polID, wp.Spec.Rules.Executables.Allowed, bpf.AddValuesToPolicy); err != nil {
-		return fmt.Errorf("failed to populate policy values for wp %s: %w", wpKey, err)
+	p.wpState[wpKey] = make(map[string]policyID, len(wp.Spec.RulesByContainer))
+
+	for containerName, containerRules := range wp.Spec.RulesByContainer {
+		polID := p.allocPolicyID()
+		p.logger.Info("create policy", "id", polID, "wp", wpKey)
+
+		// Populate policy values
+		if err := p.policyValuesFunc(polID, containerRules.Executables.Allowed, bpf.AddValuesToPolicy); err != nil {
+			return fmt.Errorf("failed to populate policy values for wp %s, container %s: %w", wpKey, containerName, err)
+		}
+
+		// Set policy mode
+		mode := policymode.ParseMode(wp.Spec.Mode)
+		if err := p.policyModeUpdateFunc(polID, mode, bpf.UpdateMode); err != nil {
+			return fmt.Errorf("failed to set policy mode '%s' for wp %s, container %s: %w",
+				mode.String(), wpKey, containerName, err)
+		}
+
+		// update the map with the policy ID
+		p.wpState[wpKey][containerName] = polID
+
+		containerSelector := &metav1.LabelSelector{
+			MatchExpressions: []metav1.LabelSelectorRequirement{
+				{
+					Key:      "name",
+					Operator: metav1.LabelSelectorOpIn,
+					Values:   []string{containerName},
+				},
+			},
+		}
+		podSelector := &metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				policyLabelKey: wp.Name,
+			},
+		}
+
+		if err := p.resolver.AddPolicy(polID, wp.Namespace, podSelector, containerSelector); err != nil {
+			return fmt.Errorf("failed to add policy to resolver for wp %s, container %s: %w", wpKey, containerName, err)
+		}
 	}
 
-	// Set policy mode
-	mode := policymode.ParseMode(wp.Spec.Mode)
-	if err := p.policyModeUpdateFunc(polID, mode, bpf.UpdateMode); err != nil {
-		return fmt.Errorf("failed to set policy mode '%s' for wp %s: %w",
-			mode.String(), wpKey, err)
-	}
-
-	// update the map with the policy ID
-	p.wpState[wpKey] = polID
-
-	if err := p.resolver.AddPolicy(polID, wp.Namespace, wp.Spec.Selector, nil); err != nil {
-		return fmt.Errorf("failed to add policy to resolver for wp %s: %w", wpKey, err)
-	}
 	return nil
 }
 
-func (p *PolicyGenerator) updatePolicy(oldWp, newWp *securityv1alpha1.WorkloadSecurityPolicy) error {
+func (p *PolicyGenerator) updatePolicy(oldWp, newWp *securityv1alpha1.WorkloadPolicy) error {
 	p.logger.Info(
 		"handler called",
 		"method", "update-policy",
@@ -116,20 +142,23 @@ func (p *PolicyGenerator) updatePolicy(oldWp, newWp *securityv1alpha1.WorkloadSe
 	)
 
 	wpKey := newWp.Namespace + "/" + newWp.Name
-	polID, exists := p.wpState[wpKey]
+	state, exists := p.wpState[wpKey]
 	if !exists {
 		return fmt.Errorf("workload policy does not exist in internal state: %s", wpKey)
 	}
 
 	mode := policymode.ParseMode(newWp.Spec.Mode)
-	if err := p.policyModeUpdateFunc(polID, mode, bpf.UpdateMode); err != nil {
-		return fmt.Errorf("failed to set policy mode '%s' for wp %s: %w",
-			mode.String(), newWp.Name, err)
+
+	for containerName, policyID := range state {
+		if err := p.policyModeUpdateFunc(policyID, mode, bpf.UpdateMode); err != nil {
+			return fmt.Errorf("failed to set policy mode '%s' for wp %s, container %s: %w",
+				mode.String(), newWp.Name, containerName, err)
+		}
 	}
 	return nil
 }
 
-func (p *PolicyGenerator) deletePolicy(wp *securityv1alpha1.WorkloadSecurityPolicy) error {
+func (p *PolicyGenerator) deletePolicy(wp *securityv1alpha1.WorkloadPolicy) error {
 	p.logger.Info(
 		"handler called",
 		"method", "delete",
@@ -138,24 +167,28 @@ func (p *PolicyGenerator) deletePolicy(wp *securityv1alpha1.WorkloadSecurityPoli
 	)
 
 	wpKey := wp.Namespace + "/" + wp.Name
-	polID, exists := p.wpState[wpKey]
+	state, exists := p.wpState[wpKey]
 	if !exists {
 		return fmt.Errorf("workload policy does not exist in internal state: %s", wpKey)
 	}
 	delete(p.wpState, wpKey)
 
-	if err := p.policyValuesFunc(polID, []string{}, bpf.RemoveValuesFromPolicy); err != nil {
-		return fmt.Errorf("failed to remove policy values for wp %s: %w", wpKey, err)
+	for containerName, policyID := range state {
+		if err := p.policyValuesFunc(policyID, []string{}, bpf.RemoveValuesFromPolicy); err != nil {
+			return fmt.Errorf("failed to remove policy values for wp %s, container %s: %w", wpKey, containerName, err)
+		}
+
+		if err := p.policyModeUpdateFunc(policyID, 0, bpf.DeleteMode); err != nil {
+			return fmt.Errorf("failed to remove policy from policy mode map for wp %s, container %s: %w",
+				wpKey, containerName, err)
+		}
+
+		if err := p.resolver.DeletePolicy(policyID); err != nil {
+			return fmt.Errorf("failed to remove policy from cgroup map for wp %s, container %s: %w",
+				wpKey, containerName, err)
+		}
 	}
 
-	if err := p.policyModeUpdateFunc(polID, 0, bpf.DeleteMode); err != nil {
-		return fmt.Errorf("failed to remove policy from policy mode map for wp %s: %w",
-			wpKey, err)
-	}
-
-	if err := p.resolver.DeletePolicy(polID); err != nil {
-		return fmt.Errorf("failed to remove policy from cgroup map for wp %s: %w", wpKey, err)
-	}
 	return nil
 }
 

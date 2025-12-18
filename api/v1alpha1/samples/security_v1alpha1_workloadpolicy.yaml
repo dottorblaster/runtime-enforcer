@@ -1,8 +1,9 @@
 apiVersion: security.rancher.io/v1alpha1
-kind: WorkloadSecurityPolicyProposal
+kind: WorkloadPolicy
 metadata:
-  name: workloadsecuritypolicyproposal-sample
+  name: workloadpolicy-sample
 spec:
+  mode: monitor # monitor/protect
   selector:
     matchLabels:
       app.kubernetes.io/component: controller
@@ -14,3 +15,6 @@ spec:
         - /nginx-ingress-controller
       allowedPrefixes:
         - /usr/bin/
+  severity: 1 # optional a number between 1 and 10
+  tags: ["MITRE"] # optional
+  message: "custom error message in events" # optional

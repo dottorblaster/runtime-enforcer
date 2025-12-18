@@ -6,25 +6,25 @@ import (
 	v1 "k8s.io/client-go/applyconfigurations/meta/v1"
 )
 
-// WorkloadSecurityPolicyStatusApplyConfiguration represents a declarative configuration of the WorkloadSecurityPolicyStatus type for use
+// WorkloadPolicyStatusApplyConfiguration represents a declarative configuration of the WorkloadPolicyStatus type for use
 // with apply.
-type WorkloadSecurityPolicyStatusApplyConfiguration struct {
+type WorkloadPolicyStatusApplyConfiguration struct {
 	ObservedGeneration *int64                           `json:"observedGeneration,omitempty"`
 	Conditions         []v1.ConditionApplyConfiguration `json:"conditions,omitempty"`
 	State              *string                          `json:"state,omitempty"`
 	Reason             *string                          `json:"reason,omitempty"`
 }
 
-// WorkloadSecurityPolicyStatusApplyConfiguration constructs a declarative configuration of the WorkloadSecurityPolicyStatus type for use with
+// WorkloadPolicyStatusApplyConfiguration constructs a declarative configuration of the WorkloadPolicyStatus type for use with
 // apply.
-func WorkloadSecurityPolicyStatus() *WorkloadSecurityPolicyStatusApplyConfiguration {
-	return &WorkloadSecurityPolicyStatusApplyConfiguration{}
+func WorkloadPolicyStatus() *WorkloadPolicyStatusApplyConfiguration {
+	return &WorkloadPolicyStatusApplyConfiguration{}
 }
 
 // WithObservedGeneration sets the ObservedGeneration field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the ObservedGeneration field is set to the value of the last call.
-func (b *WorkloadSecurityPolicyStatusApplyConfiguration) WithObservedGeneration(value int64) *WorkloadSecurityPolicyStatusApplyConfiguration {
+func (b *WorkloadPolicyStatusApplyConfiguration) WithObservedGeneration(value int64) *WorkloadPolicyStatusApplyConfiguration {
 	b.ObservedGeneration = &value
 	return b
 }
@@ -32,7 +32,7 @@ func (b *WorkloadSecurityPolicyStatusApplyConfiguration) WithObservedGeneration(
 // WithConditions adds the given value to the Conditions field in the declarative configuration
 // and returns the receiver, so that objects can be build by chaining "With" function invocations.
 // If called multiple times, values provided by each call will be appended to the Conditions field.
-func (b *WorkloadSecurityPolicyStatusApplyConfiguration) WithConditions(values ...*v1.ConditionApplyConfiguration) *WorkloadSecurityPolicyStatusApplyConfiguration {
+func (b *WorkloadPolicyStatusApplyConfiguration) WithConditions(values ...*v1.ConditionApplyConfiguration) *WorkloadPolicyStatusApplyConfiguration {
 	for i := range values {
 		if values[i] == nil {
 			panic("nil value passed to WithConditions")
@@ -45,7 +45,7 @@ func (b *WorkloadSecurityPolicyStatusApplyConfiguration) WithConditions(values .
 // WithState sets the State field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the State field is set to the value of the last call.
-func (b *WorkloadSecurityPolicyStatusApplyConfiguration) WithState(value string) *WorkloadSecurityPolicyStatusApplyConfiguration {
+func (b *WorkloadPolicyStatusApplyConfiguration) WithState(value string) *WorkloadPolicyStatusApplyConfiguration {
 	b.State = &value
 	return b
 }
@@ -53,7 +53,7 @@ func (b *WorkloadSecurityPolicyStatusApplyConfiguration) WithState(value string)
 // WithReason sets the Reason field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Reason field is set to the value of the last call.
-func (b *WorkloadSecurityPolicyStatusApplyConfiguration) WithReason(value string) *WorkloadSecurityPolicyStatusApplyConfiguration {
+func (b *WorkloadPolicyStatusApplyConfiguration) WithReason(value string) *WorkloadPolicyStatusApplyConfiguration {
 	b.Reason = &value
 	return b
 }

@@ -8,10 +8,10 @@ import (
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
-	// WorkloadSecurityPolicies returns a WorkloadSecurityPolicyInformer.
-	WorkloadSecurityPolicies() WorkloadSecurityPolicyInformer
-	// WorkloadSecurityPolicyProposals returns a WorkloadSecurityPolicyProposalInformer.
-	WorkloadSecurityPolicyProposals() WorkloadSecurityPolicyProposalInformer
+	// WorkloadPolicies returns a WorkloadPolicyInformer.
+	WorkloadPolicies() WorkloadPolicyInformer
+	// WorkloadPolicyProposals returns a WorkloadPolicyProposalInformer.
+	WorkloadPolicyProposals() WorkloadPolicyProposalInformer
 }
 
 type version struct {
@@ -25,12 +25,12 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
-// WorkloadSecurityPolicies returns a WorkloadSecurityPolicyInformer.
-func (v *version) WorkloadSecurityPolicies() WorkloadSecurityPolicyInformer {
-	return &workloadSecurityPolicyInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+// WorkloadPolicies returns a WorkloadPolicyInformer.
+func (v *version) WorkloadPolicies() WorkloadPolicyInformer {
+	return &workloadPolicyInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
-// WorkloadSecurityPolicyProposals returns a WorkloadSecurityPolicyProposalInformer.
-func (v *version) WorkloadSecurityPolicyProposals() WorkloadSecurityPolicyProposalInformer {
-	return &workloadSecurityPolicyProposalInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+// WorkloadPolicyProposals returns a WorkloadPolicyProposalInformer.
+func (v *version) WorkloadPolicyProposals() WorkloadPolicyProposalInformer {
+	return &workloadPolicyProposalInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

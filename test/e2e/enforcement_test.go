@@ -59,14 +59,14 @@ func getEnforcementTest() types.Feature {
 				r := ctx.Value(key("client")).(*resources.Resources)
 
 				testcases := []struct {
-					AllowedExecutables v1alpha1.WorkloadSecurityPolicyExecutables
+					AllowedExecutables v1alpha1.WorkloadPolicyExecutables
 					expectedResults    []struct {
 						Commands []string
 						Allowed  bool
 					}
 				}{
 					{
-						AllowedExecutables: v1alpha1.WorkloadSecurityPolicyExecutables{
+						AllowedExecutables: v1alpha1.WorkloadPolicyExecutables{
 							Allowed: []string{
 								"/usr/bin/ls",
 								"/usr/bin/bash",
@@ -90,7 +90,7 @@ func getEnforcementTest() types.Feature {
 					},
 					// todo!: we don't support prefixes yet
 					// {
-					// 	AllowedExecutables: v1alpha1.WorkloadSecurityPolicyExecutables{
+					// 	AllowedExecutables: v1alpha1.WorkloadPolicyExecutables{
 					// 		Allowed: []string{},
 					// 		AllowedPrefixes: []string{
 					// 			"/usr/bin/",
@@ -113,15 +113,17 @@ func getEnforcementTest() types.Feature {
 				}
 
 				for _, tc := range testcases {
-					policy := v1alpha1.WorkloadSecurityPolicy{
+					policy := v1alpha1.WorkloadPolicy{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      "test-policy",
 							Namespace: workloadNamespace,
 						},
-						Spec: v1alpha1.WorkloadSecurityPolicySpec{
+						Spec: v1alpha1.WorkloadPolicySpec{
 							Mode: "protect",
-							Rules: v1alpha1.WorkloadSecurityPolicyRules{
-								Executables: tc.AllowedExecutables,
+							RulesByContainer: map[string]*v1alpha1.WorkloadPolicyRules{
+								"ubuntu": &v1alpha1.WorkloadPolicyRules{
+									Executables: tc.AllowedExecutables,
+								},
 							},
 							Severity: 9,
 							Message:  "test-policy",
@@ -171,7 +173,7 @@ func getEnforcementTest() types.Feature {
 						}
 					}
 
-					// 3. Delete WorkloadSecurityPolicy
+					// 3. Delete WorkloadPolicy
 					err = r.Delete(ctx, &policy)
 					require.NoError(t, err)
 				}

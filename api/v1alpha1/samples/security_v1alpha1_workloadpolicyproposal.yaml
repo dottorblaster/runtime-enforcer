@@ -1,0 +1,17 @@
+apiVersion: security.rancher.io/v1alpha1
+kind: WorkloadPolicyProposal
+metadata:
+  name: workloadpolicyproposal-sample
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: controller
+      app.kubernetes.io/instance: ingress-nginx
+      app.kubernetes.io/name: ingress-nginx
+  rulesByContainer:
+    ubuntu:
+      executables:
+        allowed:
+          - /nginx-ingress-controller
+        allowedPrefixes:
+          - /usr/bin/

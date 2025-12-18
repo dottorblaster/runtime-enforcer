@@ -17,28 +17,18 @@ const (
 	ApprovalLabelKey             = "security.rancher.io/policy-ready"
 )
 
-type WorkloadSecurityPolicyProposalExecutables struct {
-	// allowed defines a list of executables that are allowed to run
-	// +optional
-	Allowed []string `json:"allowed,omitempty"`
-
-	// allowedPrefixes defines a list of prefix with which executables are allowed to run
-	// +optional
-	AllowedPrefixes []string `json:"allowedPrefixes,omitempty"`
-}
-
-// WorkloadSecurityPolicyProposalSpec defines the desired state of WorkloadSecurityPolicyProposal.
-type WorkloadSecurityPolicyProposalSpec struct {
+// WorkloadPolicyProposalSpec defines the desired state of WorkloadPolicyProposal.
+type WorkloadPolicyProposalSpec struct {
 	// selector is a kubernetes label selector used to match
 	// workloads using its pod labels.
 	// +optional
 	Selector *metav1.LabelSelector `json:"selector,omitempty"`
 
-	// rules specifies the rules this policy contains
-	Rules WorkloadSecurityPolicyRules `json:"rules,omitempty"`
+	// rulesByContainer specifies the rules this policy contains, per-container.
+	RulesByContainer map[string]*WorkloadPolicyRules `json:"rulesByContainer,omitempty"`
 }
 
-type WorkloadSecurityPolicyProposalCondition struct {
+type WorkloadPolicyProposalCondition struct {
 	Type   string                 `json:"type"`
 	Status corev1.ConditionStatus `json:"status"`
 	// lastProbeTime is the time we probed the condition.
@@ -57,9 +47,9 @@ type WorkloadSecurityPolicyProposalCondition struct {
 	Message string `json:"message,omitempty"`
 }
 
-// WorkloadSecurityPolicyProposalStatus defines the observed state of WorkloadSecurityPolicyProposal.
-type WorkloadSecurityPolicyProposalStatus struct {
-	Conditions []WorkloadSecurityPolicyProposalCondition `json:"conditions,omitempty"`
+// WorkloadPolicyProposalStatus defines the observed state of WorkloadPolicyProposal.
+type WorkloadPolicyProposalStatus struct {
+	Conditions []WorkloadPolicyProposalCondition `json:"conditions,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -67,41 +57,69 @@ type WorkloadSecurityPolicyProposalStatus struct {
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// WorkloadSecurityPolicyProposal is the Schema for the workloadsecuritypolicyproposals API.
-type WorkloadSecurityPolicyProposal struct {
+// WorkloadPolicyProposal is the Schema for the workloadpolicyproposals API.
+type WorkloadPolicyProposal struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   WorkloadSecurityPolicyProposalSpec   `json:"spec,omitempty"`
-	Status WorkloadSecurityPolicyProposalStatus `json:"status,omitempty"`
+	Spec   WorkloadPolicyProposalSpec   `json:"spec,omitempty"`
+	Status WorkloadPolicyProposalStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// WorkloadSecurityPolicyProposalList contains a list of WorkloadSecurityPolicyProposal.
-type WorkloadSecurityPolicyProposalList struct {
+// WorkloadPolicyProposalList contains a list of WorkloadPolicyProposal.
+type WorkloadPolicyProposalList struct {
 	metav1.TypeMeta `json:",inline"`
 
 	metav1.ListMeta `json:"metadata,omitempty"`
 
-	Items []WorkloadSecurityPolicyProposal `json:"items"`
+	Items []WorkloadPolicyProposal `json:"items"`
 }
 
-func (p *WorkloadSecurityPolicyProposal) AddProcess(executable string) error {
-	if len(p.Spec.Rules.Executables.Allowed) >= PolicyProposalMaxExecutables {
+func (p *WorkloadPolicyProposal) getExecutablesLength() int {
+	if p.Spec.RulesByContainer == nil {
+		return 0
+	}
+
+	result := 0
+	for _, value := range p.Spec.RulesByContainer {
+		result += len(value.Executables.Allowed)
+	}
+
+	return result
+}
+
+func (p *WorkloadPolicyProposal) AddProcess(containerName string, executable string) error {
+	if p.getExecutablesLength() >= PolicyProposalMaxExecutables {
 		return errors.New("the number of executables has exceeded its maximum")
 	}
-	if slices.Contains(p.Spec.Rules.Executables.Allowed, executable) {
+
+	if p.Spec.RulesByContainer == nil {
+		p.Spec.RulesByContainer = make(map[string]*WorkloadPolicyRules)
+	}
+
+	rules, ok := p.Spec.RulesByContainer[containerName]
+	if !ok {
+		p.Spec.RulesByContainer[containerName] = &WorkloadPolicyRules{
+			Executables: WorkloadPolicyExecutables{
+				Allowed: []string{executable},
+			},
+		}
 		return nil
 	}
 
-	p.Spec.Rules.Executables.Allowed = append(p.Spec.Rules.Executables.Allowed, executable)
+	if slices.Contains(rules.Executables.Allowed, executable) {
+		return nil
+	}
+
+	rules.Executables.Allowed = append(rules.Executables.Allowed, executable)
 
 	return nil
 }
 
-func (p *WorkloadSecurityPolicyProposal) AddPartialOwnerReferenceDetails(workloadKind string, workload string) {
+func (p *WorkloadPolicyProposal) AddPartialOwnerReferenceDetails(workloadKind string, workload string) {
 	p.OwnerReferences = []metav1.OwnerReference{
 		{
 			Kind: workloadKind,
@@ -110,17 +128,17 @@ func (p *WorkloadSecurityPolicyProposal) AddPartialOwnerReferenceDetails(workloa
 	}
 }
 
-func (p *WorkloadSecurityPolicyProposalSpec) IntoWorkloadSecurityPolicySpec() WorkloadSecurityPolicySpec {
+func (p *WorkloadPolicyProposalSpec) IntoWorkloadPolicySpec() WorkloadPolicySpec {
 	// Setting severity to 10 and enforcement mode to "monitor" by default.
-	return WorkloadSecurityPolicySpec{
-		Rules:    p.Rules,
-		Severity: MaximumSeverity,
-		Mode:     policymode.MonitorString,
-		Selector: p.Selector,
+	return WorkloadPolicySpec{
+		Severity:         MaximumSeverity,
+		Mode:             policymode.MonitorString,
+		Selector:         p.Selector,
+		RulesByContainer: p.RulesByContainer,
 	}
 }
 
 //nolint:gochecknoinits // Generated by kubebuilder
 func init() {
-	SchemeBuilder.Register(&WorkloadSecurityPolicyProposal{}, &WorkloadSecurityPolicyProposalList{})
+	SchemeBuilder.Register(&WorkloadPolicyProposal{}, &WorkloadPolicyProposalList{})
 }

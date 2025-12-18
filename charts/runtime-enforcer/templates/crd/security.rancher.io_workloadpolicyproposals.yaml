@@ -4,20 +4,20 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.17.1
-  name: workloadsecuritypolicyproposals.security.rancher.io
+  name: workloadpolicyproposals.security.rancher.io
 spec:
   group: security.rancher.io
   names:
-    kind: WorkloadSecurityPolicyProposal
-    listKind: WorkloadSecurityPolicyProposalList
-    plural: workloadsecuritypolicyproposals
-    singular: workloadsecuritypolicyproposal
+    kind: WorkloadPolicyProposal
+    listKind: WorkloadPolicyProposalList
+    plural: workloadpolicyproposals
+    singular: workloadpolicyproposal
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: WorkloadSecurityPolicyProposal is the Schema for the workloadsecuritypolicyproposals
+        description: WorkloadPolicyProposal is the Schema for the workloadpolicyproposals
           API.
         properties:
           apiVersion:
@@ -38,29 +38,32 @@ spec:
           metadata:
             type: object
           spec:
-            description: WorkloadSecurityPolicyProposalSpec defines the desired state
-              of WorkloadSecurityPolicyProposal.
+            description: WorkloadPolicyProposalSpec defines the desired state of WorkloadPolicyProposal.
             properties:
-              rules:
-                description: rules specifies the rules this policy contains
-                properties:
-                  executables:
-                    description: executables defines a security policy used for executables.
-                    properties:
-                      allowed:
-                        description: allowed defines a list of executables that are
-                          allowed to run
-                        items:
-                          type: string
-                        type: array
-                      allowedPrefixes:
-                        description: allowedPrefixes defines a list of prefix with
-                          which executables are allowed to run
-                        items:
-                          type: string
-                        maxItems: 0
-                        type: array
-                    type: object
+              rulesByContainer:
+                additionalProperties:
+                  properties:
+                    executables:
+                      description: executables defines a security policy used for
+                        executables.
+                      properties:
+                        allowed:
+                          description: allowed defines a list of executables that
+                            are allowed to run
+                          items:
+                            type: string
+                          type: array
+                        allowedPrefixes:
+                          description: allowedPrefixes defines a list of prefix with
+                            which executables are allowed to run
+                          items:
+                            type: string
+                          maxItems: 0
+                          type: array
+                      type: object
+                  type: object
+                description: rulesByContainer specifies the rules this policy contains,
+                  per-container.
                 type: object
               selector:
                 description: |-
@@ -112,8 +115,8 @@ spec:
                 x-kubernetes-map-type: atomic
             type: object
           status:
-            description: WorkloadSecurityPolicyProposalStatus defines the observed
-              state of WorkloadSecurityPolicyProposal.
+            description: WorkloadPolicyProposalStatus defines the observed state of
+              WorkloadPolicyProposal.
             properties:
               conditions:
                 items:
