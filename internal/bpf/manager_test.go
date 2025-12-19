@@ -20,6 +20,11 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+const (
+	// in CI when running inside a little VM things can be slow, we previously used 1 second here but it was not enough.
+	defaultEventTimeout = 10 * time.Second
+)
+
 type cgroupInfo struct {
 	path string
 	fd   int
@@ -124,11 +129,83 @@ func (m *Manager) findEventInChannel(ty ChannelType, cgID uint64, command string
 				m.logger.Info("Found event", "event", event)
 				return nil
 			}
-		// in CI when running inside a little VM things can be slow, we previously used 1 second here but it was not enough
-		case <-time.After(30 * time.Second):
+		case <-time.After(defaultEventTimeout):
 			return errors.New("timeout waiting for event")
 		}
 	}
+}
+
+func startManager(t *testing.T) (*Manager, func()) {
+	// We always enable learning in tests for now so that we can wait for the first event to come
+	// and understand that BPF programs are loaded and running
+	enableLearning := true
+	manager, err := NewManager(newTestLogger(t), enableLearning, ebpf.LogLevelBranch)
+	require.NoError(t, err, "Failed to create BPF manager")
+	require.NotNil(t, manager, "BPF manager is nil")
+
+	ctx, cancel := context.WithCancel(t.Context())
+	g, ctx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		return manager.Start(ctx)
+	})
+
+	cleanup := func() {
+		cancel()
+		require.NoError(t, g.Wait(), "Failed to stop BPF manager")
+	}
+	return manager, cleanup
+}
+
+func waitFirstEvent(m *Manager) error {
+	for {
+		select {
+		case <-time.After(defaultEventTimeout):
+			return errors.New("timeout waiting for first event")
+		case <-m.GetLearningChannel():
+			return nil
+		}
+	}
+}
+
+func checkManagerIsStarted(t *testing.T, m *Manager) error {
+	ctx, cancel := context.WithCancel(t.Context())
+	g, ctx := errgroup.WithContext(ctx)
+
+	// we have a goroutine that keeps running a command in a loop
+	g.Go(func() error {
+		for {
+			select {
+			// Here we never return an error in case of context done,
+			// because it is the unique way to stop this goroutine
+			case <-ctx.Done():
+				return nil
+			case <-time.After(200 * time.Millisecond):
+				if err := exec.Command("/usr/bin/true").Run(); err != nil {
+					return err
+				}
+			}
+		}
+	})
+
+	var multiErr error
+	// we wait for the first event to come
+	if err := waitFirstEvent(m); err != nil {
+		multiErr = errors.Join(multiErr, err)
+	}
+	cancel()
+	if err := g.Wait(); err != nil {
+		multiErr = errors.Join(multiErr, err)
+	}
+	return multiErr
+}
+
+func waitRunningManager(t *testing.T) (*Manager, func()) {
+	manager, cleanup := startManager(t)
+	if err := checkManagerIsStarted(t, manager); err != nil {
+		cleanup()
+		t.Fatal(err)
+	}
+	return manager, cleanup
 }
 
 // run it with: go test -v -run TestNoVerifierFailures ./internal/bpf -count=1 -exec "sudo -E".
@@ -151,30 +228,11 @@ func TestNoVerifierFailures(t *testing.T) {
 	t.FailNow()
 }
 
-func startManager(t *testing.T, enableLearning bool) (*Manager, func()) {
-	manager, err := NewManager(newTestLogger(t), enableLearning, ebpf.LogLevelBranch)
-	require.NoError(t, err, "Failed to create BPF manager")
-	require.NotNil(t, manager, "BPF manager is nil")
-
-	ctx, cancel := context.WithCancel(context.Background())
-	g, ctx := errgroup.WithContext(ctx)
-	g.Go(func() error {
-		return manager.Start(ctx)
-	})
-
-	cleanup := func() {
-		cancel()
-		require.NoError(t, g.Wait(), "Failed to stop BPF manager")
-	}
-	return manager, cleanup
-}
-
 func TestLearning(t *testing.T) {
 	//////////////////////
 	// Start BPF manager
 	//////////////////////
-	enableLearning := true
-	manager, cleanup := startManager(t, enableLearning)
+	manager, cleanup := waitRunningManager(t)
 	defer cleanup()
 
 	//////////////////////
@@ -196,8 +254,7 @@ func TestLearning(t *testing.T) {
 }
 
 func TestMonitorProtectMode(t *testing.T) {
-	enableLearning := false
-	manager, cleanup := startManager(t, enableLearning)
+	manager, cleanup := waitRunningManager(t)
 	defer cleanup()
 
 	//////////////////////
@@ -280,8 +337,7 @@ func TestMonitorProtectMode(t *testing.T) {
 }
 
 func TestMultiplePolicies(t *testing.T) {
-	enableLearning := false
-	manager, cleanup := startManager(t, enableLearning)
+	manager, cleanup := waitRunningManager(t)
 	defer cleanup()
 
 	mockPolicyID1 := uint64(42)
