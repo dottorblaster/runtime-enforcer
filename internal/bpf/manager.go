@@ -16,9 +16,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// todo!: we need to generate according to the architecture, not just x86
-
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cflags "-O2 -g -D__TARGET_ARCH_x86" -tags linux -target bpfel -type process_evt bpf ../../bpf/main.c -- -I/usr/include/
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cflags "-O2 -g" -target native -tags linux -type process_evt bpf ../../bpf/main.c -- -I/usr/include/
 
 const (
 	loadTimeConfigBPFVar = "load_time_config"

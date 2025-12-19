@@ -35,7 +35,5 @@ tilt-settings.yaml
 .husky
 
 # bpf objects
-internal/bpf/bpf_bpfeb.o
-internal/bpf/bpf_bpfel.o
-internal/bpf/bpf_bpfeb.go
-internal/bpf/bpf_bpfel.go
+internal/bpf/bpf_*bpfeb.o
+internal/bpf/bpf_*bpfel.o
