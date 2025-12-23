@@ -110,7 +110,7 @@ lint-config: golangci-lint ## Verify golangci-lint linter configuration
 ##@ Build
 
 .PHONY: operator
-operator: fmt ## Build manager binary.
+operator: generate-ebpf fmt ## Build manager binary.
 	CGO_ENABLED=0 GOOS=linux go build -o bin/operator ./cmd/operator
 
 .PHONY: test-bpf
