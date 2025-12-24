@@ -14,6 +14,7 @@ const (
 	_ PolicyValuesOperation = iota
 	AddValuesToPolicy
 	RemoveValuesFromPolicy
+	ReplaceValuesInPolicy
 )
 
 const (
@@ -150,7 +151,7 @@ func putValueInMap(m SelectorStringMaps, v string) error {
 	return fmt.Errorf("value %s has unsupported padded size %d", v, size)
 }
 
-func convertValuesToMaps(values []string) (SelectorStringMaps, error) {
+func convertValuesToBPFStringMaps(values []string) (SelectorStringMaps, error) {
 	maps := createStringMaps()
 	for _, v := range values {
 		if err := putValueInMap(maps, v); err != nil {
@@ -209,12 +210,12 @@ func (m *Manager) generateInnerBPFMaps(policyID uint64,
 }
 
 func (m *Manager) generateBPFMaps(policyID uint64, values []string) error {
-	subMaps, err := convertValuesToMaps(values)
+	subMaps, err := convertValuesToBPFStringMaps(values)
 	if err != nil {
 		return err
 	}
 
-	isPre5_9 := kernels.CurrVersionIsLowerThan("5.9")
+	isPre5_9 := m.isKernelPre5_9()
 	for i := range subMaps {
 		// if the subMap is empty we skip it
 		if len(subMaps[i]) == 0 {
@@ -237,6 +238,72 @@ func (m *Manager) removeBPFMaps(policyID uint64) error {
 	return nil
 }
 
+func (m *Manager) replaceBPFMaps(policyID uint64, values []string) error {
+	subMaps, err := convertValuesToBPFStringMaps(values)
+	if err != nil {
+		return err
+	}
+
+	isPre5_9 := m.isKernelPre5_9()
+	for i := range subMaps {
+		if len(subMaps[i]) == 0 {
+			// No values for this size bucket - delete the old inner map if it exists
+			if err = m.policyStringMaps[i].Delete(policyID); err != nil && !errors.Is(err, ebpf.ErrKeyNotExist) {
+				return fmt.Errorf("failed to remove policy (id=%d) from map %s: %w",
+					policyID, m.policyStringMaps[i].String(), err)
+			}
+			continue
+		}
+
+		// Create and populate new inner map, then atomically replace
+		if err = m.replaceInnerBPFMap(policyID, i, isPre5_9, subMaps[i]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m *Manager) replaceInnerBPFMap(policyID uint64,
+	index int, isPre5_9 bool, subMap map[[MaxStringMapsSize]byte]struct{}) error {
+	mapKeySize := stringMapsSizes[index]
+	name := fmt.Sprintf("p_%d_str_map_%d", policyID, index)
+	innerSpec := &ebpf.MapSpec{
+		Name:       name,
+		Type:       ebpf.Hash,
+		KeySize:    uint32(mapKeySize), //nolint:gosec // mapKeySize cannot be larger than math.MaxUint32
+		ValueSize:  uint32(1),
+		MaxEntries: uint32(len(subMap)), //nolint:gosec // len(...) cannot be larger than math.MaxUint32
+	}
+
+	if isPre5_9 {
+		innerSpec.Flags = uint32(BPFFNoPrealloc)
+		innerSpec.MaxEntries = uint32(fixedMaxEntriesPre5_9)
+	}
+
+	inner, err := ebpf.NewMap(innerSpec)
+	if err != nil {
+		return fmt.Errorf("failed to create inner_map: %w", err)
+	}
+	defer inner.Close()
+
+	one := uint8(1)
+	for rawVal := range subMap {
+		val := rawVal[:mapKeySize]
+		err = inner.Update(val, one, 0)
+		if err != nil {
+			return fmt.Errorf("failed to insert value into %s: %w", name, err)
+		}
+	}
+
+	// Use UpdateExist to atomically replace the old inner map
+	err = m.policyStringMaps[index].Update(policyID, inner, ebpf.UpdateExist)
+	if err != nil {
+		return fmt.Errorf("failed to replace inner policy (id=%d) map: %w", policyID, err)
+	}
+	m.logger.Info("handler: replaced inner map inside policy str", "name", name)
+	return nil
+}
+
 // GetPolicyValuesUpdateFunc exposes a function used to interact with BPF maps storing policy values.
 func (m *Manager) GetPolicyValuesUpdateFunc() func(policyID uint64, values []string, op PolicyValuesOperation) error {
 	return func(policyID uint64, values []string, op PolicyValuesOperation) error {
@@ -245,6 +312,8 @@ func (m *Manager) GetPolicyValuesUpdateFunc() func(policyID uint64, values []str
 			return m.generateBPFMaps(policyID, values)
 		case RemoveValuesFromPolicy:
 			return m.removeBPFMaps(policyID)
+		case ReplaceValuesInPolicy:
+			return m.replaceBPFMaps(policyID, values)
 		default:
 			panic("unhandled operation")
 		}

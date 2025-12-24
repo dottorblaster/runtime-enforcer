@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sync"
 
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/asm"
@@ -59,6 +60,10 @@ type Manager struct {
 
 	// Monitoring
 	monitoringEventChan chan ProcessEvent
+
+	// Kernel version check cache
+	kernelCheckOnce sync.Once
+	isPre5_9        bool
 }
 
 func probeEbpfFeatures() error {
@@ -183,6 +188,13 @@ func NewManager(logger *slog.Logger, enableLearning bool, eBPFLogLevel ebpf.LogL
 			objs.PolStrMaps10,
 		},
 	}, nil
+}
+
+func (m *Manager) isKernelPre5_9() bool {
+	m.kernelCheckOnce.Do(func() {
+		m.isPre5_9 = kernels.CurrVersionIsLowerThan("5.9")
+	})
+	return m.isPre5_9
 }
 
 func (m *Manager) Start(ctx context.Context) error {

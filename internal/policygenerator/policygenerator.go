@@ -128,24 +128,47 @@ func (p *PolicyGenerator) updatePolicy(oldWp, newWp *securityv1alpha1.WorkloadPo
 		"policy-namespace", newWp.Namespace,
 	)
 
-	// for now we only listen to mode updates
-	// todo!: we also need to handle the change of values for a specific container
-	if oldWp.Spec.Mode == newWp.Spec.Mode {
-		return nil
-	}
-
-	p.logger.Info(
-		"policy mode changed",
-		"old-mode", oldWp.Spec.Mode,
-		"new-mode", newWp.Spec.Mode,
-		"wp", newWp.Name,
-	)
-
 	wpKey := newWp.Namespace + "/" + newWp.Name
 	state, exists := p.wpState[wpKey]
 	if !exists {
 		return fmt.Errorf("workload policy does not exist in internal state: %s", wpKey)
 	}
+
+	for containerName, policyID := range state {
+		oldRules := oldWp.Spec.RulesByContainer[containerName]
+		newRules := newWp.Spec.RulesByContainer[containerName]
+
+		// Skip if container doesn't exist in both (handle only existing containers)
+		if oldRules == nil || newRules == nil {
+			p.logger.Info(
+				"non existing container, skipping",
+				"container", containerName,
+				"wp", wpKey,
+			)
+			continue
+		}
+
+		p.logger.Info(
+			"setting executable list",
+			"container", containerName,
+			"wp", wpKey,
+			"old-count", len(oldRules.Executables.Allowed),
+			"new-count", len(newRules.Executables.Allowed),
+		)
+
+		// Atomically replace values in BPF maps
+		if err := p.policyValuesFunc(policyID, newRules.Executables.Allowed, bpf.ReplaceValuesInPolicy); err != nil {
+			return fmt.Errorf("failed to replace policy values for wp %s, container %s: %w",
+				wpKey, containerName, err)
+		}
+	}
+
+	p.logger.Info(
+		"setting policy mode",
+		"old-mode", oldWp.Spec.Mode,
+		"new-mode", newWp.Spec.Mode,
+		"wp", newWp.Name,
+	)
 
 	mode := policymode.ParseMode(newWp.Spec.Mode)
 
@@ -155,6 +178,7 @@ func (p *PolicyGenerator) updatePolicy(oldWp, newWp *securityv1alpha1.WorkloadPo
 				mode.String(), newWp.Name, containerName, err)
 		}
 	}
+
 	return nil
 }
 

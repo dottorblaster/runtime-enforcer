@@ -88,3 +88,9 @@ func TestPromotion(t *testing.T) {
 
 	testEnv.Test(t, getPromotionTest())
 }
+
+func TestPolicyUpdate(t *testing.T) {
+	t.Log("test policy update")
+
+	testEnv.Test(t, getPolicyUpdateTest())
+}
