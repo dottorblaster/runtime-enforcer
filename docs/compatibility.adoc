@@ -1,0 +1,531 @@
+= Runtime Enforcer Compatibility Matrix
+:toc: left
+:toclevels: 3
+:icons: font
+:source-highlighter: highlightjs
+
+== Overview
+
+Runtime Enforcer uses eBPF (Extended Berkeley Packet Filter) to monitor and enforce security policies at the kernel level in Kubernetes. Modern eBPF features are required, so your kernel version and configuration matter.
+
+== Quick Reference
+
+[cols="2,3,5"]
+|===
+|Component |Version/Requirement |Notes
+
+|*Minimum Kernel*
+|5.4
+|Basic functionality with limited features
+
+|*Recommended Kernel*
+|5.11+
+|Full feature support with extended hash keys
+
+|*Optimal Kernel*
+|6.4+
+|Best performance with all optimizations
+
+|*Kubernetes*
+|1.35.x or later
+|Based on Kubernetes API v0.35.0
+
+|*Go Runtime*
+|1.25.5+
+|Required for building from source
+
+|*Architecture*
+|x86_64, ARM64
+|Both architectures fully supported
+
+|*Cgroup*
+|v1 or v2
+|Either version supported
+|===
+
+== Supported Operating Systems
+
+=== Linux Distributions
+
+[cols="3,2,2,1,1,5"]
+|===
+|Operating System |Minimum Kernel |Recommended Kernel |x86_64 |ARM64 |Notes
+
+|*Ubuntu 22.04 LTS*
+|5.15
+|6.8+
+|✓
+|✓
+|Verified on kernel 6.8.0-52-generic
+
+|*Ubuntu 24.04 LTS*
+|6.8
+|6.8+
+|✓
+|✓
+|
+
+|*SUSE Linux Enterprise Server 15 SP4+*
+|5.14
+|5.14+
+|✓
+|✓
+|
+
+|*Red Hat Enterprise Linux 8.x*
+|4.18†
+|4.18†
+|✓
+|✓
+|Requires BTF backport. RHEL kernel includes backported eBPF features.
+
+|*Red Hat Enterprise Linux 9.x*
+|5.14
+|5.14+
+|✓
+|✓
+|
+
+|*openSUSE Leap 15.4+*
+|5.14
+|5.14+
+|✓
+|✓
+|Compatible with SLES kernel base.
+
+|*Debian 11 (Bullseye)*
+|5.10
+|5.10+
+|✓
+|✓
+|Basic support, limited to smaller hash keys.
+
+|*Debian 12 (Bookworm)*
+|6.1
+|6.1+
+|✓
+|✓
+|
+
+|*Amazon Linux 2023*
+|6.1
+|6.1+
+|✓
+|✓
+|
+
+|*Fedora 38+*
+|6.2+
+|6.4+
+|✓
+|✓
+|
+|===
+
+† RHEL 8.x uses kernel version 4.18 but includes extensive backports from newer kernels, including critical eBPF and BTF functionality. BTF (BPF Type Format) must be enabled.
+
+=== Kernel Version Details
+
+Different kernel versions have different capabilities. Runtime Enforcer adapts to what's available.
+
+[cols="2,2,6"]
+|===
+|Kernel Version |Support Level |Features and Limitations
+
+|*5.4 - 5.10*
+|Minimum
+a|
+* Basic eBPF program support
+* Hash key sizes limited to ≤512 bytes
+* Special handling for RHEL7 compatibility (`kernfs_node_id` structure differences)
+* BPF_F_NO_PREALLOC required for hash-of-maps
+* Ring buffer available from 5.8+
+
+|*5.11 - 5.12*
+|Supported
+a|
+* Extended hash key support (up to 4096 bytes)
+* Improved map handling
+* Better cgroup v2 support
+
+|*5.13 - 6.3*
+|Recommended
+a|
+* `bpf_loop()` helper support for efficient iteration
+* Optimized path resolution
+* Enhanced tracing capabilities
+
+|*6.4+*
+|Optimal
+a|
+* `bpf_iter_num` support for numeric iterators
+* `bpf_repeat()` macro for optimal looping
+* Best performance and feature set
+* All optimization paths enabled
+|===
+
+== Required Kernel Configuration
+
+Your kernel needs these config options:
+
+[source,conf]
+----
+# Core BPF Support
+CONFIG_BPF=y
+CONFIG_BPF_SYSCALL=y
+CONFIG_HAVE_EBPF_JIT=y
+
+# BTF (BPF Type Format) - REQUIRED
+CONFIG_DEBUG_INFO_BTF=y
+CONFIG_DEBUG_INFO=y
+
+# Function Tracing
+CONFIG_FTRACE=y
+CONFIG_DYNAMIC_FTRACE=y
+CONFIG_FUNCTION_TRACER=y
+
+# Security (at least one required)
+CONFIG_SECURITY=y
+CONFIG_SECURITY_APPARMOR=y    # or
+CONFIG_SECURITY_SELINUX=y     # or similar LSM
+
+# Cgroup support
+CONFIG_CGROUPS=y
+CONFIG_CGROUP_BPF=y
+----
+
+=== Verifying Kernel Configuration
+
+Check if your kernel has what you need:
+
+[source,bash]
+----
+# Check if BTF is available
+ls /sys/kernel/btf/vmlinux
+
+# Verify BPF syscall support
+zgrep CONFIG_BPF /proc/config.gz
+
+# Check available BPF program types
+bpftool feature
+----
+
+== Required BPF Features
+
+These eBPF features must be available:
+
+=== BPF Map Types
+* `BPF_MAP_TYPE_HASH` - Hash table maps
+* `BPF_MAP_TYPE_HASH_OF_MAPS` - Nested hash maps for policy storage
+* `BPF_MAP_TYPE_PERCPU_ARRAY` - Per-CPU arrays for temporary storage
+* `BPF_MAP_TYPE_RINGBUF` - Ring buffer for event streaming (kernel 5.8+)
+
+=== BPF Program Types
+* `BPF_PROG_TYPE_TRACING` with `BPF_ATTACH_TYPE_FMOD_RET` - Function modification and return override
+* `BPF_PROG_TYPE_TRACING` with `BPF_ATTACH_TYPE_TP_BTF` - Tracepoint BTF programs
+
+=== BPF Helper Functions
+* `bpf_get_current_task()` - Get current task struct
+* `bpf_get_current_cgroup_id()` - Get current cgroup ID
+* `bpf_ringbuf_output()` - Send events to ring buffer
+* `bpf_map_lookup_elem()` / `bpf_map_update_elem()` - Map operations
+* `bpf_probe_read_kernel()` - Safe kernel memory reads
+* `bpf_d_path()` - Path resolution from dentry
+* `bpf_loop()` - Bounded loops (kernel 5.13+, optional)
+
+=== CO-RE (Compile Once - Run Everywhere)
+Runtime Enforcer relies heavily on BPF CO-RE, which needs:
+
+* BTF information in the kernel (`/sys/kernel/btf/vmlinux`)
+* libbpf with CO-RE support
+* Kernel support for BTF-based relocations
+
+== Kubernetes Compatibility
+
+=== Supported Kubernetes Versions
+
+[cols="2,2,6"]
+|===
+|Kubernetes Version |Status |Notes
+
+|*1.35.x*
+|✓ Supported
+|Tested and verified
+
+|*1.36.x and later*
+|✓ Supported
+|Expected to work with newer versions
+|===
+
+Runtime Enforcer uses Kubernetes API v0.35.0 and controller-runtime v0.22.4+.
+
+=== Kubernetes Distribution Support
+
+Works with any conformant Kubernetes distribution (as long as the kernel is good):
+
+[cols="2,2,6"]
+|===
+|Distribution |Support Status |Notes
+
+|*Rancher Kubernetes Engine 2 (RKE2)*
+|✓ Supported
+|Tested with Rancher 2.6.x - 2.12.x
+
+|*K3s*
+|✓ Supported
+|Lightweight Kubernetes distribution
+
+|*kind (Kubernetes in Docker)*
+|✓ Supported
+|Verified with kind v1.32.2 for development
+
+|*kubeadm*
+|✓ Supported
+|Standard Kubernetes deployment
+
+|*Amazon EKS*
+|✓ Supported
+|Requires Amazon Linux 2023 or compatible kernel
+
+|*Azure AKS*
+|✓ Supported
+|Check kernel version
+
+|*Google GKE*
+|✓ Supported
+|Ubuntu or Container-Optimized OS nodes
+
+|*Minikube*
+|✗ Not Supported
+|Use kind for local development instead
+|===
+
+=== Container Runtime Support
+
+Works at the kernel level, so the container runtime doesn't matter:
+
+* containerd
+* CRI-O
+* Docker (via containerd)
+
+== Rancher Integration
+
+[cols="2,2,6"]
+|===
+|Rancher Version |Status |Notes
+
+|*2.6.x*
+|✓ Supported
+|Minimum supported version
+
+|*2.7.x - 2.11.x*
+|✓ Supported
+|Fully tested
+
+|*2.12.x*
+|✓ Supported
+|Latest tested version (up to 2.12.100)
+
+|*2.13.x+*
+|Expected
+|Should work but not yet verified
+|===
+
+== Architecture Support
+
+[cols="2,8"]
+|===
+|Architecture |Notes
+
+|*x86_64 (amd64)*
+|Pre-generated BTF headers at `bpf/vmlinux_generated_x86.h`
+
+|*ARM64 (aarch64)*
+|Pre-generated BTF headers at `bpf/vmlinux_generated_arm64.h`
+|===
+
+== Cgroup Requirements
+
+Runtime Enforcer supports both cgroup v1 and cgroup v2:
+
+=== Cgroup v1
+* Uses subsystem index-based approach
+* Compatible with older distributions
+* No special configuration required
+
+=== Cgroup v2
+* Uses unified hierarchy with `dfl_cgrp`
+* Requires kernel 5.5+ for full support
+* Recommended for modern distributions
+
+Runtime Enforcer automatically detects which cgroup version you're using.
+
+== Build Requirements
+
+To build from source you'll need:
+
+[cols="2,2,6"]
+|===
+|Component |Version |Purpose
+
+|*Go*
+|1.25.5+
+|Building Go components
+
+|*Clang*
+|10+
+|Compiling eBPF programs
+
+|*LLVM*
+|10+
+|eBPF toolchain
+
+|*libbpf-dev*
+|0.6+
+|BPF CO-RE development headers
+
+|*libelf-dev*
+|Latest
+|ELF file handling
+
+|*Linux kernel headers*
+|Matching kernel
+|BTF generation (optional if using pre-generated headers)
+|===
+
+=== Build System Dependencies
+
+On SLES/openSUSE:
+[source,bash]
+----
+sudo zypper install -y \
+  gcc \
+  libelf-devel \
+  clang \
+  llvm \
+  libbpf-devel
+----
+
+On Ubuntu/Debian:
+[source,bash]
+----
+sudo apt-get install -y \
+  build-essential \
+  libelf-dev \
+  clang \
+  llvm \
+  libbpf-dev
+----
+
+On RHEL/Fedora:
+[source,bash]
+----
+sudo dnf install -y \
+  gcc \
+  elfutils-libelf-devel \
+  clang \
+  llvm \
+  libbpf-devel
+----
+
+== Verified Testing Environment
+
+Tested and working on:
+
+[cols="2,3"]
+|===
+|Component |Version/Details
+
+|*OS*
+|Ubuntu 22.04.5 LTS
+
+|*Kernel*
+|6.8.0-52-generic
+
+|*Kubernetes*
+|kind v1.32.2
+
+|*Go*
+|1.25.5
+
+|*Architecture*
+|x86_64
+|===
+
+|*OS*
+|openSUSE Tumbleweed
+
+|*Kernel*
+|6.18.1-1-default
+
+|*Kubernetes*
+|k3d v5.8.3
+
+|*Go*
+|1.25.5
+
+|*Architecture*
+|x86_64
+|===
+
+== Troubleshooting
+
+=== BTF Not Available
+
+If you see errors about missing BTF:
+
+[source,bash]
+----
+# Check if BTF is available
+ls -la /sys/kernel/btf/vmlinux
+
+# If missing, check kernel config
+zgrep CONFIG_DEBUG_INFO_BTF /proc/config.gz
+----
+
+**Fix:** Upgrade to a kernel with BTF support, or switch to a distro that ships BTF-enabled kernels.
+
+=== Old Kernel Version
+
+If your kernel is older than 5.4:
+
+**Fix:** Upgrade to at least kernel 5.4, preferably 5.11+.
+
+=== Missing BPF Features
+
+Check what's available:
+
+[source,bash]
+----
+# Install bpftool if not available
+# On openSUSE/SUSE Linux Enterprise:
+sudo zypper install bpftool
+
+# On Ubuntu/Debian:
+sudo apt-get install linux-tools-generic
+
+# Check BPF features
+sudo bpftool feature probe
+----
+
+=== eBPF Program Load Failures
+
+If eBPF programs fail to load:
+
+1. Check kernel logs: `sudo dmesg | grep bpf`
+2. Check kernel config has the required options
+3. Check if SELinux/AppArmor is blocking BPF
+4. Verify kernel supports the needed BPF program types
+
+== Additional Resources
+
+* link:setup-development-env.md[Development Environment Setup]
+* https://ebpf.io/[eBPF Documentation]
+* https://www.kernel.org/doc/html/latest/bpf/[Linux Kernel BPF Documentation]
+* https://github.com/libbpf/libbpf[libbpf Repository]
+
+== Support and Updates
+
+This matrix gets updated as we test new kernels and distros. Check the repo for the latest.
+
+Hit a compatibility issue not covered here? Open an issue with your environment details.
