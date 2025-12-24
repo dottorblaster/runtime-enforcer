@@ -33,6 +33,11 @@ daemon:
     args:
     - ""
     containerSecurityContext:
+      # Minimal capabilities required for eBPF operations:
+      # - CAP_BPF: Required for loading eBPF programs
+      # - CAP_PERFMON: Required for attaching tracing programs (kprobes/tracepoints)
+      # - CAP_SYS_RESOURCE: Required for removing memlock limits (rlimit.RemoveMemlock)
+      # - CAP_SYS_PTRACE: Required to access host cgroup filesystem
       allowPrivilegeEscalation: false
       capabilities:
         add:
@@ -54,8 +59,8 @@ daemon:
         cpu: 10m
         memory: 64Mi
   customCRISocketPath: ""
+  hostPID: true
   podSecurityContext:
-    hostPID: true
     seccompProfile:
       type: RuntimeDefault
   serviceAccount:
