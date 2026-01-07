@@ -304,12 +304,10 @@ func (r *Resolver) updatePod(oldPod, newPod *corev1.Pod) {
 		)
 		state.info.labels = newPod.Labels
 		r.recomputePodPolicies(state)
-		// we should return here since there should be no other changes
-		return
 	}
 
 	//////////////////////////
-	// Container changes (This is possible for example in case of backoff restarts)
+	// Container changes
 	//////////////////////////
 
 	r.updatePodContainers(state, podContainersInfoWithoutCgroups(newPod))
