@@ -20,11 +20,6 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-const (
-	// in CI when running inside a little VM things can be slow, we previously used 1 second here but it was not enough.
-	defaultEventTimeout = 10 * time.Second
-)
-
 type cgroupInfo struct {
 	path string
 	fd   int
@@ -129,7 +124,9 @@ func (m *Manager) findEventInChannel(ty ChannelType, cgID uint64, command string
 				m.logger.Info("Found event", "event", event)
 				return nil
 			}
-		case <-time.After(defaultEventTimeout):
+		// this timer is recreated on each loop iteration
+		// so if we don't receive events for 1 second we time out
+		case <-time.After(1 * time.Second):
 			return errors.New("timeout waiting for event")
 		}
 	}
@@ -156,52 +153,26 @@ func startManager(t *testing.T) (*Manager, func()) {
 	return manager, cleanup
 }
 
-func waitFirstEvent(m *Manager) error {
+func checkManagerIsStarted(m *Manager) error {
+	timeoutChan := time.After(5 * time.Second)
 	for {
 		select {
-		case <-time.After(defaultEventTimeout):
-			return errors.New("timeout waiting for first event")
 		case <-m.GetLearningChannel():
 			return nil
-		}
-	}
-}
-
-func checkManagerIsStarted(t *testing.T, m *Manager) error {
-	ctx, cancel := context.WithCancel(t.Context())
-	g, ctx := errgroup.WithContext(ctx)
-
-	// we have a goroutine that keeps running a command in a loop
-	g.Go(func() error {
-		for {
-			select {
-			// Here we never return an error in case of context done,
-			// because it is the unique way to stop this goroutine
-			case <-ctx.Done():
-				return nil
-			case <-time.After(200 * time.Millisecond):
-				if err := exec.Command("/usr/bin/true").Run(); err != nil {
-					return err
-				}
+		case <-timeoutChan:
+			return errors.New("timeout waiting for first event")
+		case <-time.After(250 * time.Millisecond):
+			// we continuously run a command to generate events
+			if err := exec.Command("/usr/bin/true").Run(); err != nil {
+				return err
 			}
 		}
-	})
-
-	var multiErr error
-	// we wait for the first event to come
-	if err := waitFirstEvent(m); err != nil {
-		multiErr = errors.Join(multiErr, err)
 	}
-	cancel()
-	if err := g.Wait(); err != nil {
-		multiErr = errors.Join(multiErr, err)
-	}
-	return multiErr
 }
 
 func waitRunningManager(t *testing.T) (*Manager, func()) {
 	manager, cleanup := startManager(t)
-	if err := checkManagerIsStarted(t, manager); err != nil {
+	if err := checkManagerIsStarted(manager); err != nil {
 		cleanup()
 		t.Fatal(err)
 	}
