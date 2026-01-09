@@ -65,7 +65,7 @@ TARGET=operator daemon
 $(foreach T,$(TARGET),$(eval $(call BUILD_template,$(T))))
 
 .PHONY: generate
-generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+generate: manifests generate-ebpf generate-api
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 .PHONY: fmt
@@ -235,6 +235,7 @@ $(GOLANGCI_LINT): $(LOCALBIN)
 
 .PHONY: generate-api
 generate-api:
+	go install ./hack/tools.go
 	API_KNOWN_VIOLATIONS_DIR=. UPDATE_API_KNOWN_VIOLATIONS=true ./hack/update-codegen.sh
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
