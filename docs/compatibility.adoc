@@ -15,28 +15,20 @@ Runtime Enforcer uses eBPF (Extended Berkeley Packet Filter) to monitor and enfo
 |Component |Version/Requirement |Notes
 
 |*Minimum Kernel*
-|5.4
-|Basic functionality with limited features
+|5.8
+|Limitation: max binary path length in policies is 512 characters.
 
 |*Recommended Kernel*
 |5.11+
-|Full feature support with extended hash keys
-
-|*Optimal Kernel*
-|6.4+
-|Best performance with all optimizations
-
-|*Kubernetes*
-|1.35.x or later
-|Based on Kubernetes API v0.35.0
+|No limitations in binary path lengths
 
 |*Go Runtime*
 |1.25.5+
 |Required for building from source
 
 |*Architecture*
-|x86_64, ARM64
-|Both architectures fully supported
+|x86_64
+|Fully supported
 
 |*Cgroup*
 |v1 or v2
@@ -72,14 +64,14 @@ Runtime Enforcer uses eBPF (Extended Berkeley Packet Filter) to monitor and enfo
 |✓
 |
 
-|*Red Hat Enterprise Linux 8.x*
+|*Red Hat Enterprise Linux 8.x (untested)*
 |4.18†
 |4.18†
 |✓
 |✓
 |Requires BTF backport. RHEL kernel includes backported eBPF features.
 
-|*Red Hat Enterprise Linux 9.x*
+|*Red Hat Enterprise Linux 9.x (untested)*
 |5.14
 |5.14+
 |✓
@@ -124,45 +116,6 @@ Runtime Enforcer uses eBPF (Extended Berkeley Packet Filter) to monitor and enfo
 
 † RHEL 8.x uses kernel version 4.18 but includes extensive backports from newer kernels, including critical eBPF and BTF functionality. BTF (BPF Type Format) must be enabled.
 
-=== Kernel Version Details
-
-Different kernel versions have different capabilities. Runtime Enforcer adapts to what's available.
-
-[cols="2,2,6"]
-|===
-|Kernel Version |Support Level |Features and Limitations
-
-|*5.4 - 5.10*
-|Minimum
-a|
-* Basic eBPF program support
-* Hash key sizes limited to ≤512 bytes
-* Special handling for RHEL7 compatibility (`kernfs_node_id` structure differences)
-* BPF_F_NO_PREALLOC required for hash-of-maps
-* Ring buffer available from 5.8+
-
-|*5.11 - 5.12*
-|Supported
-a|
-* Extended hash key support (up to 4096 bytes)
-* Improved map handling
-* Better cgroup v2 support
-
-|*5.13 - 6.3*
-|Recommended
-a|
-* `bpf_loop()` helper support for efficient iteration
-* Optimized path resolution
-* Enhanced tracing capabilities
-
-|*6.4+*
-|Optimal
-a|
-* `bpf_iter_num` support for numeric iterators
-* `bpf_repeat()` macro for optimal looping
-* Best performance and feature set
-* All optimization paths enabled
-|===
 
 == Required Kernel Configuration
 
@@ -186,8 +139,6 @@ CONFIG_FUNCTION_TRACER=y
 
 # Security (at least one required)
 CONFIG_SECURITY=y
-CONFIG_SECURITY_APPARMOR=y    # or
-CONFIG_SECURITY_SELINUX=y     # or similar LSM
 
 # Cgroup support
 CONFIG_CGROUPS=y
@@ -204,7 +155,7 @@ Check if your kernel has what you need:
 ls /sys/kernel/btf/vmlinux
 
 # Verify BPF syscall support
-zgrep CONFIG_BPF /proc/config.gz
+grep CONFIG_BPF <your kernel config>
 
 # Check available BPF program types
 bpftool feature
