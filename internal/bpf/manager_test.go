@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -101,6 +102,54 @@ const (
 	learningChannel ChannelType = iota
 	monitoringChannel
 )
+
+func (c ChannelType) String() string {
+	switch c {
+	case learningChannel:
+		return "learning"
+	case monitoringChannel:
+		return "monitoring"
+	default:
+		return "unknown"
+	}
+}
+
+type runCommandArgs struct {
+	manager         *Manager
+	cgInfo          *cgroupInfo
+	command         string
+	channel         ChannelType
+	shouldEPERM     bool
+	shouldFindEvent bool
+}
+
+func runAndFindCommand(args *runCommandArgs) error {
+	err := args.cgInfo.RunInCgroup(args.command, []string{})
+	if args.shouldEPERM {
+		if err == nil || !errors.Is(err, syscall.EPERM) {
+			return fmt.Errorf("expected EPERM error, got: %w", err)
+		}
+	} else if err != nil {
+		return fmt.Errorf("failed to run %s in cgroup: %w", args.command, err)
+	}
+
+	// Get the event
+	err = args.manager.findEventInChannel(args.channel, args.cgInfo.id, args.command)
+	if args.shouldFindEvent {
+		if err != nil {
+			return fmt.Errorf(
+				"failed to find (command: %s, cgroup: %d) in channel %s: %w",
+				args.command,
+				args.cgInfo.id,
+				args.channel,
+				err,
+			)
+		}
+	} else if err == nil {
+		return fmt.Errorf("Did not expect to find (command: %s, cgroup: %d)", args.command, args.cgInfo.id)
+	}
+	return nil
+}
 
 func (m *Manager) findEventInChannel(ty ChannelType, cgID uint64, command string) error {
 	// We chose the channel to extract events from based on the learning flag
@@ -241,6 +290,7 @@ func TestMonitorProtectMode(t *testing.T) {
 	mockPolicyID := uint64(42)
 
 	// populate policy values
+	// only `pol_str_maps_0` will be popoulated here, all the other maps won't be created.
 	err = manager.GetPolicyValuesUpdateFunc()(mockPolicyID, []string{"/usr/bin/true"}, AddValuesToPolicy)
 	require.NoError(t, err, "Failed to add policy values")
 
@@ -275,6 +325,27 @@ func TestMonitorProtectMode(t *testing.T) {
 	require.NoError(t, err, "Failed to find event for not allowed binary")
 
 	//////////////////////
+	// Try a binary that is not allowed and that is not in `pol_str_maps_0`
+	//////////////////////
+	t.Log("Write temp binary")
+	// we didn't create a map for a path with this len so we expect this to be reported as not allowed
+	tmpPath := filepath.Join(t.TempDir(), strings.Repeat("A", 128))
+	content := []byte("#!/bin/bash\n/usr/bin/true\n")
+	// we want this to be executable
+	err = os.WriteFile(tmpPath, content, 0755)
+	require.NoError(t, err, "Failed to write temporary file")
+	defer os.Remove(tmpPath)
+
+	t.Log("Trying binary with path len > 128 in monitor mode")
+	require.NoError(t, runAndFindCommand(&runCommandArgs{
+		manager:         manager,
+		cgInfo:          &cgInfo,
+		command:         tmpPath,
+		channel:         monitoringChannel,
+		shouldFindEvent: true,
+	}))
+
+	//////////////////////
 	// Switch to enforcing mode
 	//////////////////////
 	t.Log("Switching to enforcing mode")
@@ -305,6 +376,19 @@ func TestMonitorProtectMode(t *testing.T) {
 	// and we should find the event in the channel
 	err = manager.findEventInChannel(monitoringChannel, cgInfo.id, command)
 	require.NoError(t, err, "Failed to find event for allowed binary")
+
+	//////////////////////
+	// Try a binary that is not allowed and that is not in `pol_str_maps_0`
+	//////////////////////
+	t.Log("Trying binary with path len > 128 in enforcing mode")
+	require.NoError(t, runAndFindCommand(&runCommandArgs{
+		manager:         manager,
+		cgInfo:          &cgInfo,
+		command:         tmpPath,
+		channel:         monitoringChannel,
+		shouldEPERM:     true,
+		shouldFindEvent: true,
+	}))
 }
 
 func TestMultiplePolicies(t *testing.T) {
