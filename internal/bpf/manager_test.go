@@ -262,15 +262,13 @@ func TestLearning(t *testing.T) {
 	require.NoError(t, err, "Failed to create test cgroup")
 	defer cgInfo.Close()
 
-	command := "/usr/bin/true"
-	err = cgInfo.RunInCgroup(command, []string{})
-	require.NoError(t, err, "Failed to run %s in cgroup", command)
-
-	//////////////////////
-	// Get the learning event
-	//////////////////////
-	err = manager.findEventInChannel(learningChannel, cgInfo.id, command)
-	require.NoError(t, err, "Failed to find learning event")
+	require.NoError(t, runAndFindCommand(&runCommandArgs{
+		manager:         manager,
+		cgInfo:          &cgInfo,
+		command:         "/usr/bin/true",
+		channel:         learningChannel,
+		shouldFindEvent: true,
+	}))
 }
 
 func TestMonitorProtectMode(t *testing.T) {
@@ -306,29 +304,30 @@ func TestMonitorProtectMode(t *testing.T) {
 	// Try a binary that is allowed
 	//////////////////////
 	t.Log("Trying allowed binary in monitor mode")
-	command := "/usr/bin/true"
-	err = cgInfo.RunInCgroup(command, []string{})
-	require.NoError(t, err, "Failed to run %s in cgroup", command)
-
-	err = manager.findEventInChannel(monitoringChannel, cgInfo.id, command)
-	require.Error(t, err, "Did not expect to find event for allowed binary")
+	require.NoError(t, runAndFindCommand(&runCommandArgs{
+		manager:         manager,
+		cgInfo:          &cgInfo,
+		command:         "/usr/bin/true",
+		channel:         monitoringChannel,
+		shouldFindEvent: false,
+	}))
 
 	//////////////////////
 	// Try a binary that is not allowed
 	//////////////////////
 	t.Log("Trying not allowed binary in monitor mode")
-	command = "/usr/bin/who"
-	err = cgInfo.RunInCgroup(command, []string{})
-	require.NoError(t, err, "Failed to run %s in cgroup", command)
-
-	err = manager.findEventInChannel(monitoringChannel, cgInfo.id, command)
-	require.NoError(t, err, "Failed to find event for not allowed binary")
+	require.NoError(t, runAndFindCommand(&runCommandArgs{
+		manager:         manager,
+		cgInfo:          &cgInfo,
+		command:         "/usr/bin/who",
+		channel:         monitoringChannel,
+		shouldFindEvent: true,
+	}))
 
 	//////////////////////
 	// Try a binary that is not allowed and that is not in `pol_str_maps_0`
 	//////////////////////
 	t.Log("Write temp binary")
-	// we didn't create a map for a path with this len so we expect this to be reported as not allowed
 	tmpPath := filepath.Join(t.TempDir(), strings.Repeat("A", 128))
 	content := []byte("#!/bin/bash\n/usr/bin/true\n")
 	// we want this to be executable
@@ -336,6 +335,7 @@ func TestMonitorProtectMode(t *testing.T) {
 	require.NoError(t, err, "Failed to write temporary file")
 	defer os.Remove(tmpPath)
 
+	// we didn't create a map for a path with this len so we expect this to be reported as not allowed
 	t.Log("Trying binary with path len > 128 in monitor mode")
 	require.NoError(t, runAndFindCommand(&runCommandArgs{
 		manager:         manager,
@@ -357,25 +357,26 @@ func TestMonitorProtectMode(t *testing.T) {
 	//////////////////////
 	// Should behave like the monitor mode
 	t.Log("Trying allowed binary in enforcing mode")
-	command = "/usr/bin/true"
-	err = cgInfo.RunInCgroup(command, []string{})
-	require.NoError(t, err, "Failed to run %s in cgroup", command)
-
-	err = manager.findEventInChannel(monitoringChannel, cgInfo.id, command)
-	require.Error(t, err, "Did not expect to find event for allowed binary")
+	require.NoError(t, runAndFindCommand(&runCommandArgs{
+		manager:         manager,
+		cgInfo:          &cgInfo,
+		command:         "/usr/bin/true",
+		channel:         monitoringChannel,
+		shouldFindEvent: false,
+	}))
 
 	//////////////////////
 	// Try a binary that is not allowed
 	//////////////////////
 	t.Log("Trying not allowed binary in enforcing mode")
-	command = "/usr/bin/who"
-	err = cgInfo.RunInCgroup(command, []string{})
-	// should receive a permission denied error
-	require.Error(t, err, "Failed to run %s in cgroup", command)
-
-	// and we should find the event in the channel
-	err = manager.findEventInChannel(monitoringChannel, cgInfo.id, command)
-	require.NoError(t, err, "Failed to find event for allowed binary")
+	require.NoError(t, runAndFindCommand(&runCommandArgs{
+		manager:         manager,
+		cgInfo:          &cgInfo,
+		command:         "/usr/bin/who",
+		channel:         monitoringChannel,
+		shouldFindEvent: true,
+		shouldEPERM:     true,
+	}))
 
 	//////////////////////
 	// Try a binary that is not allowed and that is not in `pol_str_maps_0`
@@ -399,7 +400,8 @@ func TestMultiplePolicies(t *testing.T) {
 	err := manager.GetPolicyValuesUpdateFunc()(mockPolicyID1, []string{"/usr/bin/true"}, AddValuesToPolicy)
 	require.NoError(t, err, "Failed to add policy 1 values")
 
-	// Check if max entries for string maps is really greater than 1
+	// We try to create 2 policies to check if `max_entries`
+	// for string maps is really greater than 1.
 	mockPolicyID2 := uint64(43)
 	err = manager.GetPolicyValuesUpdateFunc()(mockPolicyID2, []string{"/usr/bin/who"}, AddValuesToPolicy)
 	require.NoError(t, err, "Failed to add policy 2 values")
