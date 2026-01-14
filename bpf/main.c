@@ -521,15 +521,14 @@ int BPF_PROG(enforce_cgroup_policy, struct linux_binprm *bprm) {
 	}
 	int index = string_map_index(padded_len);
 	void *string_map = get_policy_string_map(index, policy_id);
-	if(!string_map) {
-		bpf_printk("No string map for policy id %d, index %d, padded_len %d",
-		           *policy_id,
-		           index,
-		           padded_len);
-		return 0;
+	// if `string_map` is NULL it means that the userspace never populated a map for this path
+	// length. This is an optimization userspace side and expected behavior. We should consider
+	// the missing map as a not allowed event.
+	__u8 *match = NULL;
+	if(string_map) {
+		match = bpf_map_lookup_elem(string_map, &evt->path[SAFE_PATH_ACCESS(current_offset)]);
 	}
 
-	__u8 *match = bpf_map_lookup_elem(string_map, &evt->path[SAFE_PATH_ACCESS(current_offset)]);
 	if(match != NULL) {
 		// We have this binary in the list so we do nothing
 		return 0;

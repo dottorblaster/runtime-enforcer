@@ -37,3 +37,5 @@ tilt-settings.yaml
 # bpf objects
 internal/bpf/bpf_*bpfeb.o
 internal/bpf/bpf_*bpfel.o
+internal/bpf/bpf_*bpfeb.go
+internal/bpf/bpf_*bpfel.go
