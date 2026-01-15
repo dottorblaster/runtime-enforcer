@@ -13,7 +13,6 @@ const (
 	// PolicyProposalMaxExecutables defines the maximum number of executables that we can learn.
 	// This is a arbitrary number right now and can be fine-tuned or made configurable in the future.
 	PolicyProposalMaxExecutables = 100
-	MaximumSeverity              = 10
 	ApprovalLabelKey             = "security.rancher.io/policy-ready"
 )
 
@@ -131,7 +130,6 @@ func (p *WorkloadPolicyProposal) AddPartialOwnerReferenceDetails(workloadKind st
 func (p *WorkloadPolicyProposalSpec) IntoWorkloadPolicySpec() WorkloadPolicySpec {
 	// Setting severity to 10 and enforcement mode to "monitor" by default.
 	return WorkloadPolicySpec{
-		Severity:         MaximumSeverity,
 		Mode:             policymode.MonitorString,
 		Selector:         p.Selector,
 		RulesByContainer: p.RulesByContainer,

@@ -48,11 +48,6 @@ var _ = Describe("WorkloadPolicy Controller", func() {
 									},
 								},
 							},
-							Severity: 10,
-							Tags: []string{
-								"tag",
-							},
-							Message: "TEST_RULE",
 						},
 					}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())

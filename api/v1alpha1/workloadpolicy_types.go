@@ -51,25 +51,6 @@ type WorkloadPolicySpec struct {
 
 	// rules specifies the rules this policy contains
 	RulesByContainer map[string]*WorkloadPolicyRules `json:"rulesByContainer,omitempty"`
-
-	// severity specifies the severity when this policy is violated.
-	//
-	// +kubebuilder:validation:Minimum=1
-	// +kubebuilder:validation:Maximum=10
-	// +optional
-	Severity int `json:"severity"`
-
-	// tags field is used to label this policy and its associated security events
-	//
-	// +kubebuilder:validation:MaxItems=12
-	// +optional
-	Tags []string `json:"tags"`
-
-	// message defines the human readable message that will show up in security events
-	//
-	// +kubebuilder:validation:MaxLength=200
-	// +optional
-	Message string `json:"message"`
 }
 
 type WorkloadPolicyStatus struct {

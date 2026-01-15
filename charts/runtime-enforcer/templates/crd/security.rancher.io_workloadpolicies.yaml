@@ -49,11 +49,6 @@ spec:
             type: object
           spec:
             properties:
-              message:
-                description: message defines the human readable message that will
-                  show up in security events
-                maxLength: 200
-                type: string
               mode:
                 description: mode decides the behavior of this policy.
                 enum:
@@ -132,18 +127,6 @@ spec:
                     type: object
                 type: object
                 x-kubernetes-map-type: atomic
-              severity:
-                description: severity specifies the severity when this policy is violated.
-                maximum: 10
-                minimum: 1
-                type: integer
-              tags:
-                description: tags field is used to label this policy and its associated
-                  security events
-                items:
-                  type: string
-                maxItems: 12
-                type: array
             required:
             - mode
             type: object

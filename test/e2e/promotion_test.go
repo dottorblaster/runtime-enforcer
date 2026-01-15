@@ -154,7 +154,6 @@ func getPromotionTest() types.Feature {
 								},
 							},
 						},
-						Severity: 10,
 					},
 				}
 

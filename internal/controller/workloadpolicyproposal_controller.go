@@ -61,10 +61,6 @@ func (r *WorkloadPolicyProposalReconciler) Reconcile(
 
 	_, err = controllerutil.CreateOrPatch(ctx, r.Client, &policy, func() error {
 		policy.Spec = policyProposal.Spec.IntoWorkloadPolicySpec()
-		// Avoid sending null for array fields like tags, which the schema rejects.
-		if policy.Spec.Tags == nil {
-			policy.Spec.Tags = []string{}
-		}
 
 		err = controllerutil.SetControllerReference(&policyProposal, &policy, r.Scheme)
 		if err != nil {
