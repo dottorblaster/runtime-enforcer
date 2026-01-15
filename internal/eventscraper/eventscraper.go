@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/neuvector/runtime-enforcer/api/v1alpha1"
 	"github.com/neuvector/runtime-enforcer/internal/bpf"
 	"github.com/neuvector/runtime-enforcer/internal/resolver"
 	"go.opentelemetry.io/otel"
@@ -30,6 +31,7 @@ type KubeProcessInfo struct {
 	ExecutablePath string `json:"executablePath"`
 	PodName        string `json:"podName"`
 	ContainerID    string `json:"containerID"`
+	PolicyName     string `json:"policyName,omitempty"`
 }
 
 func NewEventScraper(
@@ -64,6 +66,11 @@ func (es *EventScraper) getKubeProcessInfo(event *bpf.ProcessEvent) *KubeProcess
 	es.logger.Debug("process event with empty cgIDTracker, falling back to cgroupID", "cgID", event.CgroupID)
 	info, err := es.resolver.GetKubeInfo(cgIDLookup)
 	if err == nil {
+		policyName := ""
+		if info.Labels != nil {
+			policyName = info.Labels[v1alpha1.PolicyLabelKey]
+		}
+
 		return &KubeProcessInfo{
 			Namespace:      info.Namespace,
 			Workload:       info.WorkloadName,
@@ -72,6 +79,7 @@ func (es *EventScraper) getKubeProcessInfo(event *bpf.ProcessEvent) *KubeProcess
 			ExecutablePath: event.ExePath,
 			PodName:        info.PodName,
 			ContainerID:    info.ContainerID,
+			PolicyName:     policyName,
 		}
 	}
 	switch {
@@ -119,8 +127,13 @@ func (es *EventScraper) Start(ctx context.Context) error {
 			now := time.Now()
 			var span trace.Span
 			action := event.Mode
-			// todo!: we need to retrieve the policy name that triggered the action, for now we hardcode "unknown-policy"
-			policyName := "unknown-policy"
+
+			policyName := kubeInfo.PolicyName
+			if policyName == "" {
+				es.logger.ErrorContext(ctx, "missing policy label for",
+					"pod", kubeInfo.PodName,
+					"namespace", kubeInfo.Namespace)
+			}
 			_, span = es.tracer.Start(ctx, action)
 			span.SetAttributes(
 				attribute.String("evt.time", now.Format(time.RFC3339)),
