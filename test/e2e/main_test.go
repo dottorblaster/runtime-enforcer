@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/neuvector/runtime-enforcer/api/v1alpha1"
-	"github.com/neuvector/runtime-enforcer/internal/policygenerator"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -278,7 +277,7 @@ func getMainTest() types.Feature {
 						Name:      podName,
 						Namespace: workloadNamespace,
 						Labels: map[string]string{
-							policygenerator.PolicyLabelKey: referencedPolicyName,
+							v1alpha1.PolicyLabelKey: referencedPolicyName,
 						},
 					},
 					Spec: corev1.PodSpec{

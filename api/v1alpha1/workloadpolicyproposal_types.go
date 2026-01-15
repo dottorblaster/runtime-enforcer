@@ -14,6 +14,7 @@ const (
 	// This is a arbitrary number right now and can be fine-tuned or made configurable in the future.
 	PolicyProposalMaxExecutables = 100
 	ApprovalLabelKey             = "security.rancher.io/policy-ready"
+	PolicyLabelKey               = "security.rancher.io/policy"
 )
 
 // WorkloadPolicyProposalSpec defines the desired state of WorkloadPolicyProposal.

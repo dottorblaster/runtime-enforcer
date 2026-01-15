@@ -122,6 +122,7 @@ type KubeInfo struct {
 	WorkloadName  string
 	WorkloadType  string
 	ContainerID   string
+	Labels        labels.Labels
 }
 
 var (
@@ -165,5 +166,6 @@ func (r *Resolver) GetKubeInfo(cgID CgroupID) (*KubeInfo, error) {
 		WorkloadName:  pod.info.workloadName,
 		WorkloadType:  pod.info.workloadType,
 		ContainerID:   containerID,
+		Labels:        pod.info.labels,
 	}, nil
 }

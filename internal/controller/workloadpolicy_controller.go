@@ -18,7 +18,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/neuvector/runtime-enforcer/api/v1alpha1"
-	"github.com/neuvector/runtime-enforcer/internal/policygenerator"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -78,7 +77,7 @@ func (r *WorkloadPolicyReconciler) handleDeletion(
 		var err error
 		err = r.List(ctx, podList,
 			client.InNamespace(policy.Namespace),
-			client.MatchingLabels{policygenerator.PolicyLabelKey: policy.Name},
+			client.MatchingLabels{v1alpha1.PolicyLabelKey: policy.Name},
 		)
 		if err != nil {
 			logger.Error(err, "Failed to list pods using policy")
@@ -127,7 +126,7 @@ func (r *WorkloadPolicyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 // findPoliciesForPod maps a Pod to the WorkloadPolicy(s) it references.
 func (r *WorkloadPolicyReconciler) findPoliciesForPod(_ context.Context, pod client.Object) []ctrl.Request {
-	policyName, ok := pod.GetLabels()[policygenerator.PolicyLabelKey]
+	policyName, ok := pod.GetLabels()[v1alpha1.PolicyLabelKey]
 	if !ok {
 		return nil
 	}

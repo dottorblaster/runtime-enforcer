@@ -13,10 +13,6 @@ import (
 	cmCache "sigs.k8s.io/controller-runtime/pkg/cache"
 )
 
-const (
-	PolicyLabelKey = "security.rancher.io/policy"
-)
-
 type policyID = uint64
 
 type PolicyGenerator struct {
@@ -108,7 +104,7 @@ func (p *PolicyGenerator) addPolicy(wp *securityv1alpha1.WorkloadPolicy) error {
 		}
 		podSelector := &metav1.LabelSelector{
 			MatchLabels: map[string]string{
-				PolicyLabelKey: wp.Name,
+				securityv1alpha1.PolicyLabelKey: wp.Name,
 			},
 		}
 

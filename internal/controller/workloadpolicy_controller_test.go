@@ -5,7 +5,6 @@ import (
 
 	"github.com/neuvector/runtime-enforcer/api/v1alpha1"
 	"github.com/neuvector/runtime-enforcer/internal/controller"
-	"github.com/neuvector/runtime-enforcer/internal/policygenerator"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -101,7 +100,7 @@ var _ = Describe("WorkloadPolicy Controller", func() {
 					Name:      podName,
 					Namespace: testNamespace,
 					Labels: map[string]string{
-						policygenerator.PolicyLabelKey: policyName,
+						v1alpha1.PolicyLabelKey: policyName,
 					},
 				},
 				Spec: corev1.PodSpec{
