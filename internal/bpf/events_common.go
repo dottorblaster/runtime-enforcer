@@ -102,6 +102,7 @@ func (m *Manager) processRingbufEvents(ctx context.Context, rd *ringbuf.Reader, 
 			continue
 		}
 
+		// header.PathLen doesn't include the string terminator `\0`.
 		pathBytes := make([]byte, header.PathLen)
 		if _, err = buf.Read(pathBytes); err != nil {
 			m.logger.ErrorContext(ctx, "reading path bytes", "error", err)
