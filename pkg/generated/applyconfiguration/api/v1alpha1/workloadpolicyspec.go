@@ -9,9 +9,12 @@ import (
 // WorkloadPolicySpecApplyConfiguration represents a declarative configuration of the WorkloadPolicySpec type for use
 // with apply.
 type WorkloadPolicySpecApplyConfiguration struct {
-	// mode decides the behavior of this policy.
+	// mode defines the execution mode of this policy. Can be set to
+	// either "protect" or "monitor". In "protect" mode, the policy
+	// blocks and reports violations, while in "monitor" mode,
+	// it only reports violations.
 	Mode *string `json:"mode,omitempty"`
-	// rules specifies the rules this policy contains
+	// rulesByContainer specifies for each container the list of rules to apply.
 	RulesByContainer map[string]*apiv1alpha1.WorkloadPolicyRules `json:"rulesByContainer,omitempty"`
 }
 

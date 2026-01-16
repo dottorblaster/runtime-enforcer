@@ -19,7 +19,7 @@ const (
 // WorkloadPolicyProposalSpec defines the desired state of WorkloadPolicyProposal.
 type WorkloadPolicyProposalSpec struct {
 
-	// rulesByContainer specifies the rules this policy contains, per-container.
+	// rulesByContainer specifies for each container the list of rules to apply.
 	RulesByContainer map[string]*WorkloadPolicyRules `json:"rulesByContainer,omitempty"`
 }
 

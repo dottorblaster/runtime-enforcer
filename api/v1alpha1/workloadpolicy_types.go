@@ -33,18 +33,21 @@ type WorkloadPolicyExecutables struct {
 }
 
 type WorkloadPolicyRules struct {
-	// executables defines a security policy used for executables.
+	// executables defines a security policy for executables.
 	// +optional
 	Executables WorkloadPolicyExecutables `json:"executables,omitempty"`
 }
 
 type WorkloadPolicySpec struct {
-	// mode decides the behavior of this policy.
+	// mode defines the execution mode of this policy. Can be set to
+	// either "protect" or "monitor". In "protect" mode, the policy
+	// blocks and reports violations, while in "monitor" mode,
+	// it only reports violations.
 	// +kubebuilder:validation:Enum=monitor;protect
 	// +kubebuilder:validation:Required
 	Mode string `json:"mode,omitempty"`
 
-	// rules specifies the rules this policy contains
+	// rulesByContainer specifies for each container the list of rules to apply.
 	RulesByContainer map[string]*WorkloadPolicyRules `json:"rulesByContainer,omitempty"`
 }
 

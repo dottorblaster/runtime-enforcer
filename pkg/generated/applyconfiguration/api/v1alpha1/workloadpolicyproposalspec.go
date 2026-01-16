@@ -11,7 +11,7 @@ import (
 //
 // WorkloadPolicyProposalSpec defines the desired state of WorkloadPolicyProposal.
 type WorkloadPolicyProposalSpecApplyConfiguration struct {
-	// rulesByContainer specifies the rules this policy contains, per-container.
+	// rulesByContainer specifies for each container the list of rules to apply.
 	RulesByContainer map[string]*apiv1alpha1.WorkloadPolicyRules `json:"rulesByContainer,omitempty"`
 }
 

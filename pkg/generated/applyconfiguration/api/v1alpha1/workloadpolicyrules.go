@@ -5,7 +5,7 @@ package v1alpha1
 // WorkloadPolicyRulesApplyConfiguration represents a declarative configuration of the WorkloadPolicyRules type for use
 // with apply.
 type WorkloadPolicyRulesApplyConfiguration struct {
-	// executables defines a security policy used for executables.
+	// executables defines a security policy for executables.
 	Executables *WorkloadPolicyExecutablesApplyConfiguration `json:"executables,omitempty"`
 }
 

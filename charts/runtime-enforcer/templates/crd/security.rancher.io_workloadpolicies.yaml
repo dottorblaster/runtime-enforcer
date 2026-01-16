@@ -50,7 +50,11 @@ spec:
           spec:
             properties:
               mode:
-                description: mode decides the behavior of this policy.
+                description: |-
+                  mode defines the execution mode of this policy. Can be set to
+                  either "protect" or "monitor". In "protect" mode, the policy
+                  blocks and reports violations, while in "monitor" mode,
+                  it only reports violations.
                 enum:
                 - monitor
                 - protect
@@ -59,8 +63,7 @@ spec:
                 additionalProperties:
                   properties:
                     executables:
-                      description: executables defines a security policy used for
-                        executables.
+                      description: executables defines a security policy for executables.
                       properties:
                         allowed:
                           description: allowed defines a list of executables that
@@ -77,7 +80,8 @@ spec:
                           type: array
                       type: object
                   type: object
-                description: rules specifies the rules this policy contains
+                description: rulesByContainer specifies for each container the list
+                  of rules to apply.
                 type: object
             required:
             - mode
