@@ -24,8 +24,6 @@ type WorkloadPolicyProposalsGetter interface {
 type WorkloadPolicyProposalInterface interface {
 	Create(ctx context.Context, workloadPolicyProposal *apiv1alpha1.WorkloadPolicyProposal, opts v1.CreateOptions) (*apiv1alpha1.WorkloadPolicyProposal, error)
 	Update(ctx context.Context, workloadPolicyProposal *apiv1alpha1.WorkloadPolicyProposal, opts v1.UpdateOptions) (*apiv1alpha1.WorkloadPolicyProposal, error)
-	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, workloadPolicyProposal *apiv1alpha1.WorkloadPolicyProposal, opts v1.UpdateOptions) (*apiv1alpha1.WorkloadPolicyProposal, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
 	Get(ctx context.Context, name string, opts v1.GetOptions) (*apiv1alpha1.WorkloadPolicyProposal, error)
@@ -33,8 +31,6 @@ type WorkloadPolicyProposalInterface interface {
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
 	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *apiv1alpha1.WorkloadPolicyProposal, err error)
 	Apply(ctx context.Context, workloadPolicyProposal *applyconfigurationapiv1alpha1.WorkloadPolicyProposalApplyConfiguration, opts v1.ApplyOptions) (result *apiv1alpha1.WorkloadPolicyProposal, err error)
-	// Add a +genclient:noStatus comment above the type to avoid generating ApplyStatus().
-	ApplyStatus(ctx context.Context, workloadPolicyProposal *applyconfigurationapiv1alpha1.WorkloadPolicyProposalApplyConfiguration, opts v1.ApplyOptions) (result *apiv1alpha1.WorkloadPolicyProposal, err error)
 	WorkloadPolicyProposalExpansion
 }
 

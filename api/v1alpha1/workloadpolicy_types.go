@@ -48,15 +48,6 @@ type WorkloadPolicySpec struct {
 	RulesByContainer map[string]*WorkloadPolicyRules `json:"rulesByContainer,omitempty"`
 }
 
-type WorkloadPolicyStatus struct {
-	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
-
-	Conditions []metav1.Condition `json:"conditions,omitempty"`
-
-	State  string `json:"state,omitempty"`
-	Reason string `json:"reason,omitempty"`
-}
-
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Mode",type=string,JSONPath=`.spec.mode`
@@ -70,8 +61,7 @@ type WorkloadPolicy struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   WorkloadPolicySpec   `json:"spec,omitempty"`
-	Status WorkloadPolicyStatus `json:"status,omitempty"`
+	Spec WorkloadPolicySpec `json:"spec,omitempty"`
 }
 
 // +kubebuilder:object:root=true

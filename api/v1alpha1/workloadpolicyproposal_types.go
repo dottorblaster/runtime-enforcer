@@ -5,7 +5,6 @@ import (
 	"slices"
 
 	"github.com/neuvector/runtime-enforcer/internal/types/policymode"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -24,30 +23,6 @@ type WorkloadPolicyProposalSpec struct {
 	RulesByContainer map[string]*WorkloadPolicyRules `json:"rulesByContainer,omitempty"`
 }
 
-type WorkloadPolicyProposalCondition struct {
-	Type   string                 `json:"type"`
-	Status corev1.ConditionStatus `json:"status"`
-	// lastProbeTime is the time we probed the condition.
-	// +optional
-	LastProbeTime metav1.Time `json:"lastProbeTime,omitempty"`
-	// lastTransitionTime is the time the condition transitioned from one status to another.
-	// +optional
-	LastTransitionTime metav1.Time `json:"lastTransitionTime,omitempty"`
-	// reason is a unique, this should be a short, machine understandable string that gives the reason
-	// for condition's last transition. If it reports "ResizeStarted" that means the underlying
-	// persistent volume is being resized.
-	// +optional
-	Reason string `json:"reason,omitempty"`
-	// message is the human-readable message indicating details about last transition.
-	// +optional
-	Message string `json:"message,omitempty"`
-}
-
-// WorkloadPolicyProposalStatus defines the observed state of WorkloadPolicyProposal.
-type WorkloadPolicyProposalStatus struct {
-	Conditions []WorkloadPolicyProposalCondition `json:"conditions,omitempty"`
-}
-
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +genclient
@@ -58,8 +33,7 @@ type WorkloadPolicyProposal struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   WorkloadPolicyProposalSpec   `json:"spec,omitempty"`
-	Status WorkloadPolicyProposalStatus `json:"status,omitempty"`
+	Spec WorkloadPolicyProposalSpec `json:"spec,omitempty"`
 }
 
 // +kubebuilder:object:root=true

@@ -22,18 +22,12 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &apiv1alpha1.WorkloadPolicyExecutablesApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("WorkloadPolicyProposal"):
 		return &apiv1alpha1.WorkloadPolicyProposalApplyConfiguration{}
-	case v1alpha1.SchemeGroupVersion.WithKind("WorkloadPolicyProposalCondition"):
-		return &apiv1alpha1.WorkloadPolicyProposalConditionApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("WorkloadPolicyProposalSpec"):
 		return &apiv1alpha1.WorkloadPolicyProposalSpecApplyConfiguration{}
-	case v1alpha1.SchemeGroupVersion.WithKind("WorkloadPolicyProposalStatus"):
-		return &apiv1alpha1.WorkloadPolicyProposalStatusApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("WorkloadPolicyRules"):
 		return &apiv1alpha1.WorkloadPolicyRulesApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("WorkloadPolicySpec"):
 		return &apiv1alpha1.WorkloadPolicySpecApplyConfiguration{}
-	case v1alpha1.SchemeGroupVersion.WithKind("WorkloadPolicyStatus"):
-		return &apiv1alpha1.WorkloadPolicyStatusApplyConfiguration{}
 
 	}
 	return nil

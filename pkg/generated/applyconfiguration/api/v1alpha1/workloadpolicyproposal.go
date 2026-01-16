@@ -15,8 +15,7 @@ import (
 type WorkloadPolicyProposalApplyConfiguration struct {
 	v1.TypeMetaApplyConfiguration    `json:",inline"`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
-	Spec                             *WorkloadPolicyProposalSpecApplyConfiguration   `json:"spec,omitempty"`
-	Status                           *WorkloadPolicyProposalStatusApplyConfiguration `json:"status,omitempty"`
+	Spec                             *WorkloadPolicyProposalSpecApplyConfiguration `json:"spec,omitempty"`
 }
 
 // WorkloadPolicyProposal constructs a declarative configuration of the WorkloadPolicyProposal type for use with
@@ -195,14 +194,6 @@ func (b *WorkloadPolicyProposalApplyConfiguration) ensureObjectMetaApplyConfigur
 // If called multiple times, the Spec field is set to the value of the last call.
 func (b *WorkloadPolicyProposalApplyConfiguration) WithSpec(value *WorkloadPolicyProposalSpecApplyConfiguration) *WorkloadPolicyProposalApplyConfiguration {
 	b.Spec = value
-	return b
-}
-
-// WithStatus sets the Status field in the declarative configuration to the given value
-// and returns the receiver, so that objects can be built by chaining "With" function invocations.
-// If called multiple times, the Status field is set to the value of the last call.
-func (b *WorkloadPolicyProposalApplyConfiguration) WithStatus(value *WorkloadPolicyProposalStatusApplyConfiguration) *WorkloadPolicyProposalApplyConfiguration {
-	b.Status = value
 	return b
 }
 
