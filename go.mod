@@ -1,6 +1,6 @@
 module github.com/neuvector/runtime-enforcer
 
-go 1.25.5
+go 1.25.6
 
 require (
 	github.com/cilium/ebpf v0.20.0
