@@ -2,14 +2,6 @@
 
 This document explains the three *phases* of runtime-enforcer and how to move between them.
 
-== Quick mapping to CRDs
-
-* *Learn phase*: the system observes process executions and creates/updates `WorkloadPolicyProposal` objects.
-* *Monitor phase*: a `WorkloadPolicy` exists with `.spec.mode: monitor` (violations are reported, not blocked).
-* *Protect phase*: a `WorkloadPolicy` exists with `.spec.mode: protect` (violations are reported and blocked).
-
-Important: the `WorkloadPolicy` CRD only supports `monitor` and `protect` (`.spec.mode`). `Learn` is implemented as `WorkloadPolicyProposal` generation.
-
 == Learn phase
 
 === What happens during this phase
@@ -23,7 +15,7 @@ NOTE: Learn is based on *exec events observed after the agent is running*. The d
 
 That means:
 
-* If a workload was already running before runtime-enforcer started, *we cannot automatically propose the full set of processes it already executed in the past*.
+* If a workload was already running before runtime-enforcer started, *we cannot propose the full set of processes it already executed in the past*.
 * You will only learn processes that exec after runtime-enforcer is running (for long-lived pods that rarely exec, you may learn little or nothing until a restart or activity happens).
 
 Operationally, if you want complete proposals, enable learning first and then *(re)start* the workloads you want to learn.
@@ -37,20 +29,19 @@ Operationally, if you want complete proposals, enable learning first and then *(
 ** No per-workload configuration is required to start generating proposals (proposals are created as exec events are observed).
 * *Leave*
 ** Mark the corresponding proposal as ready by setting the label: `security.rancher.io/policy-ready=true`
-** This triggers creation of a `WorkloadPolicy` (defaulting to `mode: monitor`) and gets the proposal to be deleted.
+** This triggers creation of a `WorkloadPolicy` (defaulting to `mode: monitor`).
 
 === CRDs created/updated during this phase
 
 * *Created/updated*: `WorkloadPolicyProposal` (`security.rancher.io/v1alpha1`)
 ** Name format is derived from workload kind/name (for example `deploy-NAME`, `ds-NAME`, etc.).
-** A mutating webhook completes the proposal’s `ownerReferences` and fills `.spec.selector` from the owning workload’s selector when possible.
+** The proposal is linked back to the owning workload via `ownerReferences`.
 
 == Monitor phase
 
 === What happens during this phase
 
 * *Processes are not blocked.*
-* Enforcement is active for workloads that are bound to the policy.
 * When a process exec is *not on the allow-list* for the container:
 ** the exec is *allowed*
 ** a *violation* event is emitted and exported via OpenTelemetry with `action=monitor`.
@@ -67,14 +58,13 @@ Runtime-enforcer uses this label to decide which pods the policy applies to.
 
 * *Leave*
 ** *Monitor → Protect*: update the `WorkloadPolicy` and set `.spec.mode: protect`.
-** *Monitor → Learn*: remove the `security.rancher.io/policy` label from workloads/pods, then delete the `WorkloadPolicy`.
-*** Note: `WorkloadPolicy` has a finalizer and will not be deleted while pods still reference it via the label.
+** *Monitor → Learn*: remove the binding label from workloads/pods, delete the `WorkloadPolicy`, then delete the existing `WorkloadPolicyProposal`, or set `security.rancher.io/policy-ready=false` on the proposal to resume learning.
 
 === CRDs created/updated during this phase
 
 * *Used/updated*: `WorkloadPolicy`
 ** `.spec.mode` controls whether violations are blocked (`protect`) or allowed (`monitor`).
-** A mutating webhook adds a finalizer (`workloadpolicy.security.rancher.io/finalizer`) so policies cannot be deleted while in use.
+** If a policy is still in use by running workloads, runtime-enforcer will prevent it from being deleted until it is no longer referenced.
 
 == Protect phase
 
@@ -92,9 +82,17 @@ Runtime-enforcer uses this label to decide which pods the policy applies to.
 ** Ensure the workload is bound via `security.rancher.io/policy: WORKLOAD_POLICY_NAME`.
 ** Update the `WorkloadPolicy` to set `.spec.mode: protect`.
 * *Leave*
-** *Protect → Monitor*: set `.spec.mode: monitor`.
-** *Protect → Learn*: remove the binding label from workloads/pods, then delete the `WorkloadPolicy` (finalizer will delay deletion until no pods reference it).
+** *Protect → Monitor*: update the `WorkloadPolicy` and set `.spec.mode: monitor`.
+** *Protect → Learn*: remove the binding label from workloads/pods, delete the `WorkloadPolicy`, then delete the existing `WorkloadPolicyProposal`, or set `security.rancher.io/policy-ready=false` on the proposal to resume learning.
 
 === CRDs created/updated during this phase
 
 * *Used/updated*: `WorkloadPolicy` (same CRD as monitor; only `.spec.mode` changes).
+
+== Quick mapping to CRDs
+
+* *Learn phase*: the system observes process executions and creates/updates `WorkloadPolicyProposal` objects.
+* *Monitor phase*: a `WorkloadPolicy` exists with `.spec.mode: monitor` (violations are reported, not blocked).
+* *Protect phase*: a `WorkloadPolicy` exists with `.spec.mode: protect` (violations are reported and blocked).
+
+Important: the `WorkloadPolicy` CRD only supports `monitor` and `protect` (`.spec.mode`). `Learn` is implemented as `WorkloadPolicyProposal` generation.
