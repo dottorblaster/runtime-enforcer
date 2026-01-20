@@ -35,6 +35,7 @@ type Config struct {
 	enableTracing     bool
 	enableOtelSidecar bool
 	enableLearning    bool
+	enableNri         bool
 	nriSocketPath     string
 	nriPluginIdx      string
 }
@@ -134,8 +135,11 @@ func startDaemon(ctx context.Context, logger *slog.Logger, config Config) error 
 		podInformer,
 		bpfManager.GetCgroupTrackerUpdateFunc(),
 		bpfManager.GetCgroupPolicyUpdateFunc(),
-		config.nriSocketPath,
-		config.nriPluginIdx,
+		resolver.NriSettings{
+			Enabled:        config.enableNri,
+			NriSocketPath:  config.nriSocketPath,
+			NriPluginIndex: config.nriPluginIdx,
+		},
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create resolver: %w", err)
@@ -194,6 +198,7 @@ func main() {
 	flag.BoolVar(&config.enableTracing, "enable-tracing", false, "Enable tracing collection")
 	flag.BoolVar(&config.enableOtelSidecar, "enable-otel-sidecar", false, "Enable OpenTelemetry sidecar")
 	flag.BoolVar(&config.enableLearning, "enable-learning", false, "Enable learning mode")
+	flag.BoolVar(&config.enableNri, "enable-nri", true, "Enable NRI")
 	flag.StringVar(&config.nriSocketPath, "nri-socket-path", "/var/run/nri/nri.sock", "NRI socket path")
 	flag.StringVar(&config.nriPluginIdx, "nri-plugin-index", "00", "NRI plugin index")
 

@@ -61,7 +61,7 @@ func (r *Resolver) StartNriPluginWithRetry(ctx context.Context, fn func(context.
 	d := net.Dialer{
 		Timeout: NRIConnectTimeout,
 	}
-	conn, err := d.DialContext(ctx, "unix", r.nriSocketPath)
+	conn, err := d.DialContext(ctx, "unix", r.nriSettings.NriSocketPath)
 	if err != nil {
 		return err
 	}
@@ -95,8 +95,8 @@ func (r *Resolver) StartNriPlugin(ctx context.Context) error {
 	}
 
 	opts := []stub.Option{
-		stub.WithPluginIdx(r.nriPluginIndex),
-		stub.WithSocketPath(r.nriSocketPath),
+		stub.WithPluginIdx(r.nriSettings.NriPluginIndex),
+		stub.WithSocketPath(r.nriSettings.NriSocketPath),
 		stub.WithOnClose(p.onClose),
 	}
 

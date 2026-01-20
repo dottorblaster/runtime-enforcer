@@ -34,8 +34,13 @@ type Resolver struct {
 
 	cgTrackerUpdateFunc         func(cgID uint64, cgroupPath string) error
 	cgroupToPolicyMapUpdateFunc func(polID PolicyID, cgroupIDs []CgroupID, op bpf.CgroupPolicyOperation) error
-	nriSocketPath               string
-	nriPluginIndex              string
+	nriSettings                 NriSettings
+}
+
+type NriSettings struct {
+	Enabled        bool
+	NriSocketPath  string
+	NriPluginIndex string
 }
 
 func NewResolver(
@@ -44,8 +49,7 @@ func NewResolver(
 	informer cmCache.Informer,
 	cgTrackerUpdateFunc func(cgID uint64, cgroupPath string) error,
 	cgroupToPolicyMapUpdateFunc func(polID PolicyID, cgroupIDs []CgroupID, op bpf.CgroupPolicyOperation) error,
-	nriSocketPath string,
-	nriPluginIndex string,
+	nriSettings NriSettings,
 ) (*Resolver, error) {
 	var err error
 	r := &Resolver{
@@ -54,8 +58,7 @@ func NewResolver(
 		cgroupIDToPodID:             make(map[CgroupID]PodID),
 		cgTrackerUpdateFunc:         cgTrackerUpdateFunc,
 		cgroupToPolicyMapUpdateFunc: cgroupToPolicyMapUpdateFunc,
-		nriSocketPath:               nriSocketPath,
-		nriPluginIndex:              nriPluginIndex,
+		nriSettings:                 nriSettings,
 	}
 
 	r.criResolver, err = newCRIResolver(ctx, r.logger)
@@ -63,9 +66,11 @@ func NewResolver(
 		return nil, err
 	}
 
-	err = r.StartNriPluginWithRetry(ctx, r.StartNriPlugin)
-	if err != nil {
-		return nil, fmt.Errorf("failed to start nri plugin: %w", err)
+	if r.nriSettings.Enabled {
+		err = r.StartNriPluginWithRetry(ctx, r.StartNriPlugin)
+		if err != nil {
+			return nil, fmt.Errorf("failed to start nri plugin: %w", err)
+		}
 	}
 
 	// We deliberately ignore the returned cache.ResourceEventHandlerRegistration and error here because
