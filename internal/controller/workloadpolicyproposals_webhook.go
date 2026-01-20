@@ -8,7 +8,6 @@ import (
 	securityv1alpha1 "github.com/neuvector/runtime-enforcer/api/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
@@ -80,13 +79,8 @@ func (p *ProposalWebhook) updateResource(
 
 // Default filling ownerReferences and selectors fields based on the high level resource defined
 // in its ownerReferences, where caller still need to specify its kind and name.
-func (p *ProposalWebhook) Default(ctx context.Context, obj runtime.Object) error {
+func (p *ProposalWebhook) Default(ctx context.Context, proposal *securityv1alpha1.WorkloadPolicyProposal) error {
 	logger := log.FromContext(ctx)
-
-	proposal, ok := obj.(*securityv1alpha1.WorkloadPolicyProposal)
-	if !ok {
-		return fmt.Errorf("expected a WorkloadPolicyProposal but got a %T", obj)
-	}
 
 	logger.Info("mutating resource")
 

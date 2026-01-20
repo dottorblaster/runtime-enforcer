@@ -98,21 +98,5 @@ var _ = Describe("WorkloadPolicy Webhook", func() {
 			Expect(policy.Finalizers).To(ContainElement(v1alpha1.WorkloadPolicyFinalizer))
 			Expect(policy.Finalizers).To(HaveLen(2))
 		})
-
-		It("should return error for wrong object type", func() {
-			By("passing wrong object type to webhook")
-
-			wrongObject := &v1alpha1.WorkloadPolicyProposal{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "wrong-type",
-					Namespace: "default",
-				},
-			}
-
-			webhook := &controller.PolicyWebhook{}
-			err := webhook.Default(ctx, wrongObject)
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("expected a WorkloadPolicy"))
-		})
 	})
 })

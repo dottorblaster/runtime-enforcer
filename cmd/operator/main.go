@@ -252,8 +252,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	err = builder.WebhookManagedBy(mgr).
-		For(&securityv1alpha1.WorkloadPolicyProposal{}).
+	err = builder.WebhookManagedBy(mgr, &securityv1alpha1.WorkloadPolicyProposal{}).
 		WithDefaulter(&controller.ProposalWebhook{Client: mgr.GetClient()}).
 		Complete()
 	if err != nil {
@@ -261,8 +260,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	err = builder.WebhookManagedBy(mgr).
-		For(&securityv1alpha1.WorkloadPolicy{}).
+	err = builder.WebhookManagedBy(mgr, &securityv1alpha1.WorkloadPolicy{}).
 		WithDefaulter(&controller.PolicyWebhook{}).
 		Complete()
 	if err != nil {
