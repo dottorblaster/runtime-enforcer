@@ -24,7 +24,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       - name: Build image
-        uses: ./actions/container-build
+        uses: ./.github/actions/container-build
         with:
           arch: ${{ matrix.arch }}
           dockerfile: package/Dockerfile.${{ matrix.component }}
@@ -45,7 +45,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       - name: Merge images
-        uses: ./actions/merge-multiarch
+        uses: ./.github/actions/merge-multiarch
         with:
           arch: amd64
           image: ${{ matrix.component }}
@@ -72,7 +72,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       - name: Attestation
-        uses: ./actions/attestation
+        uses: ./.github/actions/attestation
         with:
           arch: ${{ matrix.arch }}
           image: ${{ matrix.component }}
