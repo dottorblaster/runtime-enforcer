@@ -134,7 +134,7 @@ func startDaemon(ctx context.Context, logger *slog.Logger, config Config) error 
 		podInformer,
 		bpfManager.GetCgroupTrackerUpdateFunc(),
 		bpfManager.GetCgroupPolicyUpdateFunc(),
-		bpfManager.GetPolicyValuesUpdateFunc(),
+		bpfManager.GetPolicyUpdateBinariesFunc(),
 		bpfManager.GetPolicyModeUpdateFunc(),
 		resolver.NriSettings{
 			Enabled:        config.enableNri,

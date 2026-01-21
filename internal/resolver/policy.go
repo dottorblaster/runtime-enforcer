@@ -92,7 +92,7 @@ func (r *Resolver) addWP(wp *v1alpha1.WorkloadPolicy) error {
 			"container", containerName)
 
 		// Populate policy values
-		if err := r.policyValuesFunc(polID, containerRules.Executables.Allowed, bpf.AddValuesToPolicy); err != nil {
+		if err := r.policyUpdateBinariesFunc(polID, containerRules.Executables.Allowed, bpf.AddValuesToPolicy); err != nil {
 			return fmt.Errorf("failed to populate policy values for wp %s, container %s: %w", wpKey, containerName, err)
 		}
 
@@ -161,7 +161,7 @@ func (r *Resolver) updateWP(oldWp, newWp *v1alpha1.WorkloadPolicy) error {
 		)
 
 		// Atomically replace values in BPF maps
-		if err := r.policyValuesFunc(policyID, newRules.Executables.Allowed, bpf.ReplaceValuesInPolicy); err != nil {
+		if err := r.policyUpdateBinariesFunc(policyID, newRules.Executables.Allowed, bpf.ReplaceValuesInPolicy); err != nil {
 			return fmt.Errorf("failed to replace policy values for wp %s, container %s: %w",
 				wpKey, containerName, err)
 		}
@@ -211,7 +211,7 @@ func (r *Resolver) deleteWP(wp *v1alpha1.WorkloadPolicy) error {
 			return fmt.Errorf("failed to remove policy from cgroup map: %w", err)
 		}
 
-		if err := r.policyValuesFunc(policyID, []string{}, bpf.RemoveValuesFromPolicy); err != nil {
+		if err := r.policyUpdateBinariesFunc(policyID, []string{}, bpf.RemoveValuesFromPolicy); err != nil {
 			return fmt.Errorf("failed to remove policy values for wp %s, container %s: %w", wpKey, containerName, err)
 		}
 

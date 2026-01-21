@@ -68,7 +68,7 @@ func TestMonitorProtectMode(t *testing.T) {
 
 	// populate policy values
 	// only `pol_str_maps_0` will be popoulated here, all the other maps won't be created.
-	err = runner.manager.GetPolicyValuesUpdateFunc()(mockPolicyID, []string{"/usr/bin/true"}, AddValuesToPolicy)
+	err = runner.manager.GetPolicyUpdateBinariesFunc()(mockPolicyID, []string{"/usr/bin/true"}, AddValuesToPolicy)
 	require.NoError(t, err, "Failed to add policy values")
 
 	// populate policy mode to monitor
@@ -165,12 +165,12 @@ func TestMultiplePolicies(t *testing.T) {
 	defer cleanup()
 
 	mockPolicyID1 := uint64(42)
-	err = manager.GetPolicyValuesUpdateFunc()(mockPolicyID1, []string{"/usr/bin/true"}, AddValuesToPolicy)
+	err = manager.GetPolicyUpdateBinariesFunc()(mockPolicyID1, []string{"/usr/bin/true"}, AddValuesToPolicy)
 	require.NoError(t, err, "Failed to add policy 1 values")
 
 	// We try to create 2 policies to check if `max_entries`
 	// for string maps is really greater than 1.
 	mockPolicyID2 := uint64(43)
-	err = manager.GetPolicyValuesUpdateFunc()(mockPolicyID2, []string{"/usr/bin/who"}, AddValuesToPolicy)
+	err = manager.GetPolicyUpdateBinariesFunc()(mockPolicyID2, []string{"/usr/bin/who"}, AddValuesToPolicy)
 	require.NoError(t, err, "Failed to add policy 2 values")
 }

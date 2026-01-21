@@ -33,7 +33,7 @@ type Resolver struct {
 
 	nextPolicyID                PolicyID
 	wpState                     map[namespacedPolicyName]policyByContainer
-	policyValuesFunc            func(policyID PolicyID, values []string, op bpf.PolicyValuesOperation) error
+	policyUpdateBinariesFunc    func(policyID PolicyID, values []string, op bpf.PolicyValuesOperation) error
 	policyModeUpdateFunc        func(policyID PolicyID, mode policymode.Mode, op bpf.PolicyModeOperation) error
 	cgTrackerUpdateFunc         func(cgID uint64, cgroupPath string) error
 	cgroupToPolicyMapUpdateFunc func(polID PolicyID, cgroupIDs []CgroupID, op bpf.CgroupPolicyOperation) error
@@ -52,7 +52,7 @@ func NewResolver(
 	informer cmCache.Informer,
 	cgTrackerUpdateFunc func(cgID uint64, cgroupPath string) error,
 	cgroupToPolicyMapUpdateFunc func(polID PolicyID, cgroupIDs []CgroupID, op bpf.CgroupPolicyOperation) error,
-	policyValuesFunc func(policyID uint64, values []string, op bpf.PolicyValuesOperation) error,
+	policyUpdateBinariesFunc func(policyID uint64, values []string, op bpf.PolicyValuesOperation) error,
 	policyModeUpdateFunc func(policyID uint64, mode policymode.Mode, op bpf.PolicyModeOperation) error,
 	nriSettings NriSettings,
 ) (*Resolver, error) {
@@ -64,7 +64,7 @@ func NewResolver(
 		cgTrackerUpdateFunc:         cgTrackerUpdateFunc,
 		cgroupToPolicyMapUpdateFunc: cgroupToPolicyMapUpdateFunc,
 		nriSettings:                 nriSettings,
-		policyValuesFunc:            policyValuesFunc,
+		policyUpdateBinariesFunc:    policyUpdateBinariesFunc,
 		policyModeUpdateFunc:        policyModeUpdateFunc,
 		wpState:                     make(map[namespacedPolicyName]policyByContainer),
 		nextPolicyID:                PolicyID(1),

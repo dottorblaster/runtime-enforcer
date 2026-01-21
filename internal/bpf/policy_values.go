@@ -304,8 +304,8 @@ func (m *Manager) replaceInnerBPFMap(policyID uint64,
 	return nil
 }
 
-// GetPolicyValuesUpdateFunc exposes a function used to interact with BPF maps storing policy values.
-func (m *Manager) GetPolicyValuesUpdateFunc() func(policyID uint64, values []string, op PolicyValuesOperation) error {
+// GetPolicyUpdateBinariesFunc exposes a function used to interact with BPF maps storing policy values.
+func (m *Manager) GetPolicyUpdateBinariesFunc() func(policyID uint64, values []string, op PolicyValuesOperation) error {
 	return func(policyID uint64, values []string, op PolicyValuesOperation) error {
 		switch op {
 		case AddValuesToPolicy:
