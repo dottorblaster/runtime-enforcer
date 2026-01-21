@@ -125,10 +125,6 @@ func startAgent(ctx context.Context, logger *slog.Logger, config Config) error {
 		return fmt.Errorf("failed to create resolver: %w", err)
 	}
 
-	//////////////////////
-	// Create NRI handler
-	//////////////////////
-
 	if config.enableNri {
 		nriHandler := nri.NewNRIHandler(
 			config.nriSocketPath,
@@ -139,24 +135,22 @@ func startAgent(ctx context.Context, logger *slog.Logger, config Config) error {
 		if err = ctrlMgr.Add(nriHandler); err != nil {
 			return fmt.Errorf("failed to add NRI handler to controller manager: %w", err)
 		}
+	} else {
+		var podInf cmCache.Informer
+		podInf, err = ctrlMgr.GetCache().GetInformer(ctx, &corev1.Pod{})
+		if err != nil {
+			return fmt.Errorf("cannot get pod informer: %w", err)
+		}
+		// Add some indexes to the pod informer
+		err = podInf.AddIndexers(cache.Indexers{
+			podinformer.ContainerIdx: podinformer.ContainerIndexFunc,
+			podinformer.PodIdx:       podinformer.PodIndexFunc,
+		})
+		if err != nil {
+			return fmt.Errorf("cannot add indexers to pod informer: %w", err)
+		}
+		_, _ = podInf.AddEventHandler(podinformer.PodEventHandlers(logger.With("component", "pod-informer"), resolver))
 	}
-
-	//////////////////////
-	// Create an informer for pods
-	//////////////////////
-	podInf, err := ctrlMgr.GetCache().GetInformer(ctx, &corev1.Pod{})
-	if err != nil {
-		return fmt.Errorf("cannot get pod informer: %w", err)
-	}
-	// Add some indexes to the pod informer
-	err = podInf.AddIndexers(cache.Indexers{
-		podinformer.ContainerIdx: podinformer.ContainerIndexFunc,
-		podinformer.PodIdx:       podinformer.PodIndexFunc,
-	})
-	if err != nil {
-		return fmt.Errorf("cannot add indexers to pod informer: %w", err)
-	}
-	_, _ = podInf.AddEventHandler(podinformer.PodEventHandlers(logger.With("component", "pod-informer"), resolver))
 
 	//////////////////////
 	// Create the scraper
@@ -205,7 +199,7 @@ func main() {
 	flag.BoolVar(&config.enableTracing, "enable-tracing", false, "Enable tracing collection")
 	flag.BoolVar(&config.enableOtelSidecar, "enable-otel-sidecar", false, "Enable OpenTelemetry sidecar")
 	flag.BoolVar(&config.enableLearning, "enable-learning", false, "Enable learning mode")
-	flag.BoolVar(&config.enableNri, "enable-nri", false, "Enable NRI")
+	flag.BoolVar(&config.enableNri, "enable-nri", true, "Enable NRI")
 	flag.StringVar(&config.nriSocketPath, "nri-socket-path", "/var/run/nri/nri.sock", "NRI socket path")
 	flag.StringVar(&config.nriPluginIdx, "nri-plugin-index", "00", "NRI plugin index")
 
