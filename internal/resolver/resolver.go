@@ -338,7 +338,7 @@ func (r *Resolver) AddPodFromNRI(
 	defer r.mu.Unlock()
 
 	// 1. retrieve cgroup ID
-	cgroupPath, err := ParseCgroupsPath(container.GetLinux().GetCgroupsPath())
+	cgroupPath, err := cgroups.ParseCgroupsPath(container.GetLinux().GetCgroupsPath())
 	if err != nil {
 		return fmt.Errorf("failed to parse cgroup path: %w", err)
 	}

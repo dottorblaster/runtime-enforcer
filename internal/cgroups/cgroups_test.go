@@ -1,9 +1,9 @@
-package resolver_test
+package cgroups_test
 
 import (
 	"testing"
 
-	"github.com/neuvector/runtime-enforcer/internal/resolver"
+	"github.com/neuvector/runtime-enforcer/internal/cgroups"
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,7 +22,7 @@ func TestParseCgroupsPath(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			out, err := resolver.ParseCgroupsPath(tt.in)
+			out, err := cgroups.ParseCgroupsPath(tt.in)
 			require.NoError(t, err)
 			require.Equal(t, tt.expected, out)
 		})
@@ -45,7 +45,7 @@ func TestSystemdExpandSlice(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.in, func(t *testing.T) {
-			out, err := resolver.SystemdExpandSlice(tt.in)
+			out, err := cgroups.SystemdExpandSlice(tt.in)
 			require.NoError(t, err)
 			require.Equal(t, tt.expected, out)
 		})
