@@ -20,7 +20,8 @@ import (
 func getPolicyPerContainerTest() types.Feature {
 	workloadNamespace := envconf.RandomName("policy-per-container-namespace", 32)
 	policyName := "per-container-policy"
-	podName := "test-pod-init-main"
+	podNameAllowed := "test-pod-allowed-init-main"
+	podNameBlocked := "test-pod-blocked-init-main"
 
 	return features.New("policy per container").
 		Setup(SetupSharedK8sClient).
@@ -51,7 +52,7 @@ func getPolicyPerContainerTest() types.Feature {
 						"init-container": {
 							Executables: v1alpha1.WorkloadPolicyExecutables{
 								Allowed: []string{
-									"/usr/bin/bash",
+									"/usr/bin/echo",
 								},
 							},
 						},
@@ -75,15 +76,15 @@ func getPolicyPerContainerTest() types.Feature {
 			return ctx
 		}).
 		Assess("required resources become available", IfRequiredResourcesAreCreated).
-		Assess("pod with init and main containers is created",
+		Assess("pod starts when init container runs allowed command",
 			func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
-				t.Log("creating pod with init container and main container")
+				t.Log("creating pod where init container runs allowed command (echo)")
 
 				r := ctx.Value(key("client")).(*resources.Resources)
 
 				pod := corev1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      podName,
+						Name:      podNameAllowed,
 						Namespace: workloadNamespace,
 						Labels: map[string]string{
 							v1alpha1.PolicyLabelKey: policyName,
@@ -92,12 +93,9 @@ func getPolicyPerContainerTest() types.Feature {
 					Spec: corev1.PodSpec{
 						InitContainers: []corev1.Container{
 							{
-								Name:  "init-container",
-								Image: "ubuntu",
-								Command: []string{
-									"bash", "-c",
-									"mkdir /tmp/ &>/dev/null; errno=$?; if [ $errno == 126 ]; then exit 0; fi; exit 1",
-								},
+								Name:    "init-container",
+								Image:   "ubuntu",
+								Command: []string{"echo", "init completed"},
 							},
 						},
 						Containers: []corev1.Container{
@@ -120,12 +118,10 @@ func getPolicyPerContainerTest() types.Feature {
 				)
 				require.NoError(t, err, "pod did not become ready")
 
-				err = r.Get(ctx, podName, workloadNamespace, &pod)
+				err = r.Get(ctx, podNameAllowed, workloadNamespace, &pod)
 				require.NoError(t, err, "failed to get pod")
 
-				// The init container completed successfully, which means:
-				// 1. bash was allowed to run
-				// 2. mkdir was blocked with exit code 126 (blocked command failed as expected)
+				// Verify init container completed successfully (echo is allowed)
 				require.NotEmpty(t, pod.Status.InitContainerStatuses, "init container status should exist")
 				initStatus := pod.Status.InitContainerStatuses[0]
 				require.NotNil(t, initStatus.State.Terminated, "init container should have terminated")
@@ -142,6 +138,63 @@ func getPolicyPerContainerTest() types.Feature {
 
 				return ctx
 			}).
+		Assess("pod fails when init container runs blocked command",
+			func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
+				t.Log("creating pod where init container runs blocked command (date)")
+
+				r := ctx.Value(key("client")).(*resources.Resources)
+
+				blockedPod := corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      podNameBlocked,
+						Namespace: workloadNamespace,
+						Labels: map[string]string{
+							v1alpha1.PolicyLabelKey: policyName,
+						},
+					},
+					Spec: corev1.PodSpec{
+						InitContainers: []corev1.Container{
+							{
+								Name:    "init-container",
+								Image:   "ubuntu",
+								Command: []string{"date"},
+							},
+						},
+						Containers: []corev1.Container{
+							{
+								Name:    "main-container",
+								Image:   "ubuntu",
+								Command: []string{"sleep", "3600"},
+							},
+						},
+						RestartPolicy: corev1.RestartPolicyNever,
+					},
+				}
+
+				err := r.Create(ctx, &blockedPod)
+				require.NoError(t, err, "failed to create pod with blocked init command")
+
+				waitForWorkloadPolicyStatusToBeUpdated()
+
+				err = r.Get(ctx, podNameBlocked, workloadNamespace, &blockedPod)
+				require.NoError(t, err, "failed to get blocked pod")
+
+				// Verify init container failed (date is not allowed)
+				require.NotEmpty(t, blockedPod.Status.InitContainerStatuses, "init container status should exist")
+				initStatus := blockedPod.Status.InitContainerStatuses[0]
+				require.NotNil(t, initStatus.State.Terminated, "init container should have terminated")
+				require.NotEqual(
+					t,
+					int32(0),
+					initStatus.State.Terminated.ExitCode,
+					"init container should fail because date is not allowed",
+				)
+
+				err = r.Delete(ctx, &blockedPod)
+				require.NoError(t, err, "failed to delete blocked pod")
+
+				return ctx
+			}).
 		Assess("ls is allowed in main container",
 			func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
 				t.Log("verifying ls is allowed in main container")
@@ -153,7 +206,7 @@ func getPolicyPerContainerTest() types.Feature {
 				err := r.ExecInPod(
 					ctx,
 					workloadNamespace,
-					podName,
+					podNameAllowed,
 					"main-container",
 					[]string{"ls", "/"},
 					&stdout,
@@ -176,7 +229,7 @@ func getPolicyPerContainerTest() types.Feature {
 				err := r.ExecInPod(
 					ctx,
 					workloadNamespace,
-					podName,
+					podNameAllowed,
 					"main-container",
 					[]string{"bash", "-c", "echo 'bash should be blocked'"},
 					&stdout,
@@ -197,7 +250,7 @@ func getPolicyPerContainerTest() types.Feature {
 
 			pod := corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      podName,
+					Name:      podNameAllowed,
 					Namespace: workloadNamespace,
 				},
 			}
