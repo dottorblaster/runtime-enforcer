@@ -2,15 +2,10 @@ package resolver
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
-	"path/filepath"
 	"sync"
 
-	"github.com/containerd/nri/pkg/api"
-	"github.com/neuvector/runtime-enforcer/api/v1alpha1"
 	"github.com/neuvector/runtime-enforcer/internal/bpf"
-	"github.com/neuvector/runtime-enforcer/internal/cgroups"
 	"github.com/neuvector/runtime-enforcer/internal/types/policymode"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -239,132 +234,4 @@ func (r *Resolver) UpdatePod(_ *corev1.Pod, newPod *corev1.Pod) {
 	//////////////////////////
 
 	r.updatePodContainers(state, podContainersInfoWithoutCgroups(newPod))
-}
-
-/////////////////////
-// Policy handlers
-/////////////////////
-
-func (r *Resolver) checkPolicyFromNRI(
-	ctx context.Context,
-	pod *api.PodSandbox,
-	container *api.Container,
-	cgID uint64,
-) error {
-	var err error
-
-	// todo!: in next iteration we should reuse method `applyPolicyToPodIfPresent`
-	policyName := pod.GetLabels()[v1alpha1.PolicyLabelKey]
-	if policyName == "" {
-		// pod has no policy
-		return nil
-	}
-	key := fmt.Sprintf("%s/%s", pod.GetNamespace(), policyName)
-
-	pol, ok := r.wpState[key]
-	if !ok {
-		// policy not found
-		return fmt.Errorf("pod '%s/%s' has policy '%s' but the policy does not exist",
-			pod.GetNamespace(),
-			pod.GetName(),
-			policyName,
-		)
-	}
-
-	polID, ok := pol[container.GetName()]
-	if !ok {
-		return fmt.Errorf("policy '%s' has no container '%s' but pod '%s/%s' has it",
-			policyName,
-			container.GetName(),
-			pod.GetNamespace(),
-			pod.GetName(),
-		)
-	}
-
-	r.logger.InfoContext(
-		ctx,
-		"assigning policy via NRI",
-		"namespace",
-		pod.GetNamespace(),
-		"podName",
-		pod.GetName(),
-		"containerName",
-		container.GetName(),
-		"cgID",
-		cgID,
-		"policyID",
-		polID,
-	)
-
-	if err = r.cgroupToPolicyMapUpdateFunc(polID, []CgroupID{cgID}, bpf.AddPolicyToCgroups); err != nil {
-		r.logger.ErrorContext(ctx, "failed to update the cgroup path and policy id in cgPath ebpf map", "error", err)
-		return err
-	}
-	return nil
-}
-
-func (r *Resolver) updateCgroupTrackerFromNRI(
-	ctx context.Context,
-	cgID uint64,
-	cgPath string,
-	podID string,
-) error {
-	var err error
-
-	r.cgroupIDToPodID[cgID] = podID
-	if err = r.cgTrackerUpdateFunc(cgID, cgPath); err != nil {
-		return fmt.Errorf("failed to update cgroup tracker: %w", err)
-	}
-
-	r.logger.InfoContext(
-		ctx,
-		"updating cgroup tracker",
-		"cgID",
-		cgID,
-		"cgPath",
-		cgPath,
-		"podID",
-		podID,
-	)
-	return nil
-}
-
-func (r *Resolver) AddPodFromNRI(
-	ctx context.Context,
-	pod *api.PodSandbox,
-	container *api.Container,
-) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	// 1. retrieve cgroup ID
-	cgroupPath, err := cgroups.ParseCgroupsPath(container.GetLinux().GetCgroupsPath())
-	if err != nil {
-		return fmt.Errorf("failed to parse cgroup path: %w", err)
-	}
-
-	cgRoot, err := cgroups.GetHostCgroupRoot()
-	if err != nil {
-		return fmt.Errorf("failed to get host cgroup root: %w", err)
-	}
-
-	cgPath := filepath.Join(cgRoot, cgroupPath)
-
-	cgID, err := cgroups.GetCgroupIDFromPath(cgPath)
-	if err != nil {
-		return fmt.Errorf("failed to get cgroup ID from path %s: %w", cgPath, err)
-	}
-
-	// 2. Update cgroup tracker, so we can track execve events
-	err = r.updateCgroupTrackerFromNRI(ctx, cgID, cgPath, pod.GetUid())
-	if err != nil {
-		return fmt.Errorf("failed to update cgroup tracker: %w", err)
-	}
-
-	// 3. check if a policy should be applied.
-	err = r.checkPolicyFromNRI(ctx, pod, container, cgID)
-	if err != nil {
-		return fmt.Errorf("failed to update policy: %w", err)
-	}
-	return nil
 }
