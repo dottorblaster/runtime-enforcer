@@ -42,6 +42,8 @@ func (p *plugin) Synchronize(
 	for _, container := range containers {
 		cgroupID, err := cgroupFromContainer(container)
 		if err != nil {
+			// this should never happen but if we are not able to obtain the cgroup ID, it's useless to add the container
+			// to the cache, nobody will ever query this entry into the cache
 			p.logger.ErrorContext(ctx, "failed to get cgroup ID from container",
 				"error", err)
 			continue
@@ -64,15 +66,24 @@ func (p *plugin) Synchronize(
 			continue
 		}
 
+		containers, ok := tmpSandboxes[pod.GetId()]
+		if !ok {
+			// no containers found for pod, it is possible if the sandbox is just created but there is no reason to add it to the cache.
+			// we don't have cgroups so this pod will be never queried
+			p.logger.WarnContext(ctx, "received pod with no containers",
+				"pod", pod.GetName(),
+				"namespace", pod.GetNamespace(),
+			)
+			continue
+		}
+
 		workloadName, workloadKind := p.getWorkloadInfoAndLog(ctx, pod)
 		podData := &resolver.PodData{
-			UID:       pod.GetId(),
-			Name:      pod.GetName(),
-			Namespace: pod.GetNamespace(),
-			Labels:    pod.GetLabels(),
-			// TODO!: we should try to extract the workload name/type from the pod annotations
-			// this could be nil
-			Containers:   tmpSandboxes[pod.GetId()],
+			UID:          pod.GetId(),
+			Name:         pod.GetName(),
+			Namespace:    pod.GetNamespace(),
+			Labels:       pod.GetLabels(),
+			Containers:   containers,
 			WorkloadName: workloadName,
 			WorkloadType: string(workloadKind),
 		}
@@ -92,8 +103,11 @@ func (p *plugin) StartContainer(
 ) error {
 	cgroupID, err := cgroupFromContainer(container)
 	if err != nil {
+		// this should never happen but if we are not able to obtain the cgroup ID, it's useless to add the container
+		// to the cache, nobody will ever query this entry into the cache.
 		p.logger.ErrorContext(ctx, "failed to get cgroup ID from container",
 			"error", err)
+		return nil
 	}
 
 	workloadName, workloadKind := p.getWorkloadInfoAndLog(ctx, pod)
@@ -102,8 +116,6 @@ func (p *plugin) StartContainer(
 		Name:      pod.GetName(),
 		Namespace: pod.GetNamespace(),
 		Labels:    pod.GetLabels(),
-		// TODO!: we should try to extract the workload name/type from the pod annotations
-		// this could be nil
 		Containers: map[resolver.ContainerID]*resolver.ContainerData{
 			container.GetId(): {
 				CgID: cgroupID,

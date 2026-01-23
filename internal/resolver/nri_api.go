@@ -40,7 +40,7 @@ func (r *Resolver) AddPodContainerFromNri(data *PodData) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	// NRI provides just the a container of a pod, so it's possible we already have some containers for this pod.
+	// NRI provides just one container of a pod, so it's possible we already have some containers for this pod.
 	state, ok := r.podCache[data.UID]
 	if !ok {
 		// we need to add the pod to the cache from 0
