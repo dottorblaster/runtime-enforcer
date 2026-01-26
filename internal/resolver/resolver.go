@@ -21,7 +21,6 @@ type Resolver struct {
 	// todo!: we should add a cache with deleted pods/containers so that we can resolve also recently deleted ones
 	podCache        map[PodID]*podState
 	cgroupIDToPodID map[CgroupID]PodID
-	criResolver     *criResolver
 
 	nextPolicyID                PolicyID
 	wpState                     map[namespacedPolicyName]policyByContainer
@@ -32,14 +31,13 @@ type Resolver struct {
 }
 
 func NewResolver(
-	ctx context.Context,
+	_ context.Context,
 	logger *slog.Logger,
 	cgTrackerUpdateFunc func(cgID uint64, cgroupPath string) error,
 	cgroupToPolicyMapUpdateFunc func(polID PolicyID, cgroupIDs []CgroupID, op bpf.CgroupPolicyOperation) error,
 	policyUpdateBinariesFunc func(policyID uint64, values []string, op bpf.PolicyValuesOperation) error,
 	policyModeUpdateFunc func(policyID uint64, mode policymode.Mode, op bpf.PolicyModeOperation) error,
 ) (*Resolver, error) {
-	var err error
 	r := &Resolver{
 		logger:                      logger.With("component", "resolver"),
 		podCache:                    make(map[PodID]*podState),
@@ -50,11 +48,6 @@ func NewResolver(
 		policyModeUpdateFunc:        policyModeUpdateFunc,
 		wpState:                     make(map[namespacedPolicyName]policyByContainer),
 		nextPolicyID:                PolicyID(1),
-	}
-
-	r.criResolver, err = newCRIResolver(ctx, r.logger)
-	if err != nil {
-		return nil, err
 	}
 
 	// todo!: we can do a first scan of all existing containers to populate the cache initially
