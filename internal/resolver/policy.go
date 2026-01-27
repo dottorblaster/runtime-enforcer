@@ -270,3 +270,16 @@ func (r *Resolver) PolicyEventHandlers() cache.ResourceEventHandler {
 		},
 	}
 }
+
+// ListPolicies returns a list of all workload policies info.
+func (r *Resolver) ListPolicies() []string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	// todo!: in the future we should also provide the status of the policy not just the name
+	policiesNames := make([]string, 0, len(r.wpState))
+	for name := range r.wpState {
+		policiesNames = append(policiesNames, name)
+	}
+	return policiesNames
+}

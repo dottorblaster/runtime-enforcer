@@ -34,6 +34,7 @@ spec:
         {{- if .Values.learning.enabled }}
         - --enable-learning
         {{- end }}
+        - --grpc-port={{ .Values.agent.agent.grpcExporterPort }}
         {{- toYaml .Values.agent.agent.args | nindent 8 }}
         command:
         - /agent

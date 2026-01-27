@@ -12,6 +12,7 @@ import (
 	"github.com/rancher-sandbox/runtime-enforcer/internal/bpf"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/eventhandler"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/eventscraper"
+	"github.com/rancher-sandbox/runtime-enforcer/internal/grpcexporter"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/nri"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/resolver"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -35,6 +36,7 @@ type Config struct {
 	nriSocketPath     string
 	nriPluginIdx      string
 	probeAddr         string
+	grpcPort          int
 }
 
 // +kubebuilder:rbac:groups=security.rancher.io,resources=workloadpolicies,verbs=get;list;watch
@@ -169,6 +171,14 @@ func startAgent(ctx context.Context, logger *slog.Logger, config Config) error {
 		return fmt.Errorf("failed to add NRI handler's readiness probe: %w", err)
 	}
 
+	//////////////////////
+	// Add GRPC exporter
+	//////////////////////
+	exporter := grpcexporter.New(logger, config.grpcPort, resolver)
+	if err = ctrlMgr.Add(exporter); err != nil {
+		logger.ErrorContext(ctx, "failed to add gRPC exporter to controller manager", "error", err)
+	}
+
 	logger.InfoContext(ctx, "starting manager")
 	if err = ctrlMgr.Start(ctx); err != nil {
 		logger.ErrorContext(ctx, "failed to start manager", "error", err)
@@ -196,6 +206,7 @@ func main() {
 	flag.StringVar(&config.nriSocketPath, "nri-socket-path", "/var/run/nri/nri.sock", "NRI socket path")
 	flag.StringVar(&config.nriPluginIdx, "nri-plugin-index", "00", "NRI plugin index")
 	flag.StringVar(&config.probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
+	flag.IntVar(&config.grpcPort, "grpc-port", 50051, "gRPC server port")
 
 	flag.Parse()
 
