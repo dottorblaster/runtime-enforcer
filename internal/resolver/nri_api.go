@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/neuvector/runtime-enforcer/internal/bpf"
-	"github.com/neuvector/runtime-enforcer/internal/labels"
 )
 
 type ContainerData struct {
@@ -12,13 +11,15 @@ type ContainerData struct {
 	Name string
 }
 
+type Labels map[string]string
+
 type PodData struct {
 	UID          PodID
 	Name         string
 	Namespace    string
 	WorkloadName string
 	WorkloadType string
-	Labels       labels.Labels
+	Labels       Labels
 	Containers   map[ContainerID]*ContainerData
 }
 

@@ -11,23 +11,17 @@ import (
 	"github.com/neuvector/runtime-enforcer/internal/eventhandler"
 	"github.com/neuvector/runtime-enforcer/internal/eventscraper"
 	"github.com/neuvector/runtime-enforcer/internal/nri"
-	"github.com/neuvector/runtime-enforcer/internal/podinformer"
 	"github.com/neuvector/runtime-enforcer/internal/resolver"
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/tools/cache"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	securityv1alpha1 "github.com/neuvector/runtime-enforcer/api/v1alpha1"
 	"github.com/neuvector/runtime-enforcer/internal/traces"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/node/v1alpha1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	cmCache "sigs.k8s.io/controller-runtime/pkg/cache"
 
 	"log/slog"
 )
@@ -36,32 +30,18 @@ type Config struct {
 	enableTracing     bool
 	enableOtelSidecar bool
 	enableLearning    bool
-	enableNri         bool
 	nriSocketPath     string
 	nriPluginIdx      string
 }
 
 // +kubebuilder:rbac:groups=security.rancher.io,resources=workloadpolicies,verbs=get;list;watch
-// used by the resolver
-// +kubebuilder:rbac:groups="",resources=pods;nodes,verbs=get;list;watch
 
 func newControllerManager() (manager.Manager, error) {
 	scheme := runtime.NewScheme()
 	utilruntime.Must(v1alpha1.AddToScheme(scheme))
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(securityv1alpha1.AddToScheme(scheme))
-	cacheOptions := cmCache.Options{
-		ByObject: map[client.Object]cmCache.ByObject{
-			&corev1.Pod{}: {
-				Field: fields.OneTermEqualSelector("spec.nodeName", os.Getenv("NODE_NAME")),
-			},
-			// todo!: not clear if we need to watch these nodes
-			&corev1.Node{}: {
-				Field: fields.SelectorFromSet(fields.Set{"metadata.name": os.Getenv("NODE_NAME")}),
-			},
-		},
-	}
-	controllerOptions := ctrl.Options{Scheme: scheme, Cache: cacheOptions}
+	controllerOptions := ctrl.Options{Scheme: scheme}
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), controllerOptions)
 	if err != nil {
 		return nil, fmt.Errorf("unable to start manager: %w", err)
@@ -114,7 +94,6 @@ func startAgent(ctx context.Context, logger *slog.Logger, config Config) error {
 	// Create the resolver
 	//////////////////////
 	resolver, err := resolver.NewResolver(
-		ctx,
 		logger,
 		bpfManager.GetCgroupTrackerUpdateFunc(),
 		bpfManager.GetCgroupPolicyUpdateFunc(),
@@ -125,35 +104,18 @@ func startAgent(ctx context.Context, logger *slog.Logger, config Config) error {
 		return fmt.Errorf("failed to create resolver: %w", err)
 	}
 
-	if config.enableNri { //nolint: nestif // it will go away when we remove the informer
-		var nriHandler *nri.Handler
-		nriHandler, err = nri.NewNRIHandler(
-			config.nriSocketPath,
-			config.nriPluginIdx,
-			logger,
-			resolver,
-		)
-		if err != nil {
-			return fmt.Errorf("failed to create NRI handler: %w", err)
-		}
-		if err = ctrlMgr.Add(nriHandler); err != nil {
-			return fmt.Errorf("failed to add NRI handler to controller manager: %w", err)
-		}
-	} else {
-		var podInf cmCache.Informer
-		podInf, err = ctrlMgr.GetCache().GetInformer(ctx, &corev1.Pod{})
-		if err != nil {
-			return fmt.Errorf("cannot get pod informer: %w", err)
-		}
-		// Add some indexes to the pod informer
-		err = podInf.AddIndexers(cache.Indexers{
-			podinformer.ContainerIdx: podinformer.ContainerIndexFunc,
-			podinformer.PodIdx:       podinformer.PodIndexFunc,
-		})
-		if err != nil {
-			return fmt.Errorf("cannot add indexers to pod informer: %w", err)
-		}
-		_, _ = podInf.AddEventHandler(podinformer.PodEventHandlers(logger.With("component", "pod-informer"), resolver))
+	var nriHandler *nri.Handler
+	nriHandler, err = nri.NewNRIHandler(
+		config.nriSocketPath,
+		config.nriPluginIdx,
+		logger,
+		resolver,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create NRI handler: %w", err)
+	}
+	if err = ctrlMgr.Add(nriHandler); err != nil {
+		return fmt.Errorf("failed to add NRI handler to controller manager: %w", err)
 	}
 
 	//////////////////////
@@ -203,7 +165,6 @@ func main() {
 	flag.BoolVar(&config.enableTracing, "enable-tracing", false, "Enable tracing collection")
 	flag.BoolVar(&config.enableOtelSidecar, "enable-otel-sidecar", false, "Enable OpenTelemetry sidecar")
 	flag.BoolVar(&config.enableLearning, "enable-learning", false, "Enable learning mode")
-	flag.BoolVar(&config.enableNri, "enable-nri", true, "Enable NRI")
 	flag.StringVar(&config.nriSocketPath, "nri-socket-path", "/var/run/nri/nri.sock", "NRI socket path")
 	flag.StringVar(&config.nriPluginIdx, "nri-plugin-index", "00", "NRI plugin index")
 

@@ -37,8 +37,6 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: spec.nodeName
-          - name: CUSTOM_CRI_SOCKET_PATH
-            value: {{ .Values.agent.customCRISocketPath }}
         {{- if or .Values.telemetry.metrics .Values.telemetry.tracing }}
         {{- if eq .Values.telemetry.mode "custom" }}
           - name: OTEL_EXPORTER_OTLP_ENDPOINT
@@ -64,44 +62,15 @@ spec:
         resources: {{- toYaml .Values.agent.agent.resources | nindent 10 }}
         securityContext: {{- toYaml .Values.agent.agent.containerSecurityContext | nindent 10 }}
         volumeMounts:
-        - name: crio-socket
-          mountPath: /run/crio/crio.sock
-          readOnly: true
-        - name: containerd-socket
-          mountPath: /run/containerd/containerd.sock
-          readOnly: true
-        - name: dockerd-socket
-          mountPath: /var/run/cri-dockerd.sock
-          readOnly: true
         - name: nri-socket
           mountPath: /var/run/nri/nri.sock
           mountPropagation: HostToContainer
           readOnly: true
-        {{- if .Values.agent.customCRISocketPath }}
-        - name: custom-cri-socket
-          mountPath: {{ .Values.agent.customCRISocketPath }}
-          readOnly: true
-        {{- end }}
       hostPID: {{ .Values.agent.hostPID }}
       securityContext: {{- toYaml .Values.agent.podSecurityContext | nindent 8 }}
       serviceAccountName: {{ include "runtime-enforcer.fullname" . }}-agent
       terminationGracePeriodSeconds: 10
       volumes:
-      # We try to mount common CRI socket paths. If these are not enough, users should mount the correct socket using criSocketPath value.
-      - name: crio-socket
-        hostPath:
-          path: /run/crio/crio.sock
-      - name: containerd-socket
-        hostPath:
-          path: /run/containerd/containerd.sock
-      - name: dockerd-socket
-        hostPath:
-          path: /run/cri-dockerd.sock
-      {{- if .Values.agent.customCRISocketPath }}
-      - name: custom-cri-socket
-        hostPath:
-          path: {{ .Values.agent.customCRISocketPath }}
-      {{- end }}
       - name: nri-socket
         hostPath:
           path: {{ .Values.agent.nriSocketPath }}

@@ -7,14 +7,6 @@ type podState struct {
 	containers map[ContainerID]*containerInfo
 }
 
-func (pod *podState) getCgroupIDs() []CgroupID {
-	var cgroupIDs []CgroupID
-	for _, container := range pod.containers {
-		cgroupIDs = append(cgroupIDs, container.cgID)
-	}
-	return cgroupIDs
-}
-
 func (pod *podState) matchPolicy(policyName string) bool {
 	v, ok := pod.info.labels[v1alpha1.PolicyLabelKey]
 	if !ok || v != policyName {

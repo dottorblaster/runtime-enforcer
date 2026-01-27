@@ -1,13 +1,11 @@
 package resolver
 
 import (
-	"context"
 	"log/slog"
 	"sync"
 
 	"github.com/neuvector/runtime-enforcer/internal/bpf"
 	"github.com/neuvector/runtime-enforcer/internal/types/policymode"
-	corev1 "k8s.io/api/core/v1"
 )
 
 type CgroupID = uint64
@@ -22,7 +20,6 @@ type Resolver struct {
 	// todo!: we should add a cache with deleted pods/containers so that we can resolve also recently deleted ones
 	podCache        map[PodID]*podState
 	cgroupIDToPodID map[CgroupID]PodID
-	criResolver     *criResolver
 
 	nextPolicyID                PolicyID
 	wpState                     map[namespacedPolicyName]policyByContainer
@@ -33,14 +30,12 @@ type Resolver struct {
 }
 
 func NewResolver(
-	ctx context.Context,
 	logger *slog.Logger,
 	cgTrackerUpdateFunc func(cgID uint64, cgroupPath string) error,
 	cgroupToPolicyMapUpdateFunc func(polID PolicyID, cgroupIDs []CgroupID, op bpf.CgroupPolicyOperation) error,
 	policyUpdateBinariesFunc func(policyID uint64, values []string, op bpf.PolicyValuesOperation) error,
 	policyModeUpdateFunc func(policyID uint64, mode policymode.Mode, op bpf.PolicyModeOperation) error,
 ) (*Resolver, error) {
-	var err error
 	r := &Resolver{
 		logger:                      logger.With("component", "resolver"),
 		podCache:                    make(map[PodID]*podState),
@@ -53,185 +48,5 @@ func NewResolver(
 		nextPolicyID:                PolicyID(1),
 	}
 
-	r.criResolver, err = newCRIResolver(ctx, r.logger)
-	if err != nil {
-		return nil, err
-	}
-
-	// todo!: we can do a first scan of all existing containers to populate the cache initially
 	return r, nil
-}
-
-/////////////////////
-// Pod handlers
-/////////////////////
-
-func (r *Resolver) podContainersResolveCgroups(state *podState) {
-	for cID, cInfo := range state.containers {
-		if cInfo.cgID != 0 {
-			// we assume it is already resolved in a previous step
-			continue
-		}
-
-		// We do the resolution in a synchronous way
-		// todo!: we could use the file system to resolve the cgroup if we see it is more efficient
-		cgID, cgPath, err := r.criResolver.resolveCgroup(cID)
-		if err != nil {
-			// todo!: we should retry later?
-			r.logger.Error("failed to resolve cgroup ID", "containerID", cID, "error", err)
-			continue
-		}
-		r.cgroupIDToPodID[cgID] = state.info.podID
-		cInfo.cgID = cgID
-		if err = r.cgTrackerUpdateFunc(cgID, cgPath); err != nil {
-			r.logger.Error("failed to update cgroup tracker", "cgroupID", cgID, "cgroupPath", cgPath, "error", err)
-		}
-	}
-}
-
-func (r *Resolver) AddPod(pod *corev1.Pod) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	// We are in a create we should not have the pod already in the cache
-	state, ok := r.podCache[PodID(pod.UID)]
-	if ok {
-		r.logger.Error(
-			"add-pod: pod already exists in podCache",
-			"old pod info", state.info,
-			"pod-name", pod.Name,
-			"pod-namespace", pod.Namespace,
-			"pod-uid", string(pod.UID),
-		)
-		return
-	}
-
-	state = &podState{
-		// When a pod is created it should have all the labels necessary for the workload resolution (e.g. pod-template-hash). If we face some issues we can consider to update the workload type/name also with pod updates.
-		info: getPodInfo(pod),
-		// populate containers info, but we still miss the cgroup for each container since we receive the pod from k8s api server
-		containers: podContainersInfoWithoutCgroups(pod),
-	}
-	r.podCache[PodID(pod.UID)] = state
-
-	r.podContainersResolveCgroups(state)
-
-	// Now ideally we should have all cgroup IDs resolved, so we can populate the policy map
-	if err := r.applyPolicyToPodIfPresent(state); err != nil {
-		r.logger.Error("failed to apply policy to pod",
-			"error", err,
-		)
-	}
-}
-
-func (r *Resolver) DeletePod(pod *corev1.Pod) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	state, ok := r.podCache[PodID(pod.UID)]
-	if !ok {
-		r.logger.Error(
-			"delete-pod: pod does not exist in podCache",
-			"pod-name",
-			pod.Name,
-			"pod-namespace",
-			pod.Namespace,
-			"pod-uid",
-			string(pod.UID),
-		)
-		return
-	}
-
-	delete(r.podCache, PodID(pod.UID))
-
-	cgroupIDs := state.getCgroupIDs()
-	if len(cgroupIDs) == 0 {
-		r.logger.Warn(
-			"delete-pod: pod has no cgroups associated",
-			"pod-name",
-			pod.Name,
-			"pod-namespace",
-			pod.Namespace,
-			"pod-uid",
-			string(pod.UID),
-		)
-		return
-	}
-
-	for _, cgID := range cgroupIDs {
-		delete(r.cgroupIDToPodID, cgID)
-	}
-
-	if err := r.cgroupToPolicyMapUpdateFunc(PolicyIDNone, cgroupIDs, bpf.RemoveCgroups); err != nil {
-		// for now we log but this is not enough since the policy won't be applied
-		r.logger.Error("failed to update policy map",
-			"error", err,
-			"pod-id", PodID(pod.UID),
-		)
-	}
-}
-
-func (r *Resolver) updatePodContainers(state *podState, newContainers map[ContainerID]*containerInfo) {
-	// We handle deleted containers first
-	for cid, info := range state.containers {
-		if _, exists := newContainers[cid]; exists {
-			// the container is still present
-			continue
-		}
-		r.logger.Debug("remove container from pod", "pod", state.info.name, "container", info.name)
-		// We delete the container from the pod
-		delete(state.containers, cid)
-		// We remove the cgroup from the global cache
-		delete(r.cgroupIDToPodID, info.cgID)
-		// We remove the cgroup from the policy map
-		if err := r.cgroupToPolicyMapUpdateFunc(PolicyIDNone, []CgroupID{info.cgID}, bpf.RemoveCgroups); err != nil {
-			r.logger.Error("failed to update policy map", "error", err, "cgroupID", info.cgID)
-		}
-	}
-
-	// Now we add new containers
-	addedNewContainer := false
-	for cid, info := range newContainers {
-		if _, exists := state.containers[cid]; exists {
-			// the container is still present
-			continue
-		}
-		addedNewContainer = true
-		// We add the container to the pod
-		state.containers[cid] = info
-	}
-
-	if addedNewContainer {
-		// We resolve cgroups for new containers
-		r.podContainersResolveCgroups(state)
-		// We apply policies to the pod again to consider new containers
-		if err := r.applyPolicyToPodIfPresent(state); err != nil {
-			r.logger.Error("failed to apply policy to pod",
-				"error", err,
-			)
-		}
-	}
-}
-
-func (r *Resolver) UpdatePod(_ *corev1.Pod, newPod *corev1.Pod) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	state, ok := r.podCache[PodID(newPod.UID)]
-	if !ok {
-		r.logger.Error("update-pod: pod does not exist in podCache",
-			"pod-name",
-			newPod.Name,
-			"pod-namespace",
-			newPod.Namespace,
-			"pod-uid",
-			newPod.UID)
-		return
-	}
-
-	//////////////////////////
-	// Container changes
-	//////////////////////////
-
-	r.updatePodContainers(state, podContainersInfoWithoutCgroups(newPod))
 }

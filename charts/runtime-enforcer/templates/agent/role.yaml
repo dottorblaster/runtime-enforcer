@@ -5,15 +5,6 @@ metadata:
   name: {{ include "runtime-enforcer.fullname" . }}-agent
 rules:
 - apiGroups:
-  - ""
-  resources:
-  - nodes
-  - pods
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
   - security.rancher.io
   resources:
   - workloadpolicies
