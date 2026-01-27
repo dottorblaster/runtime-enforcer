@@ -1,0 +1,50 @@
+{{- if .Values.vap.enabled }}
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: {{ include "runtime-enforcer.fullname" . }}-pod-policy-validation
+  labels:
+    {{- include "runtime-enforcer.labels" . | nindent 4 }}
+  annotations:
+    description: "Validates that security.rancher.io/policy label cannot be added, removed, or changed during Pod updates"
+spec:
+  matchConstraints:
+    resourceRules:
+    - apiGroups: [""]
+      apiVersions: ["v1"]
+      operations: ["UPDATE"]
+      resources: ["pods"]
+  variables:
+    - name: new_policy
+      expression: |
+        has(object.metadata.labels) && 'security.rancher.io/policy' in object.metadata.labels
+        ? object.metadata.labels['security.rancher.io/policy']
+        : null
+    - name: old_policy
+      expression: |
+        has(oldObject.metadata.labels) && 'security.rancher.io/policy' in oldObject.metadata.labels
+        ? oldObject.metadata.labels['security.rancher.io/policy']
+        : null
+  validations:
+  - expression: "variables.new_policy == variables.old_policy"
+    message: "The label 'security.rancher.io/policy' is immutable. You cannot add, remove, or change its value."
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: {{ include "runtime-enforcer.fullname" . }}-pod-policy-validation-binding
+  labels:
+    {{- include "runtime-enforcer.labels" . | nindent 4 }}
+  annotations:
+    description: "Binds pod policy validation policy to all Pods"
+spec:
+  policyName: {{ include "runtime-enforcer.fullname" . }}-pod-policy-validation
+  validationActions: [Deny]
+  matchResources:
+    resourceRules:
+    - apiGroups: [""]
+      apiVersions: ["v1"]
+      operations: ["UPDATE"]
+      resources: ["pods"]
+{{- end }}

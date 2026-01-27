@@ -226,6 +226,8 @@ Converting a proposal into a policy isn't enough to apply it to a workload: the 
 This is done by adding a label to the workload pods.
 Since we are using a Deployment, the correct approach is to add the label to the Deployment's pod template.
 
+WARNING: The `security.rancher.io/policy` label must be set at Pod creation time only. Changing this label on a running Pod (adding, removing, or modifying its value) is prohibited.
+
 ```bash
 kubectl patch deployment ubuntu-deployment --type=merge -p '{"spec":{"template":{"metadata":{"labels":{"security.rancher.io/policy":"deploy-ubuntu-deployment"}}}}}'
 # wait for the new pods to be ready

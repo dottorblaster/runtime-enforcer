@@ -101,3 +101,9 @@ func TestPolicyPerContainer(t *testing.T) {
 
 	testEnv.Test(t, getPolicyPerContainerTest())
 }
+
+func TestValidatingAdmissionPolicyPodPolicyLabel(t *testing.T) {
+	t.Log("test ValidatingAdmissionPolicy pod policy label")
+
+	testEnv.Test(t, getValidatingAdmissionPolicyPodPolicyLabelTest())
+}

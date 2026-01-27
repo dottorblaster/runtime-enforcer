@@ -54,6 +54,8 @@ Operationally, if you want complete proposals, enable learning first and then *(
 ** Bind workloads/pods to the policy by applying the label: `security.rancher.io/policy: WORKLOAD_POLICY_NAME`. The label must be applied to the Pod. When dealing with workload types (such as Deployment), make sure the label is specified inside of the `PodTemplateSpec`.
 +
 Runtime-enforcer uses this label to decide which pods the policy applies to.
++
+WARNING: The `security.rancher.io/policy` label must be set at Pod creation time only. Changing this label on a running Pod (adding, removing, or modifying its value) is prohibited.
 
 * *Leave*
 ** *Monitor → Protect*: update the `WorkloadPolicy` and set `.spec.mode: protect`.
@@ -79,6 +81,8 @@ Runtime-enforcer uses this label to decide which pods the policy applies to.
 
 * *Enter*
 ** Ensure the workload is bound via `security.rancher.io/policy: WORKLOAD_POLICY_NAME`. The label must be applied to the Pod. When dealing with workload types (such as Deployment), make sure the label is specified inside of the `PodTemplateSpec`.
++
+WARNING: The `security.rancher.io/policy` label must be set at Pod creation time only. Changing this label on a running Pod (adding, removing, or modifying its value) is prohibited.
 ** Update the `WorkloadPolicy` to set `.spec.mode: protect`.
 * *Leave*
 ** *Protect → Monitor*: update the `WorkloadPolicy` and set `.spec.mode: monitor`.

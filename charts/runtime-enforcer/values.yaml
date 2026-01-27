@@ -123,3 +123,8 @@ telemetry:
     # (mTLS). It should contains two keys: tls.crt and tls.key storing the client
     # certificate and key respectively.
     otelCollectorClientCertificateSecret: ""
+
+# ValidatingAdmissionPolicy for Pod policy validation
+# Requires Kubernetes 1.25+ for ValidatingAdmissionPolicy support
+vap:
+  enabled: true
