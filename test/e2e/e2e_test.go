@@ -107,3 +107,9 @@ func TestValidatingAdmissionPolicyPodPolicyLabel(t *testing.T) {
 
 	testEnv.Test(t, getValidatingAdmissionPolicyPodPolicyLabelTest())
 }
+
+func TestRollingUpdate(t *testing.T) {
+	t.Log("test rolling update")
+
+	testEnv.Test(t, getRollingUpdateTest())
+}
