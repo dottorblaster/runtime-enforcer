@@ -104,4 +104,4 @@ grep CONFIG_BPF <your kernel config>
 
 == Support
 
-Hit a compatibility issue not covered here? Open an issue with your environment details.
+Hit a compatibility issue not covered here? Open an link:https://github.com/rancher-sandbox/runtime-enforcer/issues[issue] with your environment details.

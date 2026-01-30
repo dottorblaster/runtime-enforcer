@@ -77,20 +77,12 @@ Follow these simple steps from your local machine to get Runtime-Enforcer up and
 
 === Install the Helm chart
 
-Follow these simple steps from your local machine to get Runtime-Enforcer up and running:
-
 ```bash
-# create a secret to download images from GitHub Container Registry
-kubectl create secret docker-registry github-auth \
-  --docker-server=ghcr.io \
-  --docker-username=<YOUR_USERNAME_GITHUB> \
-  --docker-password=<YOUR_PERSONAL_ACCESS_TOKEN> \
-  --docker-email=<not-needed@example.com>
-
-helm install runtime-enforcer ./charts/runtime-enforcer \
+helm repo add runtime-enforcer https://rancher-sandbox.github.io/runtime-enforcer/
+helm repo update
+helm install runtime-enforcer runtime-enforcer/runtime-enforcer \
   --namespace runtime-enforcer \
   --create-namespace \
-  --set "imagePullSecrets[0].name=github-auth" \
   --set operator.manager.image.tag=latest \
   --set agent.agent.image.tag=latest \
   --set telemetry.mode=custom \
@@ -130,8 +122,8 @@ Executables that ran before the agent started won't be visible in the proposal.
 Let's create a fresh new Ubuntu Deployment.
 
 ```bash
-# we use the local path since the repo is not published yet
-kubectl apply -f ./docs/yaml/ubuntu-deployment.yaml
+kubectl apply -f https://raw.githubusercontent.com/rancher-sandbox/runtime-enforcer/main/docs/yaml/ubuntu-deployment.yaml
+
 # wait for the pod to be ready
 kubectl wait --for=condition=Ready pod -l app=ubuntu-deployment --timeout=300s
 ```
