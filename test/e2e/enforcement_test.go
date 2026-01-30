@@ -116,7 +116,7 @@ func getEnforcementOnExistingPodsTest() types.Feature {
 					err := r.Create(ctx, &policy)
 					require.NoError(t, err, "create policy")
 
-					waitForWorkloadPolicyStatusToBeUpdated()
+					waitForWorkloadPolicyStatusToBeUpdated(ctx, t, policy.DeepCopy())
 
 					// 2. Run command in the pod and verify the result.
 					var podName string
@@ -221,7 +221,7 @@ func getEnforcementOnNewPodsTest() types.Feature {
 					err := r.Create(ctx, &policy)
 					require.NoError(t, err, "create policy")
 
-					waitForWorkloadPolicyStatusToBeUpdated()
+					waitForWorkloadPolicyStatusToBeUpdated(ctx, t, policy.DeepCopy())
 
 					// 2. Deploy test pods
 					err = decoder.ApplyWithManifestDir(

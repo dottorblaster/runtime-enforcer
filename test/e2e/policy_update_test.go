@@ -94,7 +94,7 @@ func getPolicyUpdateTest() types.Feature {
 				err = r.Create(ctx, &policy)
 				require.NoError(t, err, "failed to create initial policy")
 
-				waitForWorkloadPolicyStatusToBeUpdated()
+				waitForWorkloadPolicyStatusToBeUpdated(ctx, t, policy.DeepCopy())
 
 				t.Log("verifying /usr/bin/cat is blocked before update")
 				var stdout, stderr bytes.Buffer
@@ -126,7 +126,7 @@ func getPolicyUpdateTest() types.Feature {
 				err = r.Update(ctx, &updatedPolicy)
 				require.NoError(t, err, "failed to update policy")
 
-				waitForWorkloadPolicyStatusToBeUpdated()
+				waitForWorkloadPolicyStatusToBeUpdated(ctx, t, updatedPolicy.DeepCopy())
 
 				t.Log("verifying /usr/bin/cat is allowed after update")
 				stdout.Reset()

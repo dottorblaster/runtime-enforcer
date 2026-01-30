@@ -104,6 +104,8 @@ func InstallRuntimeEnforcer() env.Func {
 			helm.WithArgs("--set", "agent.agent.image.tag=latest"),
 			helm.WithArgs("--set", "telemetry.mode=custom"),
 			helm.WithArgs("--set", "telemetry.tracing=true"),
+			// we need to reduce the timeout to see the wp status controller working properly in e2e tests
+			helm.WithArgs("--set", "operator.manager.wpStatusUpdateInterval=2s"),
 			helm.WithArgs(
 				"--set",
 				"telemetry.custom.endpoint=http://open-telemetry-collector-opentelemetry-collector."+otelNamespace+".svc.cluster.local:4317",
