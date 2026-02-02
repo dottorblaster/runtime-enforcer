@@ -25,6 +25,33 @@ func (r *Resolver) allocPolicyID() PolicyID {
 	return id
 }
 
+// syncPolicyInBPF updates or clears policy values and mode in BPF for the given policy ID.
+// For valuesOp AddValuesToPolicy or ReplaceValuesInPolicy: updates allowedBinaries and mode.
+// For valuesOp RemoveValuesFromPolicy: clears policy values and mode.
+// This must be called with the resolver lock held.
+func (r *Resolver) syncPolicyInBPF(
+	policyID PolicyID,
+	allowedBinaries []string,
+	mode policymode.Mode,
+	valuesOp bpf.PolicyValuesOperation,
+) error {
+	binaries := allowedBinaries
+	modeArg := mode
+	modeOp := bpf.UpdateMode
+	if valuesOp == bpf.RemoveValuesFromPolicy {
+		binaries = []string{}
+		modeArg = 0
+		modeOp = bpf.DeleteMode
+	}
+	if err := r.policyUpdateBinariesFunc(policyID, binaries, valuesOp); err != nil {
+		return err
+	}
+	if err := r.policyModeUpdateFunc(policyID, modeArg, modeOp); err != nil {
+		return err
+	}
+	return nil
+}
+
 // this must be called with the resolver lock held.
 func (r *Resolver) applyPolicyToPod(state *podState, polByContainer policyByContainer) error {
 	for _, container := range state.containers {
@@ -37,9 +64,13 @@ func (r *Resolver) applyPolicyToPod(state *podState, polByContainer policyByCont
 				"container", container.name)
 			continue
 		}
-		if err := r.cgroupToPolicyMapUpdateFunc(polID, []CgroupID{container.cgID}, bpf.AddPolicyToCgroups); err != nil {
-			return fmt.Errorf("failed to update cgroup to policy map for pod %s, container %s, policy %s: %w",
-				state.podName(), container.name, state.policyLabel(), err)
+		op := bpf.AddPolicyToCgroups
+		if polID == PolicyIDNone {
+			op = bpf.RemoveCgroups
+		}
+		if err := r.cgroupToPolicyMapUpdateFunc(polID, []CgroupID{container.cgID}, op); err != nil {
+			return fmt.Errorf("failed to %s for pod %s, container %s, policy %s: %w",
+				op.String(), state.podName(), container.name, state.policyLabel(), err)
 		}
 	}
 	return nil
@@ -68,18 +99,23 @@ func (r *Resolver) applyPolicyToPodIfPresent(state *podState) error {
 	return r.applyPolicyToPod(state, pol)
 }
 
-// syncWorkloadPolicyFromSpec ensures state and BPF maps match wp.Spec.RulesByContainer:
+// syncWorkloadPolicy ensures state and BPF maps match wp.Spec.RulesByContainer:
 // allocates a policy ID for new containers, (re)applies binaries and mode for every container in the spec.
+// If changes is non-nil, we will use it to track changes for the update operation.
 // This must be called with the resolver lock held.
-func (r *Resolver) syncWorkloadPolicyFromSpec(wp *v1alpha1.WorkloadPolicy, state policyByContainer) error {
+func (r *Resolver) syncWorkloadPolicy(wp *v1alpha1.WorkloadPolicy, changes policyByContainer) error {
 	wpKey := wp.NamespacedName()
 	mode := policymode.ParseMode(wp.Spec.Mode)
+	state := r.wpState[wpKey]
 
 	for containerName, containerRules := range wp.Spec.RulesByContainer {
-		polID, ok := state[containerName]
-		if !ok {
+		polID, hadPolicyID := state[containerName]
+		if !hadPolicyID {
 			polID = r.allocPolicyID()
 			state[containerName] = polID
+			if changes != nil {
+				changes[containerName] = polID
+			}
 			r.logger.Info("create policy", "id", polID,
 				"wp", wpKey,
 				"container", containerName)
@@ -87,16 +123,11 @@ func (r *Resolver) syncWorkloadPolicyFromSpec(wp *v1alpha1.WorkloadPolicy, state
 
 		// Populate or replace policy values (Add for new policy ID, Replace for existing)
 		op := bpf.ReplaceValuesInPolicy
-		if !ok {
+		if !hadPolicyID {
 			op = bpf.AddValuesToPolicy
 		}
-		if err := r.policyUpdateBinariesFunc(polID, containerRules.Executables.Allowed, op); err != nil {
-			return fmt.Errorf("failed to populate policy values for wp %s, container %s: %w", wpKey, containerName, err)
-		}
-
-		if err := r.policyModeUpdateFunc(polID, mode, bpf.UpdateMode); err != nil {
-			return fmt.Errorf("failed to set policy mode '%s' for wp %s, container %s: %w",
-				mode.String(), wpKey, containerName, err)
+		if err := r.syncPolicyInBPF(polID, containerRules.Executables.Allowed, mode, op); err != nil {
+			return fmt.Errorf("failed to populate policy for wp %s, container %s: %w", wpKey, containerName, err)
 		}
 	}
 	return nil
@@ -119,7 +150,8 @@ func (r *Resolver) handleWPAdd(wp *v1alpha1.WorkloadPolicy) error {
 
 	r.wpState[wpKey] = make(policyByContainer, len(wp.Spec.RulesByContainer))
 
-	if err := r.syncWorkloadPolicyFromSpec(wp, r.wpState[wpKey]); err != nil {
+	// Pass nil for add. No need to track changes as we will apply the full state to all matching pods.
+	if err := r.syncWorkloadPolicy(wp, nil); err != nil {
 		return err
 	}
 
@@ -135,24 +167,6 @@ func (r *Resolver) handleWPAdd(wp *v1alpha1.WorkloadPolicy) error {
 		}
 	}
 	return nil
-}
-
-// getCgroupIDsForContainer returns all cgroup IDs for a specific container name
-// across all pods that match the given policy name.
-// This must be called with the resolver lock held.
-func (r *Resolver) getCgroupIDsForContainer(policyName string, containerName ContainerName) []CgroupID {
-	var cgroupIDs []CgroupID
-	for _, podState := range r.podCache {
-		if !podState.matchPolicy(policyName) {
-			continue
-		}
-		for _, container := range podState.containers {
-			if container.name == containerName {
-				cgroupIDs = append(cgroupIDs, container.cgID)
-			}
-		}
-	}
-	return cgroupIDs
 }
 
 // handleWPUpdate reinforces the workload policy from the current spec, removes containers
@@ -172,36 +186,23 @@ func (r *Resolver) handleWPUpdate(wp *v1alpha1.WorkloadPolicy) error {
 		return fmt.Errorf("workload policy does not exist in internal state: %s", wpKey)
 	}
 
-	// Sync state and BPF from current spec (add new containers, re-apply binaries and mode for all).
-	if err := r.syncWorkloadPolicyFromSpec(wp, state); err != nil {
+	// changes: container -> PolicyID: add/keep for matching pods; container -> PolicyIDNone: remove.
+	changes := make(policyByContainer)
+	if err := r.syncWorkloadPolicy(wp, changes); err != nil {
 		return err
 	}
 
-	// Containers in state but not in the spec need to be removed.
-	removedContainers := make(map[ContainerName]struct{}, len(state))
+	// Containers removed from spec: cleanup BPF (policy values, mode) before deleting from state;
+	// record PolicyIDNone in changes so applyPolicyToPod will remove cgroup associations.
 	for containerName := range state {
-		removedContainers[containerName] = struct{}{}
-	}
-	for containerName := range wp.Spec.RulesByContainer {
-		delete(removedContainers, containerName)
-	}
-
-	// Clean up removed containers: cgroups, policy values, mode, and state.
-	for containerName := range removedContainers {
+		if _, stillPresent := wp.Spec.RulesByContainer[containerName]; stillPresent {
+			continue
+		}
 		policyID := state[containerName]
-		cgroupIDs := r.getCgroupIDsForContainer(wp.Name, containerName)
-		if len(cgroupIDs) > 0 {
-			if err := r.cgroupToPolicyMapUpdateFunc(PolicyIDNone, cgroupIDs, bpf.RemoveCgroups); err != nil {
-				return fmt.Errorf("failed to remove cgroups for wp %s, container %s: %w", wpKey, containerName, err)
-			}
+		if err := r.syncPolicyInBPF(policyID, nil, 0, bpf.RemoveValuesFromPolicy); err != nil {
+			return fmt.Errorf("failed to clear policy for wp %s, container %s: %w", wpKey, containerName, err)
 		}
-		if err := r.policyUpdateBinariesFunc(policyID, []string{}, bpf.RemoveValuesFromPolicy); err != nil {
-			return fmt.Errorf("failed to remove policy values for wp %s, container %s: %w", wpKey, containerName, err)
-		}
-		if err := r.policyModeUpdateFunc(policyID, 0, bpf.DeleteMode); err != nil {
-			return fmt.Errorf("failed to remove policy from policy mode map for wp %s, container %s: %w",
-				wpKey, containerName, err)
-		}
+		changes[containerName] = PolicyIDNone
 		delete(state, containerName)
 	}
 
@@ -209,7 +210,7 @@ func (r *Resolver) handleWPUpdate(wp *v1alpha1.WorkloadPolicy) error {
 		if !podState.matchPolicy(wp.Name) {
 			continue
 		}
-		if err := r.applyPolicyToPod(podState, state); err != nil {
+		if err := r.applyPolicyToPod(podState, changes); err != nil {
 			return err
 		}
 	}
@@ -241,14 +242,8 @@ func (r *Resolver) handleWPDelete(wp *v1alpha1.WorkloadPolicy) error {
 		if err := r.cgroupToPolicyMapUpdateFunc(policyID, []CgroupID{}, bpf.RemovePolicy); err != nil {
 			return fmt.Errorf("failed to remove policy from cgroup map: %w", err)
 		}
-
-		if err := r.policyUpdateBinariesFunc(policyID, []string{}, bpf.RemoveValuesFromPolicy); err != nil {
-			return fmt.Errorf("failed to remove policy values for wp %s, container %s: %w", wpKey, containerName, err)
-		}
-
-		if err := r.policyModeUpdateFunc(policyID, 0, bpf.DeleteMode); err != nil {
-			return fmt.Errorf("failed to remove policy from policy mode map for wp %s, container %s: %w",
-				wpKey, containerName, err)
+		if err := r.syncPolicyInBPF(policyID, nil, 0, bpf.RemoveValuesFromPolicy); err != nil {
+			return fmt.Errorf("failed to clear policy for wp %s, container %s: %w", wpKey, containerName, err)
 		}
 	}
 	return nil
