@@ -12,15 +12,28 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	apimachinerywait "k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/e2e-framework/klient/decoder"
 	"sigs.k8s.io/e2e-framework/klient/k8s"
 	"sigs.k8s.io/e2e-framework/klient/k8s/resources"
 	"sigs.k8s.io/e2e-framework/klient/wait"
-	"sigs.k8s.io/e2e-framework/klient/wait/conditions"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/e2e-framework/pkg/types"
 )
+
+func DaemonSetUpToDate(r *resources.Resources, daemonset *appsv1.DaemonSet) apimachinerywait.ConditionWithContextFunc {
+	return func(ctx context.Context) (bool, error) {
+		if err := r.Get(ctx, daemonset.GetName(), daemonset.GetNamespace(), daemonset); err != nil {
+			return false, err
+		}
+		status := daemonset.Status
+		if status.UpdatedNumberScheduled != status.DesiredNumberScheduled {
+			return false, nil
+		}
+		return true, nil
+	}
+}
 
 // This test verifies the protection is persistent during rolling update of agent.
 func getRollingUpdateTest() types.Feature {
@@ -93,7 +106,7 @@ func getRollingUpdateTest() types.Feature {
 
 			return ctx
 		}).
-		Assess("pod exec will be blocked",
+		Assess("verify that the test directory doesn't exist and mkdir will be blocked",
 			func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
 				r := ctx.Value(key("client")).(*resources.Resources)
 
@@ -111,10 +124,25 @@ func getRollingUpdateTest() types.Feature {
 
 				var stdout, stderr bytes.Buffer
 
+				// Run mkdir to verify that it is blocked.
 				err = r.ExecInPod(ctx, workloadNamespace, podName, "ubuntu", []string{"mkdir"}, &stdout, &stderr)
 				require.Error(t, err)
 				require.Empty(t, stdout.String())
 				require.Contains(t, stderr.String(), "operation not permitted\n")
+
+				// Verify that the test directory doesn't exist.
+				err = r.ExecInPod(
+					ctx,
+					workloadNamespace,
+					podName,
+					"ubuntu",
+					[]string{"ls", "/tmp/testdir"},
+					&stdout,
+					&stderr,
+				)
+				require.Error(t, err)
+				require.Empty(t, stdout.String())
+				require.Contains(t, stderr.String(), "No such file or directory\n")
 				return ctx
 			}).
 		Assess("rolling update should succeed", func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
@@ -132,13 +160,12 @@ func getRollingUpdateTest() types.Feature {
 			err = r.Update(ctx, &agentDaemonSet)
 			require.NoError(t, err)
 
-			err = wait.For(conditions.New(r).DaemonSetReady(
-				&appsv1.DaemonSet{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "runtime-enforcer-agent",
-						Namespace: namespace,
-					},
-				}),
+			err = wait.For(DaemonSetUpToDate(r, &appsv1.DaemonSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "runtime-enforcer-agent",
+					Namespace: namespace,
+				},
+			}),
 				wait.WithTimeout(DefaultOperationTimeout),
 			)
 			require.NoError(t, err)
@@ -170,7 +197,6 @@ func getRollingUpdateTest() types.Feature {
 				&stdout,
 				&stderr,
 			)
-			t.Log("getting result", err, stdout, stderr)
 			require.Error(t, err)
 			require.Empty(t, stdout.String())
 			require.Contains(t, stderr.String(), "No such file or directory\n")
