@@ -9,9 +9,11 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
-type PolicyID = uint64
-type policyByContainer = map[ContainerName]PolicyID
-type namespacedPolicyName = string
+type (
+	PolicyID             = uint64
+	policyByContainer    = map[ContainerName]PolicyID
+	namespacedPolicyName = string
+)
 
 const (
 	// PolicyIDNone is used to indicate no policy associated with the cgroup.
@@ -41,6 +43,22 @@ func (r *Resolver) syncPolicyInBPF(
 		return err
 	}
 	if err := r.policyModeUpdateFunc(policyID, mode, modeOp); err != nil {
+		return err
+	}
+	return nil
+}
+
+// removePolicy removes all entries for the given policy ID from BPF maps.
+// This must be called with the resolver lock held.
+func (r *Resolver) removePolicy(policyID PolicyID) error {
+	// TODO: refactor the PolicyUpdateBinariesFunc to not collapse the add and replace
+	// operations behind the same API. By doing that we will not need to pass a dummy values slice here.
+	if err := r.policyUpdateBinariesFunc(policyID, nil, bpf.RemoveValuesFromPolicy); err != nil {
+		return err
+	}
+	// TODO: refactor the PolicyModeUpdateFunc to not collapse the update and delete operations
+	// behind the same API. By doing that we will not need to pass a dummy mode value here.
+	if err := r.policyModeUpdateFunc(policyID, 0, bpf.DeleteMode); err != nil {
 		return err
 	}
 	return nil
@@ -201,7 +219,7 @@ func (r *Resolver) handleWPUpdate(wp *v1alpha1.WorkloadPolicy) error {
 	// Now safe to clear policy values and mode and delete from state (cgroups already detached).
 	for _, containerName := range removedContainers {
 		policyID := state[containerName]
-		if err := r.syncPolicyInBPF(policyID, []string{}, 0, bpf.RemoveValuesFromPolicy); err != nil {
+		if err := r.removePolicy(policyID); err != nil {
 			return fmt.Errorf("failed to clear policy for wp %s, container %s: %w", wpKey, containerName, err)
 		}
 		delete(state, containerName)
@@ -234,7 +252,7 @@ func (r *Resolver) handleWPDelete(wp *v1alpha1.WorkloadPolicy) error {
 		if err := r.cgroupToPolicyMapUpdateFunc(policyID, []CgroupID{}, bpf.RemovePolicy); err != nil {
 			return fmt.Errorf("failed to remove policy from cgroup map: %w", err)
 		}
-		if err := r.syncPolicyInBPF(policyID, []string{}, 0, bpf.RemoveValuesFromPolicy); err != nil {
+		if err := r.removePolicy(policyID); err != nil {
 			return fmt.Errorf("failed to clear policy for wp %s, container %s: %w", wpKey, containerName, err)
 		}
 	}
