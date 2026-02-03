@@ -105,7 +105,7 @@ func getEnforcementOnExistingPodsTest() types.Feature {
 						Spec: v1alpha1.WorkloadPolicySpec{
 							Mode: "protect",
 							RulesByContainer: map[string]*v1alpha1.WorkloadPolicyRules{
-								"ubuntu": &v1alpha1.WorkloadPolicyRules{
+								"ubuntu": {
 									Executables: tc.AllowedExecutables,
 								},
 							},
@@ -210,7 +210,7 @@ func getEnforcementOnNewPodsTest() types.Feature {
 						Spec: v1alpha1.WorkloadPolicySpec{
 							Mode: "protect",
 							RulesByContainer: map[string]*v1alpha1.WorkloadPolicyRules{
-								"ubuntu": &v1alpha1.WorkloadPolicyRules{
+								"ubuntu": {
 									Executables: tc.AllowedExecutables,
 								},
 							},

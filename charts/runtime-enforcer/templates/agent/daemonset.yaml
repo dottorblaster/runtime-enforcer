@@ -9,6 +9,11 @@ spec:
     matchLabels:
       app.kubernetes.io/component: agent
     {{- include "runtime-enforcer.selectorLabels" . | nindent 6 }}
+  updateStrategy: 
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   template:
     metadata:
       labels:
@@ -59,6 +64,12 @@ spec:
           | default .Chart.AppVersion }}
         imagePullPolicy: {{ .Values.agent.agent.image.pullPolicy }}
         name: agent
+        startupProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 3
         resources: {{- toYaml .Values.agent.agent.resources | nindent 10 }}
         securityContext: {{- toYaml .Values.agent.agent.containerSecurityContext | nindent 10 }}
         volumeMounts:

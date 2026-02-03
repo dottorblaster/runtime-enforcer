@@ -3,6 +3,7 @@ package resolver
 import (
 	"log/slog"
 	"sync"
+	"sync/atomic"
 
 	"github.com/rancher-sandbox/runtime-enforcer/internal/bpf"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/types/policymode"
@@ -15,8 +16,9 @@ type ContainerName = string
 
 type Resolver struct {
 	// let's see if we can split this unique lock in multiple locks later
-	mu     sync.Mutex
-	logger *slog.Logger
+	mu              sync.Mutex
+	logger          *slog.Logger
+	nriSynchronized atomic.Bool
 	// todo!: we should add a cache with deleted pods/containers so that we can resolve also recently deleted ones
 	podCache        map[PodID]*podState
 	cgroupIDToPodID map[CgroupID]PodID

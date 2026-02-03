@@ -1,7 +1,9 @@
 package resolver
 
 import (
+	"errors"
 	"fmt"
+	"net/http"
 
 	"github.com/rancher-sandbox/runtime-enforcer/internal/bpf"
 )
@@ -122,4 +124,16 @@ func (r *Resolver) RemovePodContainerFromNri(podID PodID, containerID ContainerI
 	delete(r.cgroupIDToPodID, container.cgID)
 
 	return r.cgroupToPolicyMapUpdateFunc(PolicyIDNone, []CgroupID{container.cgID}, bpf.RemoveCgroups)
+}
+
+func (r *Resolver) NRISynchronized() {
+	r.nriSynchronized.Store(true)
+}
+
+func (r *Resolver) Ping(_ *http.Request) error {
+	if !r.nriSynchronized.Load() {
+		r.logger.Warn("NRI handler has not yet synchronized")
+		return errors.New("NRI handler has not yet synchronized")
+	}
+	return nil
 }

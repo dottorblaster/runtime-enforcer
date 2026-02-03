@@ -93,6 +93,8 @@ func (p *plugin) Synchronize(
 				"error", err)
 		}
 	}
+	// Mark resolver as synchronized, so old agent can be safely removed.
+	p.resolver.NRISynchronized()
 	return nil, nil
 }
 

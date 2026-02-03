@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 
 	"github.com/cilium/ebpf"
@@ -32,16 +34,20 @@ type Config struct {
 	enableLearning    bool
 	nriSocketPath     string
 	nriPluginIdx      string
+	probeAddr         string
 }
 
 // +kubebuilder:rbac:groups=security.rancher.io,resources=workloadpolicies,verbs=get;list;watch
 
-func newControllerManager() (manager.Manager, error) {
+func newControllerManager(config Config) (manager.Manager, error) {
 	scheme := runtime.NewScheme()
 	utilruntime.Must(v1alpha1.AddToScheme(scheme))
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(securityv1alpha1.AddToScheme(scheme))
-	controllerOptions := ctrl.Options{Scheme: scheme}
+	controllerOptions := ctrl.Options{
+		Scheme:                 scheme,
+		HealthProbeBindAddress: config.probeAddr,
+	}
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), controllerOptions)
 	if err != nil {
 		return nil, fmt.Errorf("unable to start manager: %w", err)
@@ -55,7 +61,7 @@ func startAgent(ctx context.Context, logger *slog.Logger, config Config) error {
 	//////////////////////
 	// Create controller manager
 	//////////////////////
-	ctrlMgr, err := newControllerManager()
+	ctrlMgr, err := newControllerManager(config)
 	if err != nil {
 		return fmt.Errorf("cannot create manager: %w", err)
 	}
@@ -118,6 +124,12 @@ func startAgent(ctx context.Context, logger *slog.Logger, config Config) error {
 		return fmt.Errorf("failed to add NRI handler to controller manager: %w", err)
 	}
 
+	// controller-runtime doesn't support a separate startup probe, so we use the readiness probe instead.
+	// See https://github.com/kubernetes-sigs/controller-runtime/issues/2644 for more details.
+	if err = ctrlMgr.AddReadyzCheck("resolver readyz", resolver.Ping); err != nil {
+		return fmt.Errorf("failed to add resolver's readiness probe: %w", err)
+	}
+
 	//////////////////////
 	// Create the scraper
 	//////////////////////
@@ -139,7 +151,23 @@ func startAgent(ctx context.Context, logger *slog.Logger, config Config) error {
 	if err != nil {
 		return fmt.Errorf("cannot get workload policy informer: %w", err)
 	}
-	_, _ = workloadPolicyInformer.AddEventHandler(resolver.PolicyEventHandlers())
+	handlerRegistration, err := workloadPolicyInformer.AddEventHandler(resolver.PolicyEventHandlers())
+	if err != nil {
+		return fmt.Errorf("failed to add event handler for workload policy: %w", err)
+	}
+
+	if err = ctrlMgr.AddReadyzCheck("policy readyz", func(_ *http.Request) error {
+		// Instead of informer.HasSynced(), which checks if the internal storage is synced,
+		// we use ResourceEventHandlerRegistration.HasSynced() to ensure that
+		// the event handlers have been synced.
+		if !handlerRegistration.HasSynced() {
+			logger.Warn("workload policy informer has not yet synced")
+			return errors.New("workload policy informer has not yet synced")
+		}
+		return nil
+	}); err != nil {
+		return fmt.Errorf("failed to add NRI handler's readiness probe: %w", err)
+	}
 
 	logger.InfoContext(ctx, "starting manager")
 	if err = ctrlMgr.Start(ctx); err != nil {
@@ -167,6 +195,7 @@ func main() {
 	flag.BoolVar(&config.enableLearning, "enable-learning", false, "Enable learning mode")
 	flag.StringVar(&config.nriSocketPath, "nri-socket-path", "/var/run/nri/nri.sock", "NRI socket path")
 	flag.StringVar(&config.nriPluginIdx, "nri-plugin-index", "00", "NRI plugin index")
+	flag.StringVar(&config.probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 
 	flag.Parse()
 

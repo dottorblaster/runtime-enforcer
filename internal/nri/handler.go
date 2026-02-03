@@ -24,6 +24,24 @@ type Handler struct {
 	resolver    *resolver.Resolver
 }
 
+func newNRIPlugin(logger *slog.Logger, resolver *resolver.Resolver, opts ...stub.Option) (*plugin, error) {
+	var err error
+	p := &plugin{
+		logger:   logger.With("component", "nri-plugin"),
+		resolver: resolver,
+	}
+
+	p.stub, err = stub.New(p, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create NRI plugin stub: %w", err)
+	}
+	return p, nil
+}
+
+func (p *plugin) Run(ctx context.Context) error {
+	return p.stub.Run(ctx)
+}
+
 func NewNRIHandler(socketPath, pluginIndex string, logger *slog.Logger, r *resolver.Resolver) (*Handler, error) {
 	h := &Handler{
 		socketPath:  socketPath,
@@ -71,24 +89,17 @@ func (h *Handler) checkNRISupport() error {
 }
 
 func (h *Handler) startNRIPlugin(ctx context.Context) error {
-	var err error
-
-	p := &plugin{
-		logger:   h.logger.With("component", "nri-plugin"),
-		resolver: h.resolver,
-	}
-
-	opts := []stub.Option{
+	p, err := newNRIPlugin(
+		h.logger,
+		h.resolver,
 		stub.WithPluginIdx(h.pluginIndex),
 		stub.WithSocketPath(h.socketPath),
-	}
-
-	p.stub, err = stub.New(p, opts...)
+	)
 	if err != nil {
-		return fmt.Errorf("failed to create NRI plugin stub: %w", err)
+		return fmt.Errorf("failed to create NRI plugin: %w", err)
 	}
 
-	err = p.stub.Run(ctx)
+	err = p.Run(ctx)
 	if err != nil {
 		return fmt.Errorf("NRI plugin exited with error: %w", err)
 	}
