@@ -33,13 +33,13 @@ scms:
       branch: "{{ .github.branch }}"
       commitmessage:
         type: "chore"
-        title: "Update RuntimeEnforcer Helm charts"
+        title: "update runtime enforcer helm charts"
         hidecredit: true
         footers: "Signed-off-by: RuntimeEnforcer bot <runtime-enforcer-bot@users.noreply.github.com>"
 
 actions:
   default:
-    title: 'chore: Helm chart {{ source "chartVersion" }} release'
+    title: 'chore: helm chart {{ source "chartVersion" }} release'
     kind: github/pullrequest
     scmid: default
     spec:
