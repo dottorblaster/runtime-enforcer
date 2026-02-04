@@ -184,13 +184,12 @@ func getPolicyUpdateTest() types.Feature {
 
 				stdout.Reset()
 				stderr.Reset()
-				err := execMkdirInContainer(
+				err := r.ExecInPod(
 					ctx,
-					r,
 					workloadNamespace,
 					podName,
 					mainContainer,
-					"/tmp/main-dir-add",
+					[]string{"/usr/bin/mkdir", "/tmp/main-dir-add"},
 					&stdout,
 					&stderr,
 				)
@@ -204,13 +203,12 @@ func getPolicyUpdateTest() types.Feature {
 
 				stdout.Reset()
 				stderr.Reset()
-				err = execMkdirInContainer(
+				err = r.ExecInPod(
 					ctx,
-					r,
 					workloadNamespace,
 					podName,
 					sidecarContainer,
-					"/tmp/sidecar-dir-add",
+					[]string{"/usr/bin/mkdir", "/tmp/sidecar-dir-add"},
 					&stdout,
 					&stderr,
 				)
@@ -243,13 +241,12 @@ func getPolicyUpdateTest() types.Feature {
 
 				stdout.Reset()
 				stderr.Reset()
-				err = execMkdirInContainer(
+				err = r.ExecInPod(
 					ctx,
-					r,
 					workloadNamespace,
 					podName,
 					mainContainer,
-					"/tmp/main-dir-add-2",
+					[]string{"/usr/bin/mkdir", "/tmp/main-dir-add-2"},
 					&stdout,
 					&stderr,
 				)
@@ -263,13 +260,12 @@ func getPolicyUpdateTest() types.Feature {
 
 				stdout.Reset()
 				stderr.Reset()
-				err = execMkdirInContainer(
+				err = r.ExecInPod(
 					ctx,
-					r,
 					workloadNamespace,
 					podName,
 					sidecarContainer,
-					"/tmp/sidecar-dir-add-2",
+					[]string{"/usr/bin/mkdir", "/tmp/sidecar-dir-add-2"},
 					&stdout,
 					&stderr,
 				)
@@ -306,13 +302,12 @@ func getPolicyUpdateTest() types.Feature {
 
 				stdout.Reset()
 				stderr.Reset()
-				err = execMkdirInContainer(
+				err = r.ExecInPod(
 					ctx,
-					r,
 					workloadNamespace,
 					podName,
 					mainContainer,
-					"/tmp/main-dir-2",
+					[]string{"/usr/bin/mkdir", "/tmp/main-dir-2"},
 					&stdout,
 					&stderr,
 				)
@@ -326,13 +321,12 @@ func getPolicyUpdateTest() types.Feature {
 
 				stdout.Reset()
 				stderr.Reset()
-				err = execMkdirInContainer(
+				err = r.ExecInPod(
 					ctx,
-					r,
 					workloadNamespace,
 					podName,
 					sidecarContainer,
-					"/tmp/sidecar-dir-2",
+					[]string{"/usr/bin/mkdir", "/tmp/sidecar-dir-2-%d"},
 					&stdout,
 					&stderr,
 				)

@@ -27,22 +27,18 @@ func (r *Resolver) allocPolicyID() PolicyID {
 	return id
 }
 
-// syncPolicyInBPF updates or clears policy values and mode in BPF for the given policy ID.
+// upsertPolicy adds or updates all entries for the given policy ID in BPF maps.
 // This must be called with the resolver lock held.
-func (r *Resolver) syncPolicyInBPF(
+func (r *Resolver) upsertPolicy(
 	policyID PolicyID,
 	allowedBinaries []string,
 	mode policymode.Mode,
 	valuesOp bpf.PolicyValuesOperation,
 ) error {
-	modeOp := bpf.UpdateMode
-	if mode == 0 {
-		modeOp = bpf.DeleteMode
-	}
 	if err := r.policyUpdateBinariesFunc(policyID, allowedBinaries, valuesOp); err != nil {
 		return err
 	}
-	if err := r.policyModeUpdateFunc(policyID, mode, modeOp); err != nil {
+	if err := r.policyModeUpdateFunc(policyID, mode, bpf.UpdateMode); err != nil {
 		return err
 	}
 	return nil
@@ -64,22 +60,44 @@ func (r *Resolver) removePolicy(policyID PolicyID) error {
 	return nil
 }
 
-// this must be called with the resolver lock held.
-func (r *Resolver) applyPolicyToPod(state *podState, polByContainer policyByContainer) error {
+// applyPolicyToPod applies the given policy-by-container (add/update) to the pod's cgroups.
+// This must be called with the resolver lock held.
+func (r *Resolver) applyPolicyToPod(state *podState, applied policyByContainer) error {
 	for _, container := range state.containers {
-		polID, ok := polByContainer[container.name]
+		polID, ok := applied[container.name]
 		if !ok {
 			// No entry for this container: either not in policy, or unchanged.
 			continue
 		}
-		op := bpf.AddPolicyToCgroups
-		if polID == PolicyIDNone {
-			op = bpf.RemoveCgroups
+		if err := r.cgroupToPolicyMapUpdateFunc(polID, []CgroupID{container.cgID}, bpf.AddPolicyToCgroups); err != nil {
+			return fmt.Errorf("failed to add policy to cgroups for pod %s, container %s, policy %s: %w",
+				state.podName(), container.name, state.policyLabel(), err)
 		}
-		if err := r.cgroupToPolicyMapUpdateFunc(polID, []CgroupID{container.cgID}, op); err != nil {
-			return fmt.Errorf("failed to %s for pod %s, container %s, policy %s: %w",
-				op.String(), state.podName(), container.name, state.policyLabel(), err)
+	}
+	return nil
+}
+
+// removePolicyFromPod removes cgroup→policyID associations for the given containers in the pod.
+// It is used to remove policy from containers that are no longer in the spec.
+// This must be called with the resolver lock held.
+func (r *Resolver) removePolicyFromPod(
+	wpKey namespacedPolicyName,
+	podState *podState,
+	wpState, removed policyByContainer,
+) error {
+	for _, container := range podState.containers {
+		policyID, ok := removed[container.name]
+		if !ok {
+			continue
 		}
+		if err := r.cgroupToPolicyMapUpdateFunc(PolicyIDNone, []CgroupID{container.cgID}, bpf.RemoveCgroups); err != nil {
+			return fmt.Errorf("failed to remove cgroups for pod %s, container %s, policy %s: %w",
+				podState.podName(), container.name, podState.policyLabel(), err)
+		}
+		if err := r.removePolicy(policyID); err != nil {
+			return fmt.Errorf("failed to clear policy for wp %s, container %s: %w", wpKey, container.name, err)
+		}
+		delete(wpState, container.name)
 	}
 	return nil
 }
@@ -109,9 +127,8 @@ func (r *Resolver) applyPolicyToPodIfPresent(state *podState) error {
 
 // syncWorkloadPolicy ensures state and BPF maps match wp.Spec.RulesByContainer:
 // allocates a policy ID for new containers, (re)applies binaries and mode for every container in the spec.
-// If changes is non-nil, we will use it to track changes for the update operation.
 // This must be called with the resolver lock held.
-func (r *Resolver) syncWorkloadPolicy(wp *v1alpha1.WorkloadPolicy, changes policyByContainer) error {
+func (r *Resolver) syncWorkloadPolicy(wp *v1alpha1.WorkloadPolicy) error {
 	wpKey := wp.NamespacedName()
 	mode := policymode.ParseMode(wp.Spec.Mode)
 	state := r.wpState[wpKey]
@@ -122,15 +139,12 @@ func (r *Resolver) syncWorkloadPolicy(wp *v1alpha1.WorkloadPolicy, changes polic
 		if !hadPolicyID {
 			polID = r.allocPolicyID()
 			state[containerName] = polID
-			if changes != nil {
-				changes[containerName] = polID
-			}
 			r.logger.Info("create policy", "id", polID,
 				"wp", wpKey,
 				"container", containerName)
 			op = bpf.AddValuesToPolicy
 		}
-		if err := r.syncPolicyInBPF(polID, containerRules.Executables.Allowed, mode, op); err != nil {
+		if err := r.upsertPolicy(polID, containerRules.Executables.Allowed, mode, op); err != nil {
 			return fmt.Errorf("failed to populate policy for wp %s, container %s: %w", wpKey, containerName, err)
 		}
 	}
@@ -154,8 +168,7 @@ func (r *Resolver) handleWPAdd(wp *v1alpha1.WorkloadPolicy) error {
 
 	r.wpState[wpKey] = make(policyByContainer, len(wp.Spec.RulesByContainer))
 
-	// Pass nil for add. No need to track changes as we will apply the full state to all matching pods.
-	if err := r.syncWorkloadPolicy(wp, nil); err != nil {
+	if err := r.syncWorkloadPolicy(wp); err != nil {
 		return err
 	}
 
@@ -190,39 +203,33 @@ func (r *Resolver) handleWPUpdate(wp *v1alpha1.WorkloadPolicy) error {
 		return fmt.Errorf("workload policy does not exist in internal state: %s", wpKey)
 	}
 
-	// changes: container -> PolicyID: add/keep for matching pods; container -> PolicyIDNone: remove.
-	changes := make(policyByContainer)
-	if err := r.syncWorkloadPolicy(wp, changes); err != nil {
+	// Add/update containers in the policy
+	if err := r.syncWorkloadPolicy(wp); err != nil {
 		return err
 	}
 
-	// Containers removed from spec: we must remove cgroup->policyID before clearing policy values/mode,
-	// otherwise a cgroup would still point at a policy ID with no restrictions.
-	removedContainers := make([]ContainerName, 0, len(state))
+	// Split state into applied (still in spec) vs removed (no longer in spec).
+	appliedMap := make(policyByContainer, len(wp.Spec.RulesByContainer))
+	removedMap := make(policyByContainer, len(state)-len(wp.Spec.RulesByContainer))
 	for containerName := range state {
 		if _, stillPresent := wp.Spec.RulesByContainer[containerName]; stillPresent {
-			continue
+			appliedMap[containerName] = state[containerName]
+		} else {
+			removedMap[containerName] = state[containerName]
 		}
-		removedContainers = append(removedContainers, containerName)
-		changes[containerName] = PolicyIDNone
 	}
 
+	// Update each matching pod: first remove policy for dropped containers, then apply for the rest.
 	for _, podState := range r.podCache {
 		if !podState.matchPolicy(wp.Name) {
 			continue
 		}
-		if err := r.applyPolicyToPod(podState, changes); err != nil {
+		if err := r.removePolicyFromPod(wpKey, podState, state, removedMap); err != nil {
 			return err
 		}
-	}
-
-	// Now safe to clear policy values and mode and delete from state (cgroups already detached).
-	for _, containerName := range removedContainers {
-		policyID := state[containerName]
-		if err := r.removePolicy(policyID); err != nil {
-			return fmt.Errorf("failed to clear policy for wp %s, container %s: %w", wpKey, containerName, err)
+		if err := r.applyPolicyToPod(podState, appliedMap); err != nil {
+			return err
 		}
-		delete(state, containerName)
 	}
 
 	return nil

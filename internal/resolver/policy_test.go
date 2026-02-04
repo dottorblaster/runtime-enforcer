@@ -13,9 +13,12 @@ import (
 )
 
 const (
-	c1 = "c1"
-	c2 = "c2"
-	c3 = "c3"
+	c1   = "c1"
+	c2   = "c2"
+	c3   = "c3"
+	cid1 = "cid1"
+	cid2 = "cid2"
+	cid3 = "cid3"
 )
 
 func mockPolicyUpdateBinariesFunc(_ PolicyID, _ []string, _ bpf.PolicyValuesOperation) error {
@@ -71,6 +74,26 @@ func TestHandleWP_Lifecycle(t *testing.T) {
 		},
 	}
 	key := wp.NamespacedName()
+
+	// A matching pod is required because policy deletion now happens
+	// during cgroup detachment, not purely from wpState transitions.
+	r.mu.Lock()
+	r.podCache["test-pod-uid"] = &podState{
+		info: &podInfo{
+			podID:        "test-pod-uid",
+			namespace:    "test-ns",
+			name:         "test-pod",
+			workloadName: "test",
+			workloadType: "Deployment",
+			labels:       map[string]string{v1alpha1.PolicyLabelKey: "example"},
+		},
+		containers: map[ContainerID]*containerInfo{
+			cid1: {cgID: 100, name: c1},
+			cid2: {cgID: 101, name: c2},
+			cid3: {cgID: 102, name: c3},
+		},
+	}
+	r.mu.Unlock()
 
 	// Add
 	require.NoError(t, r.handleWPAdd(wp))
