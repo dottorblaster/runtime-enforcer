@@ -3,7 +3,9 @@ package e2e_test
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
+	"strings"
 	"testing"
 
 	"sigs.k8s.io/e2e-framework/pkg/env"
@@ -15,17 +17,22 @@ import (
 
 //nolint:gochecknoglobals // provided by e2e-framework
 var (
-	testEnv              env.Environment
-	kindClusterName      string
-	namespace            string
-	certManagerNamespace string
-	otelNamespace        string
+	testEnv         env.Environment
+	kindClusterName string
+	namespace       string
+	otelNamespace   string
 )
 
 const (
+	certManagerHelmRepoName = "jetstack-e2e-test"
+	otelHelmRepoName        = "otel-e2e-test"
+
 	certManagerVersion          = "v1.18.2"
 	otelVersion                 = "v0.136.0"
 	certManagerCSIDriverVersion = "v0.12.0"
+
+	// at the moment `third_party/helm` doesn't expose a way to check if a repo exists.
+	helmRepoNotFoundString = "no repo named"
 )
 
 func TestMain(m *testing.M) {
@@ -33,7 +40,6 @@ func TestMain(m *testing.M) {
 	testEnv = env.NewWithConfig(cfg)
 	kindClusterName = envconf.RandomName("test-controller-e2e", 32)
 	namespace = envconf.RandomName("enforcer-namespace", 16)
-	certManagerNamespace = envconf.RandomName("cert-manager", 16)
 	otelNamespace = envconf.RandomName("otel", 16)
 
 	testEnv.Setup(
@@ -49,6 +55,7 @@ func TestMain(m *testing.M) {
 			"--verbose",
 			"--mode",
 			"direct"),
+		removeHelmRepos(),
 		InstallOtelCollector(),
 		InstallCertManager(),
 		InstallRuntimeEnforcer(),
@@ -58,16 +65,33 @@ func TestMain(m *testing.M) {
 		envfuncs.ExportClusterLogs(kindClusterName, "./logs"),
 		envfuncs.DeleteNamespace(namespace),
 		envfuncs.DestroyCluster(kindClusterName),
+		removeHelmRepos(),
 	)
 
 	os.Exit(testEnv.Run(m))
+}
+
+func removeHelmRepos() env.Func {
+	return func(ctx context.Context, config *envconf.Config) (context.Context, error) {
+		manager := helm.New(config.KubeconfigFile())
+		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+		for _, repo := range []string{certManagerHelmRepoName, otelHelmRepoName} {
+			err := manager.RunRepo(helm.WithArgs("remove", repo))
+			if err != nil && !strings.Contains(err.Error(), helmRepoNotFoundString) {
+				logger.Info("failed to remove helm repo",
+					"repo", repo,
+					"error", err)
+			}
+		}
+		return ctx, nil
+	}
 }
 
 func InstallCertManager() env.Func {
 	return func(ctx context.Context, config *envconf.Config) (context.Context, error) {
 		manager := helm.New(config.KubeconfigFile())
 
-		err := manager.RunRepo(helm.WithArgs("add", certManagerNamespace, "https://charts.jetstack.io"))
+		err := manager.RunRepo(helm.WithArgs("add", certManagerHelmRepoName, "https://charts.jetstack.io"))
 		if err != nil {
 			return ctx, fmt.Errorf("failed to add cert manager repo: %w", err)
 		}
@@ -79,7 +103,7 @@ func InstallCertManager() env.Func {
 		// Install cert-manager
 		err = manager.RunInstall(
 			helm.WithName("cert-manager"),
-			helm.WithChart(certManagerNamespace+"/cert-manager"),
+			helm.WithChart(certManagerHelmRepoName+"/cert-manager"),
 			helm.WithNamespace("cert-manager"),
 			helm.WithArgs("--create-namespace"),
 			helm.WithArgs("--version", certManagerVersion),
@@ -93,7 +117,7 @@ func InstallCertManager() env.Func {
 		// Install cert-manager CSI driver
 		err = manager.RunInstall(
 			helm.WithName("cert-manager-csi-driver"),
-			helm.WithChart(certManagerNamespace+"/cert-manager-csi-driver"),
+			helm.WithChart(certManagerHelmRepoName+"/cert-manager-csi-driver"),
 			helm.WithNamespace("cert-manager"),
 			helm.WithArgs("--version", certManagerCSIDriverVersion),
 			helm.WithWait(),
@@ -140,7 +164,7 @@ func InstallOtelCollector() env.Func {
 		manager := helm.New(config.KubeconfigFile())
 
 		err := manager.RunRepo(
-			helm.WithArgs("add", otelNamespace, "http://open-telemetry.github.io/opentelemetry-helm-charts"),
+			helm.WithArgs("add", otelHelmRepoName, "http://open-telemetry.github.io/opentelemetry-helm-charts"),
 		)
 		if err != nil {
 			return ctx, fmt.Errorf("failed to add otel collector repo: %w", err)
@@ -153,7 +177,7 @@ func InstallOtelCollector() env.Func {
 		// Install otel collector
 		err = manager.RunInstall(
 			helm.WithName("open-telemetry-collector"),
-			helm.WithChart(otelNamespace+"/opentelemetry-collector"),
+			helm.WithChart(otelHelmRepoName+"/opentelemetry-collector"),
 			helm.WithNamespace(otelNamespace),
 			helm.WithArgs("--create-namespace"),
 			helm.WithArgs("--version", otelVersion),
