@@ -1,6 +1,6 @@
 module github.com/rancher-sandbox/runtime-enforcer
 
-go 1.25.6
+go 1.25.7
 
 require (
 	github.com/avast/retry-go/v4 v4.7.0
