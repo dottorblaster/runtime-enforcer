@@ -127,28 +127,31 @@ func (r *Resolver) applyPolicyToPodIfPresent(state *podState) error {
 
 // syncWorkloadPolicy ensures state and BPF maps match wp.Spec.RulesByContainer:
 // allocates a policy ID for new containers, (re)applies binaries and mode for every container in the spec.
+// It returns the container→policyID map for newly created policy IDs.
 // This must be called with the resolver lock held.
-func (r *Resolver) syncWorkloadPolicy(wp *v1alpha1.WorkloadPolicy) error {
+func (r *Resolver) syncWorkloadPolicy(wp *v1alpha1.WorkloadPolicy) (policyByContainer, error) {
 	wpKey := wp.NamespacedName()
 	mode := policymode.ParseMode(wp.Spec.Mode)
 	state := r.wpState[wpKey]
+	newContainers := make(policyByContainer)
 
 	for containerName, containerRules := range wp.Spec.RulesByContainer {
 		polID, hadPolicyID := state[containerName]
 		op := bpf.ReplaceValuesInPolicy
 		if !hadPolicyID {
 			polID = r.allocPolicyID()
-			state[containerName] = polID
+			newContainers[containerName] = polID
 			r.logger.Info("create policy", "id", polID,
 				"wp", wpKey,
 				"container", containerName)
 			op = bpf.AddValuesToPolicy
 		}
 		if err := r.upsertPolicy(polID, containerRules.Executables.Allowed, mode, op); err != nil {
-			return fmt.Errorf("failed to populate policy for wp %s, container %s: %w", wpKey, containerName, err)
+			return nil, fmt.Errorf("failed to populate policy for wp %s, container %s: %w", wpKey, containerName, err)
 		}
 	}
-	return nil
+
+	return newContainers, nil
 }
 
 // handleWPAdd adds a new workload policy into the resolver cache and applies the policies to all running pods that require it.
@@ -166,20 +169,24 @@ func (r *Resolver) handleWPAdd(wp *v1alpha1.WorkloadPolicy) error {
 		return fmt.Errorf("workload policy already exists in internal state: %s", wpKey)
 	}
 
-	r.wpState[wpKey] = make(policyByContainer, len(wp.Spec.RulesByContainer))
-
-	if err := r.syncWorkloadPolicy(wp); err != nil {
+	state := make(policyByContainer, len(wp.Spec.RulesByContainer))
+	r.wpState[wpKey] = state
+	var err error
+	var newContainers policyByContainer
+	if newContainers, err = r.syncWorkloadPolicy(wp); err != nil {
 		return err
 	}
+	for containerName, policyID := range newContainers {
+		state[containerName] = policyID
+	}
 
-	wpMap := r.wpState[wpKey]
 	// Now we search for pods that match the policy
 	for _, podState := range r.podCache {
 		if !podState.matchPolicy(wp.Name) {
 			continue
 		}
 
-		if err := r.applyPolicyToPod(podState, wpMap); err != nil {
+		if err = r.applyPolicyToPod(podState, state); err != nil {
 			return err
 		}
 	}
@@ -202,15 +209,17 @@ func (r *Resolver) handleWPUpdate(wp *v1alpha1.WorkloadPolicy) error {
 	if !exists {
 		return fmt.Errorf("workload policy does not exist in internal state: %s", wpKey)
 	}
-
-	// Add/update containers in the policy
-	if err := r.syncWorkloadPolicy(wp); err != nil {
+	newContainers, err := r.syncWorkloadPolicy(wp)
+	if err != nil {
 		return err
+	}
+	for containerName, policyID := range newContainers {
+		state[containerName] = policyID
 	}
 
 	// Split state into applied (still in spec) vs removed (no longer in spec).
 	appliedMap := make(policyByContainer, len(wp.Spec.RulesByContainer))
-	removedMap := make(policyByContainer, len(state)-len(wp.Spec.RulesByContainer))
+	removedMap := make(policyByContainer, len(state))
 	for containerName := range state {
 		if _, stillPresent := wp.Spec.RulesByContainer[containerName]; stillPresent {
 			appliedMap[containerName] = state[containerName]
@@ -224,10 +233,10 @@ func (r *Resolver) handleWPUpdate(wp *v1alpha1.WorkloadPolicy) error {
 		if !podState.matchPolicy(wp.Name) {
 			continue
 		}
-		if err := r.removePolicyFromPod(wpKey, podState, state, removedMap); err != nil {
+		if err = r.removePolicyFromPod(wpKey, podState, state, removedMap); err != nil {
 			return err
 		}
-		if err := r.applyPolicyToPod(podState, appliedMap); err != nil {
+		if err = r.applyPolicyToPod(podState, appliedMap); err != nil {
 			return err
 		}
 	}

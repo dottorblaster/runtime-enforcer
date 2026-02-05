@@ -234,7 +234,7 @@ func getPolicyUpdateTest() types.Feature {
 				err = r.Update(ctx, &updatedPolicy)
 				require.NoError(t, err, "failed to update policy to add sidecar rules")
 
-				waitForWorkloadPolicyStatusToBeUpdated()
+				waitForWorkloadPolicyStatusToBeUpdated(ctx, t, updatedPolicy.DeepCopy())
 
 				// 3. Verify both main and sidecar are now protected (mkdir blocked in both)
 				t.Log("verifying both main and sidecar are protected after update")
@@ -295,7 +295,7 @@ func getPolicyUpdateTest() types.Feature {
 
 				err = r.Update(ctx, &wp)
 				require.NoError(t, err, "failed to update policy to remove sidecar rules")
-				waitForWorkloadPolicyStatusToBeUpdated()
+				waitForWorkloadPolicyStatusToBeUpdated(ctx, t, wp.DeepCopy())
 
 				// 2. Verify main is still protected (mkdir blocked) while sidecar is now unprotected (mkdir allowed)
 				t.Log("verifying main container remains protected and sidecar is unprotected after update")
