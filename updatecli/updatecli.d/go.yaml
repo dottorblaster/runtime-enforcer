@@ -74,6 +74,7 @@ scms:
       token: "{{ requiredEnv .github.token }}"
       username: "{{ requiredEnv .github.user }}"
       branch: "{{ .github.branch }}"
+      commitusingapi: true
       commitmessage:
         type: "chore"
         scope: deps
