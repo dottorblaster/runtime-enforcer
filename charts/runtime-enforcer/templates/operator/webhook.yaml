@@ -4,7 +4,7 @@ kind: MutatingWebhookConfiguration
 metadata:
   name: {{ include "runtime-enforcer.fullname" . }}-mutating-webhook-configuration
   annotations:
-    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "runtime-enforcer.fullname" . }}-ca
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "runtime-enforcer.caIssuerName" . }}
   labels:
   {{- include "runtime-enforcer.labels" . | nindent 4 }}
 webhooks:

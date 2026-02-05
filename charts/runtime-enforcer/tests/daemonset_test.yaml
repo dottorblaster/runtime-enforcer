@@ -36,3 +36,13 @@ tests:
       - notContains:
           path: "spec.template.spec.containers[0].args"
           content: "--enable-learning"
+
+  - it: "should include grpc port argument"
+    set:
+      agent:
+        agent:
+          grpcExporterPort: "12"
+    asserts:
+      - contains:
+          path: "spec.template.spec.containers[0].args"
+          content: "--grpc-port=12"

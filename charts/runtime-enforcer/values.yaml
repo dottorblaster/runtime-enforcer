@@ -21,6 +21,7 @@ operator:
       requests:
         cpu: 10m
         memory: 64Mi
+    wpStatusUpdateInterval: 30s
   podSecurityContext:
     runAsNonRoot: true
     seccompProfile:
@@ -57,6 +58,7 @@ agent:
       repository: ghcr.io/rancher-sandbox/runtime-enforcer/agent
       tag: v0.1.0
       pullPolicy: IfNotPresent
+    grpcExporterPort: "50051"
     resources:
       limits:
         cpu: 500m

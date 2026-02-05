@@ -13,6 +13,14 @@ load('ext://cert_manager', 'deploy_cert_manager')
 
 deploy_cert_manager(version="v1.18.2")
 
+load("ext://helm_resource", "helm_resource", "helm_repo")
+helm_repo("jetstack", "https://charts.jetstack.io")
+helm_resource(
+    "cert-manager-csi-driver",
+    "jetstack/cert-manager-csi-driver",
+    namespace="cert-manager",
+)
+
 # Create the namespace
 # This is required since the helm() function doesn't support the create_namespace flag
 load("ext://namespace", "namespace_create")
@@ -82,6 +90,7 @@ local_resource(
         "cmd/operator",
         "api",
         "internal/controller",
+        "proto",
     ],
 )
 
@@ -119,7 +128,8 @@ local_resource(
         "api",
         "internal",
         "pkg",
-        "bpf"
+        "bpf",
+        "proto",
     ],
     ignore = exclusions,
 )

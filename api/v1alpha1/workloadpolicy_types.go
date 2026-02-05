@@ -1,23 +1,33 @@
 package v1alpha1
 
 import (
+	"sort"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
-	// DeployCondition is a condition set when WorkloadPolicy controller has
-	// deployed the policy to the system.
-	DeployCondition = "Deployed"
-
-	// SyncFailedReason is set when the reconcile fails.
-	SyncFailedReason = "SyncFailed"
-
-	DeployedState = "Deployed"
-	ErrorState    = "Error"
-
 	// WorkloadPolicyFinalizer is added to WorkloadPolicy resources to ensure
 	// they are not deleted while still in use by Pods.
 	WorkloadPolicyFinalizer = "workloadpolicy.security.rancher.io/finalizer"
+
+	// MaxNodesWithIssues is the maximum number of nodes with issues to report.
+	// we don't want to overwhelm the user with too much information.
+	MaxNodesWithIssues = 20
+	// MaxTransitioningNodes is the maximum number of nodes transitioning to report.
+	MaxTransitioningNodes = 20
+)
+
+// Phase represents the current phase of the workload policy.
+type Phase string
+
+const (
+	// Transitioning indicates that the policy is in the process of changing its enforcement mode.
+	Transitioning Phase = "Transitioning"
+	// Failed indicates that the policy deployment has failed.
+	Failed Phase = "Failed"
+	// Active indicates that the policy is active.
+	Active Phase = "Active"
 )
 
 type WorkloadPolicyExecutables struct {
@@ -45,11 +55,77 @@ type WorkloadPolicySpec struct {
 	RulesByContainer map[string]*WorkloadPolicyRules `json:"rulesByContainer,omitempty"`
 }
 
+type WorkloadPolicyStatus struct {
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+	// nodesWithIssues contains the status of each node with issues.
+	NodesWithIssues map[string]NodeIssue `json:"nodesWithIssues,omitempty"`
+	// totalNodes is the total number of nodes the policy is applied to.
+	TotalNodes int `json:"totalNodes,omitempty"`
+	// successfulNodes is the number of nodes where the policy is successfully enforced.
+	SuccessfulNodes int `json:"successfulNodes,omitempty"`
+	// failedNodes is the number of nodes where the policy enforcement failed.
+	FailedNodes int `json:"failedNodes,omitempty"`
+	// transitioningNodes is the number of nodes where the policy is transitioning mode.
+	TransitioningNodes int `json:"transitioningNodes,omitempty"`
+	// nodesTransitioning contains the names of the nodes that are transitioning.
+	NodesTransitioning []string `json:"nodesTransitioning,omitempty"`
+	// phase indicates the current phase of the workload policy.
+	Phase Phase `json:"phase,omitempty"`
+}
+
+func (s *WorkloadPolicyStatus) AddNodeIssue(nodeName string, issue NodeIssue) {
+	// we always increment the failure count
+	s.FailedNodes++
+
+	if s.NodesWithIssues == nil {
+		s.NodesWithIssues = make(map[string]NodeIssue, MaxNodesWithIssues)
+	}
+
+	// we store up to MaxNodesWithIssues-1, the last element will be a marker of max reached
+	if len(s.NodesWithIssues) < MaxNodesWithIssues-1 {
+		s.NodesWithIssues[nodeName] = issue
+	} else if len(s.NodesWithIssues) == MaxNodesWithIssues-1 {
+		s.NodesWithIssues[TruncationNodeString] = NodeIssue{
+			Code:    NodeIssueMaxReached,
+			Message: "Maximum number of nodes with issues reached",
+		}
+	}
+}
+
+func (s *WorkloadPolicyStatus) SortTransitioningNodes() {
+	if len(s.NodesTransitioning) == 0 {
+		return
+	}
+
+	// we sort the transitioning nodes because we don't want to trigger
+	// updates on the WP if only the order of transitioning nodes has changed.
+	// Note: since this list is truncated it is still possible we trigger some updates if
+	// the number of transitioning nodes is greater than MaxTransitioningNodes.
+	sort.Slice(s.NodesTransitioning, func(i, j int) bool {
+		return s.NodesTransitioning[i] < s.NodesTransitioning[j]
+	})
+}
+
+func (s *WorkloadPolicyStatus) AddTransitioningNode(nodeName string) {
+	// we always increment the transitioning count
+	s.TransitioningNodes++
+
+	if s.NodesTransitioning == nil {
+		s.NodesTransitioning = make([]string, 0, MaxTransitioningNodes)
+	}
+
+	// we store up to MaxTransitioningNodes-1, the last element will be a marker of max reached
+	if len(s.NodesTransitioning) < MaxTransitioningNodes-1 {
+		s.NodesTransitioning = append(s.NodesTransitioning, nodeName)
+	} else if len(s.NodesTransitioning) == MaxTransitioningNodes-1 {
+		s.NodesTransitioning = append(s.NodesTransitioning, TruncationNodeString)
+	}
+}
+
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Mode",type=string,JSONPath=`.spec.mode`
-// +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.state`
-// +kubebuilder:printcolumn:name="Reason",type=string,priority=1,JSONPath=`.status.reason`
+// +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.phase`
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
@@ -58,7 +134,8 @@ type WorkloadPolicy struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec WorkloadPolicySpec `json:"spec,omitempty"`
+	Spec   WorkloadPolicySpec   `json:"spec,omitempty"`
+	Status WorkloadPolicyStatus `json:"status,omitempty"`
 }
 
 // NamespacedName returns a string in the form "<namespace>/<name>".

@@ -60,3 +60,40 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+Certificates helpers
+*/}}
+{{- define "runtime-enforcer.grpc.certDir" -}}
+/etc/runtime-enforcer/certs
+{{- end -}}
+{{- define "runtime-enforcer.caIssuerName" -}}
+{{ include "runtime-enforcer.fullname" . }}-ca
+{{- end -}}
+
+{{/* Agent label selector string derived from agent pod labels */}}
+{{- define "runtime-enforcer.agent.labelSelector" -}}
+app.kubernetes.io/component: agent
+{{ include "runtime-enforcer.selectorLabels" . }}
+{{- end -}}
+
+{{/*
+Convert labels rendered as YAML (e.g. "k: v\nk2: v2") into a comma-separated selector string "k=v,k2=v2".
+Usage:
+  {{ include "runtime-enforcer.labelSelectorToString" (include "runtime-enforcer.agent.labelSelector" .) }}
+*/}}
+{{- define "runtime-enforcer.labelSelectorToString" -}}
+{{- $yaml := . | default "" -}}
+{{- $m := (fromYaml $yaml) | default dict -}}
+{{- $keys := keys $m | sortAlpha -}}
+{{- $out := list -}}
+{{- range $k := $keys -}}
+  {{- $out = append $out (printf "%s=%v" $k (get $m $k)) -}}
+{{- end -}}
+{{- join "," $out -}}
+{{- end -}}
+
+{{/* Convenience: agent selector string */}}
+{{- define "runtime-enforcer.agent.labelSelectorString" -}}
+{{- include "runtime-enforcer.labelSelectorToString" (include "runtime-enforcer.agent.labelSelector" .) -}}
+{{- end -}}

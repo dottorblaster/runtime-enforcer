@@ -24,7 +24,12 @@ spec:
       {{- toYaml .Values.imagePullSecrets | nindent 8 }}
       {{- end }}
       containers:
-      - args: {{- toYaml .Values.operator.manager.args | nindent 8 }}
+      - args: 
+        - --wp-status-reconciler-agent-grpc-port={{ .Values.agent.agent.grpcExporterPort }}
+        - --wp-status-reconciler-update-interval={{ .Values.operator.manager.wpStatusUpdateInterval }}
+        - --wp-status-reconciler-agent-label-selector={{ include "runtime-enforcer.agent.labelSelectorString" . }}
+        - --wp-status-reconciler-agent-grpc-mtls-cert-dir={{ include "runtime-enforcer.grpc.certDir" . }}
+        {{- toYaml .Values.operator.manager.args | nindent 8 }}
         command:
         - /operator
         env:
@@ -54,10 +59,26 @@ spec:
           - mountPath: /tmp/k8s-webhook-server/serving-certs/
             name: webhook-certs
             readOnly: true
+          - name: grpc-certs
+            mountPath: {{ include "runtime-enforcer.grpc.certDir" . }}
+            readOnly: true
       volumes:
         - name: webhook-certs
-          secret:
-            secretName: {{ include "runtime-enforcer.fullname" . }}-operator-webhook-tls
+          csi:
+            driver: "csi.cert-manager.io"
+            readOnly: true
+            volumeAttributes:
+              csi.cert-manager.io/issuer-name: {{ include "runtime-enforcer.caIssuerName" . }}
+              csi.cert-manager.io/issuer-kind: Issuer
+              csi.cert-manager.io/dns-names: {{ include "runtime-enforcer.fullname" . }}-mutating-webhook.{{ .Release.Namespace }}.svc
+        - name: grpc-certs
+          csi:
+            driver: "csi.cert-manager.io"
+            readOnly: true
+            volumeAttributes:
+              csi.cert-manager.io/issuer-name: {{ include "runtime-enforcer.caIssuerName" . }}
+              csi.cert-manager.io/issuer-kind: Issuer
+              csi.cert-manager.io/dns-names: "runtime-enforcer-operator"
       securityContext: {{- toYaml .Values.operator.podSecurityContext | nindent
         8 }}
       serviceAccountName: {{ include "runtime-enforcer.fullname" . }}-controller-manager

@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"testing"
+	"time"
 
 	"github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/e2e-framework/klient/k8s"
 	"sigs.k8s.io/e2e-framework/klient/k8s/resources"
 	"sigs.k8s.io/e2e-framework/klient/wait"
 	"sigs.k8s.io/e2e-framework/klient/wait/conditions"
@@ -71,7 +73,7 @@ func getPolicyPerContainerTest() types.Feature {
 			err := r.Create(ctx, &policy)
 			require.NoError(t, err, "failed to create workload policy")
 
-			waitForWorkloadPolicyStatusToBeUpdated()
+			waitForWorkloadPolicyStatusToBeUpdated(ctx, t, policy.DeepCopy())
 
 			return ctx
 		}).
@@ -174,21 +176,31 @@ func getPolicyPerContainerTest() types.Feature {
 				err := r.Create(ctx, &blockedPod)
 				require.NoError(t, err, "failed to create pod with blocked init command")
 
-				waitForWorkloadPolicyStatusToBeUpdated()
-
-				err = r.Get(ctx, podNameBlocked, workloadNamespace, &blockedPod)
-				require.NoError(t, err, "failed to get blocked pod")
-
-				// Verify init container failed (date is not allowed)
-				require.NotEmpty(t, blockedPod.Status.InitContainerStatuses, "init container status should exist")
-				initStatus := blockedPod.Status.InitContainerStatuses[0]
-				require.NotNil(t, initStatus.State.Terminated, "init container should have terminated")
-				require.NotEqual(
-					t,
-					int32(0),
-					initStatus.State.Terminated.ExitCode,
-					"init container should fail because date is not allowed",
-				)
+				// Retry until the pod init container status is updated
+				// init container should fail (date is not allowed)
+				err = wait.For(conditions.New(r).ResourceMatch(&blockedPod, func(obj k8s.Object) bool {
+					pod, ok := obj.(*corev1.Pod)
+					if !ok {
+						return false
+					}
+					t.Log("checking pod init container status:", pod.Status.InitContainerStatuses)
+					// we don't have status for init containers yet
+					if len(pod.Status.InitContainerStatuses) == 0 {
+						t.Log("empty init container status")
+						return false
+					}
+					initStatus := pod.Status.InitContainerStatuses[0]
+					if initStatus.State.Terminated == nil {
+						t.Log("terminated state not set")
+						return false
+					}
+					if initStatus.State.Terminated.ExitCode == 0 {
+						t.Log("exit code == 0")
+						return false
+					}
+					return true
+				}), wait.WithTimeout(15*time.Second))
+				require.NoError(t, err, "init container should fail because date is not allowed")
 
 				err = r.Delete(ctx, &blockedPod)
 				require.NoError(t, err, "failed to delete blocked pod")

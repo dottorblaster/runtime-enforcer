@@ -18,12 +18,8 @@ spec:
     - jsonPath: .spec.mode
       name: Mode
       type: string
-    - jsonPath: .status.state
+    - jsonPath: .status.phase
       name: Status
-      type: string
-    - jsonPath: .status.reason
-      name: Reason
-      priority: 1
       type: string
     name: v1alpha1
     schema:
@@ -78,6 +74,52 @@ spec:
                 type: object
             required:
             - mode
+            type: object
+          status:
+            properties:
+              failedNodes:
+                description: failedNodes is the number of nodes where the policy enforcement
+                  failed.
+                type: integer
+              nodesTransitioning:
+                description: nodesTransitioning contains the names of the nodes that
+                  are transitioning.
+                items:
+                  type: string
+                type: array
+              nodesWithIssues:
+                additionalProperties:
+                  description: NodeIssue represents an issue with a node.
+                  properties:
+                    code:
+                      description: code is the issue code.
+                      type: string
+                    message:
+                      description: message is a human-readable description of the
+                        issue.
+                      type: string
+                  type: object
+                description: nodesWithIssues contains the status of each node with
+                  issues.
+                type: object
+              observedGeneration:
+                format: int64
+                type: integer
+              phase:
+                description: phase indicates the current phase of the workload policy.
+                type: string
+              successfulNodes:
+                description: successfulNodes is the number of nodes where the policy
+                  is successfully enforced.
+                type: integer
+              totalNodes:
+                description: totalNodes is the total number of nodes the policy is
+                  applied to.
+                type: integer
+              transitioningNodes:
+                description: transitioningNodes is the number of nodes where the policy
+                  is transitioning mode.
+                type: integer
             type: object
         type: object
     served: true

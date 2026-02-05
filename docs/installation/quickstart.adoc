@@ -18,7 +18,7 @@ Before deployment, you need to prepare the following:
 * A Kubernetes cluster (you can simply run a [kind](https://kind.sigs.k8s.io/) cluster)
 * `helm` installed locally
 * `kubectl` installed locally
-* `cert-manager` installed in the cluster
+* `cert-manager` and `cert-manager-csi-driver` installed in the cluster
 * `otel-collector` installed in the cluster
 
 [WARNING]
@@ -26,7 +26,7 @@ Before deployment, you need to prepare the following:
 Please ensure your environment satisfies the minimum link:../compatibility.adoc[runtime enforcer requirements].
 ====
 
-=== Install cert-manager
+=== Install cert-manager and cert-manager-csi-driver
 
 To install cert-manager, you can run the following commands:
 
@@ -47,7 +47,14 @@ helm install cert-manager jetstack/cert-manager \
 For more information on configuring cert-manager, please visit the link:https://cert-manager.io/docs/installation/helm[cert-manager documentation].
 ====
 
-'''
+The `cert-manager-csi-driver` is used to automatically mount certificates inside runtime enforcer components. 
+To install it, run the following commands:
+
+```bash
+helm install cert-manager-csi-driver jetstack/cert-manager-csi-driver \
+	--namespace cert-manager \
+	--wait
+```
 
 === Install otel-collector
 

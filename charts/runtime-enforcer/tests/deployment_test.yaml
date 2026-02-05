@@ -23,3 +23,28 @@ tests:
           path: "spec.template.spec.containers[0].imagePullPolicy"
           value: "Always"
 
+  - it: "should include grpc Port argument"
+    set:
+      agent:
+        agent:
+          grpcExporterPort: "12"
+    asserts:
+      - contains:
+          path: "spec.template.spec.containers[0].args"
+          content: "--wp-status-reconciler-agent-grpc-port=12"
+
+  - it: "should set update interval argument"
+    set:
+      operator:
+        manager:
+          wpStatusUpdateInterval: "1s"
+    asserts:
+      - contains:
+          path: "spec.template.spec.containers[0].args"
+          content: "--wp-status-reconciler-update-interval=1s"
+
+  - it: "operator should get the correct label selector string"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "--wp-status-reconciler-agent-label-selector=app.kubernetes.io/component=agent,app.kubernetes.io/instance=RELEASE-NAME,app.kubernetes.io/name=runtime-enforcer"

@@ -23,8 +23,9 @@ var (
 )
 
 const (
-	certManagerVersion = "v1.18.2"
-	otelVersion        = "v0.136.0"
+	certManagerVersion          = "v1.18.2"
+	otelVersion                 = "v0.136.0"
+	certManagerCSIDriverVersion = "v0.12.0"
 )
 
 func TestMain(m *testing.M) {
@@ -89,6 +90,18 @@ func InstallCertManager() env.Func {
 			return ctx, fmt.Errorf("failed to install cert manager: %w", err)
 		}
 
+		// Install cert-manager CSI driver
+		err = manager.RunInstall(
+			helm.WithName("cert-manager-csi-driver"),
+			helm.WithChart(certManagerNamespace+"/cert-manager-csi-driver"),
+			helm.WithNamespace("cert-manager"),
+			helm.WithArgs("--version", certManagerCSIDriverVersion),
+			helm.WithWait(),
+			helm.WithTimeout(DefaultHelmTimeout.String()))
+		if err != nil {
+			return ctx, fmt.Errorf("failed to install cert manager CSI driver: %w", err)
+		}
+
 		return ctx, nil
 	}
 }
@@ -104,6 +117,8 @@ func InstallRuntimeEnforcer() env.Func {
 			helm.WithArgs("--set", "agent.agent.image.tag=latest"),
 			helm.WithArgs("--set", "telemetry.mode=custom"),
 			helm.WithArgs("--set", "telemetry.tracing=true"),
+			// we need to reduce the timeout to see the wp status controller working properly in e2e tests
+			helm.WithArgs("--set", "operator.manager.wpStatusUpdateInterval=2s"),
 			helm.WithArgs(
 				"--set",
 				"telemetry.custom.endpoint=http://open-telemetry-collector-opentelemetry-collector."+otelNamespace+".svc.cluster.local:4317",

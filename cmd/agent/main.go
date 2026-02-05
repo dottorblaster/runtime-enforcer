@@ -12,6 +12,7 @@ import (
 	"github.com/rancher-sandbox/runtime-enforcer/internal/bpf"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/eventhandler"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/eventscraper"
+	"github.com/rancher-sandbox/runtime-enforcer/internal/grpcexporter"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/nri"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/resolver"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -35,6 +36,7 @@ type Config struct {
 	nriSocketPath     string
 	nriPluginIdx      string
 	probeAddr         string
+	grpcConf          grpcexporter.Config
 }
 
 // +kubebuilder:rbac:groups=security.rancher.io,resources=workloadpolicies,verbs=get;list;watch
@@ -53,6 +55,22 @@ func newControllerManager(config Config) (manager.Manager, error) {
 		return nil, fmt.Errorf("unable to start manager: %w", err)
 	}
 	return mgr, nil
+}
+
+func setupGRPCExporter(
+	ctrlMgr manager.Manager,
+	logger *slog.Logger,
+	conf *grpcexporter.Config,
+	r *resolver.Resolver,
+) error {
+	exporter, err := grpcexporter.New(logger, conf, r)
+	if err != nil {
+		return fmt.Errorf("failed to create gRPC exporter: %w", err)
+	}
+	if err = ctrlMgr.Add(exporter); err != nil {
+		return fmt.Errorf("failed to add gRPC exporter to controller manager: %w", err)
+	}
+	return nil
 }
 
 func startAgent(ctx context.Context, logger *slog.Logger, config Config) error {
@@ -169,9 +187,16 @@ func startAgent(ctx context.Context, logger *slog.Logger, config Config) error {
 		return fmt.Errorf("failed to add NRI handler's readiness probe: %w", err)
 	}
 
+	//////////////////////
+	// Add GRPC exporter
+	//////////////////////
+	if err = setupGRPCExporter(ctrlMgr, logger, &config.grpcConf, resolver); err != nil {
+		return err
+	}
+
 	logger.InfoContext(ctx, "starting manager")
 	if err = ctrlMgr.Start(ctx); err != nil {
-		logger.ErrorContext(ctx, "failed to start manager", "error", err)
+		return fmt.Errorf("failed to start manager: %w", err)
 	}
 
 	return nil
@@ -196,7 +221,11 @@ func main() {
 	flag.StringVar(&config.nriSocketPath, "nri-socket-path", "/var/run/nri/nri.sock", "NRI socket path")
 	flag.StringVar(&config.nriPluginIdx, "nri-plugin-index", "00", "NRI plugin index")
 	flag.StringVar(&config.probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
-
+	flag.IntVar(&config.grpcConf.Port, "grpc-port", 50051, "gRPC server port")
+	flag.BoolVar(&config.grpcConf.MTLSEnabled, "grpc-mtls-enabled", true,
+		"Enable mutual TLS between the agent server and clients")
+	flag.StringVar(&config.grpcConf.CertDirPath, "grpc-mtls-cert-dir", "",
+		"Path to the directory containing the server and ca TLS certificate")
 	flag.Parse()
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{

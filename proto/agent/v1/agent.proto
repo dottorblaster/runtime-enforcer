@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package runtimeenforcer.agent.v1;
+
+option go_package = "github.com/neuvector/runtime-enforcer/proto/agent/v1;agentv1";
+
+// AgentObserver exposes agent internal state for external components.
+service AgentObserver {
+  // ListPoliciesStatus returns the status of workload Policies.
+  rpc ListPoliciesStatus(ListPoliciesStatusRequest) returns (ListPoliciesStatusResponse) {}
+}
+
+message ListPoliciesStatusRequest {}
+
+enum PolicyState {
+  POLICY_STATE_UNSPECIFIED = 0;
+
+  // Policy present, loaded and actively running.
+  POLICY_STATE_READY = 1;
+
+  // Agent attempted to load/apply policy and it failed.
+  POLICY_STATE_ERROR = 2;
+}
+
+enum PolicyMode {
+  POLICY_MODE_UNSPECIFIED = 0;
+  
+  // Policy monitor mode
+  POLICY_MODE_MONITOR = 1;
+
+  // Policy protect mode
+  POLICY_MODE_PROTECT = 2;
+}
+
+message PolicyStatus {
+  PolicyState state = 1;
+  PolicyMode mode = 2;
+}
+
+message ListPoliciesStatusResponse {
+  map<string, PolicyStatus> policies = 1;
+}

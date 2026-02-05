@@ -21,6 +21,60 @@ Package v1alpha1 contains API Schema definitions for the security v1alpha1 API g
 
 
 
+[id="{anchor_prefix}-github-com-rancher-sandbox-runtime-enforcer-api-v1alpha1-nodeissue"]
+==== NodeIssue
+
+
+
+NodeIssue represents an issue with a node.
+
+
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-rancher-sandbox-runtime-enforcer-api-v1alpha1-workloadpolicystatus[$$WorkloadPolicyStatus$$]
+****
+
+[cols="20a,50a,15a,15a", options="header"]
+|===
+| Field | Description | Default | Validation
+| *`code`* __xref:{anchor_prefix}-github-com-rancher-sandbox-runtime-enforcer-api-v1alpha1-nodeissuecode[$$NodeIssueCode$$]__ | code is the issue code. + |  | 
+| *`message`* __string__ | message is a human-readable description of the issue. + |  | 
+|===
+
+
+[id="{anchor_prefix}-github-com-rancher-sandbox-runtime-enforcer-api-v1alpha1-nodeissuecode"]
+==== NodeIssueCode
+
+_Underlying type:_ _string_
+
+NodeIssueCode represents the code for a node issue.
+
+
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-rancher-sandbox-runtime-enforcer-api-v1alpha1-nodeissue[$$NodeIssue$$]
+****
+
+
+
+[id="{anchor_prefix}-github-com-rancher-sandbox-runtime-enforcer-api-v1alpha1-phase"]
+==== Phase
+
+_Underlying type:_ _string_
+
+Phase represents the current phase of the workload policy.
+
+
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-rancher-sandbox-runtime-enforcer-api-v1alpha1-workloadpolicystatus[$$WorkloadPolicyStatus$$]
+****
+
+
+
 [id="{anchor_prefix}-github-com-rancher-sandbox-runtime-enforcer-api-v1alpha1-workloadpolicy"]
 ==== WorkloadPolicy
 
@@ -43,6 +97,7 @@ WorkloadPolicy is the Schema for the workloadpolicies API.
 | *`metadata`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.35/#objectmeta-v1-meta[$$ObjectMeta$$]__ | Refer to Kubernetes API documentation for fields of `metadata`.
  |  | 
 | *`spec`* __xref:{anchor_prefix}-github-com-rancher-sandbox-runtime-enforcer-api-v1alpha1-workloadpolicyspec[$$WorkloadPolicySpec$$]__ |  |  | 
+| *`status`* __xref:{anchor_prefix}-github-com-rancher-sandbox-runtime-enforcer-api-v1alpha1-workloadpolicystatus[$$WorkloadPolicyStatus$$]__ |  |  | 
 |===
 
 
@@ -203,6 +258,34 @@ it only reports violations. + |  | Enum: [monitor protect] +
 Required: \{} +
 
 | *`rulesByContainer`* __object (keys:string, values:xref:{anchor_prefix}-github-com-rancher-sandbox-runtime-enforcer-api-v1alpha1-workloadpolicyrules[$$WorkloadPolicyRules$$])__ | rulesByContainer specifies for each container the list of rules to apply. + |  | 
+|===
+
+
+[id="{anchor_prefix}-github-com-rancher-sandbox-runtime-enforcer-api-v1alpha1-workloadpolicystatus"]
+==== WorkloadPolicyStatus
+
+
+
+
+
+
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-rancher-sandbox-runtime-enforcer-api-v1alpha1-workloadpolicy[$$WorkloadPolicy$$]
+****
+
+[cols="20a,50a,15a,15a", options="header"]
+|===
+| Field | Description | Default | Validation
+| *`observedGeneration`* __integer__ |  |  | 
+| *`nodesWithIssues`* __object (keys:string, values:xref:{anchor_prefix}-github-com-rancher-sandbox-runtime-enforcer-api-v1alpha1-nodeissue[$$NodeIssue$$])__ | nodesWithIssues contains the status of each node with issues. + |  | 
+| *`totalNodes`* __integer__ | totalNodes is the total number of nodes the policy is applied to. + |  | 
+| *`successfulNodes`* __integer__ | successfulNodes is the number of nodes where the policy is successfully enforced. + |  | 
+| *`failedNodes`* __integer__ | failedNodes is the number of nodes where the policy enforcement failed. + |  | 
+| *`transitioningNodes`* __integer__ | transitioningNodes is the number of nodes where the policy is transitioning mode. + |  | 
+| *`nodesTransitioning`* __string array__ | nodesTransitioning contains the names of the nodes that are transitioning. + |  | 
+| *`phase`* __xref:{anchor_prefix}-github-com-rancher-sandbox-runtime-enforcer-api-v1alpha1-phase[$$Phase$$]__ | phase indicates the current phase of the workload policy. + |  | 
 |===
 
 

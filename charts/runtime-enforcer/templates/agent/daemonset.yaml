@@ -7,8 +7,7 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/component: agent
-    {{- include "runtime-enforcer.selectorLabels" . | nindent 6 }}
+    {{- include "runtime-enforcer.agent.labelSelector" . | nindent 6 }}
   updateStrategy: 
     type: RollingUpdate
     rollingUpdate:
@@ -17,8 +16,7 @@ spec:
   template:
     metadata:
       labels:
-        app.kubernetes.io/component: agent
-      {{- include "runtime-enforcer.selectorLabels" . | nindent 8 }}
+      {{- include "runtime-enforcer.agent.labelSelector" . | nindent 8 }}
       annotations:
         kubectl.kubernetes.io/default-container: agent
     spec:
@@ -34,6 +32,8 @@ spec:
         {{- if .Values.learning.enabled }}
         - --enable-learning
         {{- end }}
+        - --grpc-port={{ .Values.agent.agent.grpcExporterPort }}
+        - --grpc-mtls-cert-dir={{ include "runtime-enforcer.grpc.certDir" . }}
         {{- toYaml .Values.agent.agent.args | nindent 8 }}
         command:
         - /agent
@@ -77,6 +77,9 @@ spec:
           mountPath: /var/run/nri/nri.sock
           mountPropagation: HostToContainer
           readOnly: true
+        - name: grpc-certs
+          mountPath: {{ include "runtime-enforcer.grpc.certDir" . }}
+          readOnly: true
       hostPID: {{ .Values.agent.hostPID }}
       securityContext: {{- toYaml .Values.agent.podSecurityContext | nindent 8 }}
       serviceAccountName: {{ include "runtime-enforcer.fullname" . }}-agent
@@ -85,3 +88,11 @@ spec:
       - name: nri-socket
         hostPath:
           path: {{ .Values.agent.nriSocketPath }}
+      - name: grpc-certs
+        csi:
+          driver: "csi.cert-manager.io"
+          readOnly: true
+          volumeAttributes:
+            csi.cert-manager.io/issuer-name: {{ include "runtime-enforcer.caIssuerName" . }}
+            csi.cert-manager.io/issuer-kind: Issuer
+            csi.cert-manager.io/dns-names: ${POD_NAME}.${POD_NAMESPACE}

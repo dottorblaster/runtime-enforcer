@@ -65,7 +65,7 @@ TARGET=operator agent
 $(foreach T,$(TARGET),$(eval $(call BUILD_template,$(T))))
 
 .PHONY: generate
-generate: manifests generate-ebpf generate-api generate-crd-docs
+generate: manifests generate-ebpf generate-proto generate-api generate-crd-docs
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 .PHONY: fmt
@@ -199,6 +199,8 @@ KUSTOMIZE ?= $(LOCALBIN)/kustomize
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 GOLANGCI_LINT = $(LOCALBIN)/golangci-lint
+PROTOC_GEN_GO=$(LOCALBIN)/protoc-gen-go
+PROTOC_GEN_GO_GRPC=$(LOCALBIN)/protoc-gen-go-grpc
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v5.5.0
@@ -236,6 +238,16 @@ $(ENVTEST): $(LOCALBIN)
 golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary.
 $(GOLANGCI_LINT): $(LOCALBIN)
 	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint,$(GOLANGCI_LINT_VERSION))
+
+$(PROTOC_GEN_GO): | $(LOCALBIN)
+	GOBIN=$(LOCALBIN) go install google.golang.org/protobuf/cmd/protoc-gen-go
+
+$(PROTOC_GEN_GO_GRPC): | $(LOCALBIN)
+	GOBIN=$(LOCALBIN) go install google.golang.org/grpc/cmd/protoc-gen-go-grpc
+
+.PHONY: generate-proto
+generate-proto: $(PROTOC_GEN_GO) $(PROTOC_GEN_GO_GRPC)
+	PATH=$(LOCALBIN):$(PATH) protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative ./proto/agent/v1/agent.proto
 
 .PHONY: generate-api
 generate-api:
