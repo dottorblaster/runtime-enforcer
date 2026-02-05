@@ -28,7 +28,7 @@ spec:
         - --wp-status-reconciler-agent-grpc-port={{ .Values.agent.agent.grpcExporterPort }}
         - --wp-status-reconciler-update-interval={{ .Values.operator.manager.wpStatusUpdateInterval }}
         - --wp-status-reconciler-agent-namespace={{ .Release.Namespace }}
-        - --wp-status-reconciler-agent-label-selector=app.kubernetes.io/component=agent
+        - --wp-status-reconciler-agent-label-selector={{ include "runtime-enforcer.agent.labelSelectorString" . }}
         - --wp-status-reconciler-agent-grpc-mtls-cert-dir={{ include "runtime-enforcer.grpc.certDir" . }}
         {{- toYaml .Values.operator.manager.args | nindent 8 }}
         command:
