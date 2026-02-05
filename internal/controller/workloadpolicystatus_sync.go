@@ -63,10 +63,6 @@ func NewWorkloadPolicyStatusSync(
 		return nil, fmt.Errorf("invalid update interval: %v", config.UpdateInterval)
 	}
 
-	if config.AgentNamespace == "" {
-		return nil, errors.New("empty agent namespace")
-	}
-
 	agentLabelSelector := make(map[string]string)
 	labels := strings.Split(config.AgentLabelSelector, ",")
 	for _, label := range labels {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/tls"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -29,6 +30,10 @@ import (
 	securityv1alpha1 "github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/controller"
 	// +kubebuilder:scaffold:imports
+)
+
+const (
+	namespaceNamePath = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 )
 
 type Config struct {
@@ -71,10 +76,6 @@ func parseArgs(logger logr.Logger, config *Config) {
 		"wp-status-reconciler-update-interval",
 		0,
 		"The interval at which the workload policy status reconciler updates the status of WorkloadPolicy resources.")
-	flag.StringVar(&config.wpStatusSyncConfig.AgentNamespace,
-		"wp-status-reconciler-agent-namespace",
-		"",
-		"The namespace where the agent pods are deployed.")
 	flag.StringVar(&config.wpStatusSyncConfig.AgentLabelSelector,
 		"wp-status-reconciler-agent-label-selector",
 		"",
@@ -121,6 +122,17 @@ func SetupControllers(logger logr.Logger,
 
 	logger.Info("Setting up WorkloadPolicyStatusSync with",
 		"config", wpStatusSyncConf)
+
+	// get the namespace name from the system
+	data, err := os.ReadFile(namespaceNamePath)
+	if err != nil {
+		return fmt.Errorf("failed to read namespace file: %w", err)
+	}
+	wpStatusSyncConf.AgentNamespace = string(data)
+	if wpStatusSyncConf.AgentNamespace == "" {
+		return errors.New("empty agent namespace")
+	}
+
 	var wpStatusSync *controller.WorkloadPolicyStatusSync
 	if wpStatusSync, err = controller.NewWorkloadPolicyStatusSync(mgr.GetClient(), wpStatusSyncConf); err != nil {
 		return fmt.Errorf("unable to create WorkloadPolicyStatusSync: %w", err)
