@@ -565,8 +565,7 @@ int BPF_PROG(enforce_cgroup_policy, struct linux_binprm *bprm) {
 	// We check if we are in monitoring or enforcing mode for this policy
 	__u8 *mode = bpf_map_lookup_elem(&policy_mode_map, policy_id);
 	if(!mode) {
-		// this is an error...
-		bpf_printk("No policy mode found for policy id %d", *policy_id);
+		// This is not an error, it can happen during policy removal
 		return 0;
 	}
 	bpf_printk("Mode %d for policy id %d", *mode, *policy_id);
