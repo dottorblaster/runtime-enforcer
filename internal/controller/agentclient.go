@@ -119,6 +119,7 @@ func (f *agentClientFactory) newClient(podIP, podName, podNamespace string) (*ag
 // agentClientAPI this interface is used to mock the client in tests.
 type agentClientAPI interface {
 	listPoliciesStatus(ctx context.Context) (map[string]*pb.PolicyStatus, error)
+	scrapeViolations(ctx context.Context) ([]*pb.ViolationRecord, error)
 	close() error
 }
 
@@ -137,6 +138,17 @@ func (c *agentClient) listPoliciesStatus(ctx context.Context) (map[string]*pb.Po
 		return nil, err
 	}
 	return resp.GetPolicies(), nil
+}
+
+func (c *agentClient) scrapeViolations(ctx context.Context) ([]*pb.ViolationRecord, error) {
+	timeoutCtx, timeoutCancel := context.WithTimeout(ctx, agentClientTimeout)
+	defer timeoutCancel()
+
+	resp, err := c.client.ScrapeViolations(timeoutCtx, &pb.ScrapeViolationsRequest{})
+	if err != nil {
+		return nil, err
+	}
+	return resp.GetViolations(), nil
 }
 
 func (c *agentClient) close() error {

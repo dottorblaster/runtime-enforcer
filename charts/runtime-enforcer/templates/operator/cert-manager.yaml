@@ -40,3 +40,29 @@ metadata:
 spec:
   ca:
     secretName: runtime-enforcer-ca
+{{- if .Values.agent.violations.collector.enabled }}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "runtime-enforcer.otelCollector.certSecretName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "runtime-enforcer.labels" . | nindent 4 }}
+spec:
+  secretName: {{ include "runtime-enforcer.otelCollector.certSecretName" . }}
+  duration: 8736h # 1 year
+  renewBefore: 240h # 10 days
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  dnsNames:
+    - {{ include "runtime-enforcer.fullname" . }}-otel-collector
+    - {{ include "runtime-enforcer.fullname" . }}-otel-collector.{{ .Release.Namespace }}
+    - {{ include "runtime-enforcer.fullname" . }}-otel-collector.{{ .Release.Namespace }}.svc
+    - {{ include "runtime-enforcer.fullname" . }}-otel-collector.{{ .Release.Namespace }}.svc.cluster.local
+  issuerRef:
+    name: {{ include "runtime-enforcer.caIssuerName" . }}
+    kind: Issuer
+    group: cert-manager.io
+{{- end }}

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/rancher-sandbox/runtime-enforcer/internal/resolver"
+	"github.com/rancher-sandbox/runtime-enforcer/internal/violationbuf"
 	pb "github.com/rancher-sandbox/runtime-enforcer/proto/agent/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -33,9 +34,10 @@ type Config struct {
 }
 
 type Server struct {
-	logger   *slog.Logger
-	resolver *resolver.Resolver
-	conf     *Config
+	logger          *slog.Logger
+	resolver        *resolver.Resolver
+	violationBuffer *violationbuf.Buffer
+	conf            *Config
 }
 
 func (s *Server) getConnCredentials() grpc.ServerOption {
@@ -102,7 +104,7 @@ func checkCertDirIsValid(certDirPath string) error {
 	return nil
 }
 
-func New(logger *slog.Logger, conf *Config, resolver *resolver.Resolver) (*Server, error) {
+func New(logger *slog.Logger, conf *Config, resolver *resolver.Resolver, violationBuffer *violationbuf.Buffer) (*Server, error) {
 	if conf.MTLSEnabled {
 		// Check that the certificate path is valid before starting the server
 		if err := checkCertDirIsValid(conf.CertDirPath); err != nil {
@@ -110,9 +112,10 @@ func New(logger *slog.Logger, conf *Config, resolver *resolver.Resolver) (*Serve
 		}
 	}
 	return &Server{
-		logger:   logger.With("component", "grpc_exporter"),
-		conf:     conf,
-		resolver: resolver,
+		logger:          logger.With("component", "grpc_exporter"),
+		conf:            conf,
+		resolver:        resolver,
+		violationBuffer: violationBuffer,
 	}, nil
 }
 
@@ -124,7 +127,7 @@ func (s *Server) Start(ctx context.Context) error {
 		return fmt.Errorf("failed to listen on %s: %w", addr, err)
 	}
 	grpcServer := grpc.NewServer(s.getConnCredentials())
-	pb.RegisterAgentObserverServer(grpcServer, newAgentObserver(s.logger, s.resolver))
+	pb.RegisterAgentObserverServer(grpcServer, newAgentObserver(s.logger, s.resolver, s.violationBuffer))
 	s.logger.InfoContext(ctx, "Starting gRPC exporter", "addr", addr, "mTLS", s.conf.MTLSEnabled)
 
 	serveErrCh := make(chan error, 1)

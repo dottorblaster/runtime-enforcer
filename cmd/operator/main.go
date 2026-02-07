@@ -129,7 +129,7 @@ func SetupControllers(logger logr.Logger,
 	}
 
 	var wpStatusSync *controller.WorkloadPolicyStatusSync
-	if wpStatusSync, err = controller.NewWorkloadPolicyStatusSync(mgr.GetClient(), wpStatusSyncConf);err != nil {
+	if wpStatusSync, err = controller.NewWorkloadPolicyStatusSync(mgr.GetClient(), wpStatusSyncConf); err != nil {
 		return fmt.Errorf("unable to create WorkloadPolicyStatusSync: %w", err)
 	}
 	if err = mgr.Add(wpStatusSync); err != nil {

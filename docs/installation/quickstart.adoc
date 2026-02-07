@@ -19,7 +19,6 @@ Before deployment, you need to prepare the following:
 * `helm` installed locally
 * `kubectl` installed locally
 * `cert-manager` and `cert-manager-csi-driver` installed in the cluster
-* `otel-collector` installed in the cluster
 
 [WARNING]
 ====
@@ -47,7 +46,7 @@ helm install cert-manager jetstack/cert-manager \
 For more information on configuring cert-manager, please visit the link:https://cert-manager.io/docs/installation/helm[cert-manager documentation].
 ====
 
-The `cert-manager-csi-driver` is used to automatically mount certificates inside runtime enforcer components. 
+The `cert-manager-csi-driver` is used to automatically mount certificates inside runtime enforcer components.
 To install it, run the following commands:
 
 ```bash
@@ -56,33 +55,14 @@ helm install cert-manager-csi-driver jetstack/cert-manager-csi-driver \
 	--wait
 ```
 
-=== Install otel-collector
-
-The OpenTelemetry Collector is required to observe policy notifications.
-To install it, run the following commands:
-
-```bash
-helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
-
-helm repo update
-
-helm install otel-collector open-telemetry/opentelemetry-collector \
-  --namespace otel-collector \
-  --create-namespace \
-  --set image.repository=otel/opentelemetry-collector-k8s \
-  --set mode=deployment \
-  --set config.exporters.debug.verbosity=normal \
-  --set "config.service.pipelines.traces.exporters[0]=debug" \
-  --set config.service.pipelines.metrics=null \
-  --set config.service.pipelines.logs=null \
-  --wait
-```
-
 == Deploy Runtime-Enforcer
 
 Follow these simple steps from your local machine to get Runtime-Enforcer up and running:
 
 === Install the Helm chart
+
+Runtime-Enforcer ships with a built-in OTEL collector sidecar that handles violation metrics and trace forwarding.
+No external OpenTelemetry Collector is needed for a basic setup.
 
 ```bash
 helm repo add runtime-enforcer https://rancher-sandbox.github.io/runtime-enforcer/
@@ -90,10 +70,8 @@ helm repo update
 helm install runtime-enforcer runtime-enforcer/runtime-enforcer \
   --namespace runtime-enforcer \
   --create-namespace \
-  --set telemetry.mode=custom \
-  --set telemetry.tracing=true \
-  --set telemetry.custom.endpoint=http://otel-collector-opentelemetry-collector.otel-collector.svc.cluster.local:4317 \
-  --set telemetry.custom.insecure=true \
+  --set operator.manager.image.tag=latest \
+  --set agent.agent.image.tag=latest \
   --wait
 ```
 
@@ -109,7 +87,27 @@ Example output:
 
 ```bash
 runtime-enforcer   runtime-enforcer-controller-manager-bfbd8774d-bvjjn   1/1     Running
-runtime-enforcer   runtime-enforcer-agent-lsxt4                         1/1     Running
+runtime-enforcer   runtime-enforcer-agent-lsxt4                         2/2     Running
+```
+
+[NOTE]
+====
+Each agent pod now runs two containers: the `agent` and the `otel-collector` sidecar.
+====
+
+=== Verify violation metrics
+
+The OTEL collector sidecar exposes Prometheus metrics on port 9090. To verify:
+
+```bash
+kubectl port-forward -n runtime-enforcer ds/runtime-enforcer-agent 9090:9090
+curl localhost:9090/metrics | grep runtime_enforcer_violations
+```
+
+Once violations occur, you will see a counter like:
+
+```
+runtime_enforcer_violations_total{action="monitor",k8s_namespace_name="default",node_name="node-1",policy_name="deploy-ubuntu-deployment"} 1
 ```
 
 === Summary
@@ -238,10 +236,10 @@ This label update will cause a deployment rollout. If you want to avoid this, yo
 
 After the rollout, the policy will be applied. Let's test it.
 
-In one terminal, follow the OpenTelemetry Collector logs:
+In one terminal, check the OTEL collector sidecar logs:
 
 ```bash
-kubectl logs -n otel-collector deploy/otel-collector-opentelemetry-collector -f
+kubectl logs -n runtime-enforcer ds/runtime-enforcer-agent -c otel-collector -f
 ```
 
 In another terminal, run an allowed command:
@@ -258,7 +256,7 @@ Now, run a command that is not in the allowlist:
 kubectl exec -n default deployment/ubuntu-deployment -- ps
 ```
 
-In the otel logs you should see a trace for the `ps` command being executed.
+In the otel-collector sidecar logs you should see a trace for the `ps` command being executed.
 
 ```txt
 monitor 3f3235e0e92e6143965d46b967691cc1 9a6b46fa3165e86d evt.time=2026-01-14T10:39:01Z evt.rawtime=1768387141935180372 policy.name=deploy-ubuntu-deployment k8s.ns.name=default k8s.workload.name=ubuntu-deployment k8s.workload.kind=Deployment k8s.pod.name=ubuntu-deployment-f69df6b94-7s7f4 container.full_id=2f6eb089830e2c281551274e8d0e94bdb182a5444fc1a4ab7316f33dff8a5017 container.name=ubuntu proc.exepath=/usr/bin/ps action=monitor
@@ -296,4 +294,34 @@ And we have a log entry for it:
 
 ```txt
 protect 37298bcde8726ade2516b5d3c63aa663 cb28aa0b03259160 evt.time=2026-01-14T10:49:11Z evt.rawtime=1768387751471907924 policy.name=deploy-ubuntu-deployment k8s.ns.name=default k8s.workload.name=ubuntu-deployment k8s.workload.kind=Deployment k8s.pod.name=ubuntu-deployment-f69df6b94-7s7f4 container.full_id=2f6eb089830e2c281551274e8d0e94bdb182a5444fc1a4ab7316f33dff8a5017 container.name=ubuntu proc.exepath=/usr/bin/ps action=protect
+```
+
+== Advanced Configuration
+
+=== Forward traces to an external collector
+
+To forward traces to an external OTEL collector (e.g. for ingestion into Jaeger or Tempo), set the `telemetry.custom.endpoint`:
+
+```bash
+helm upgrade runtime-enforcer runtime-enforcer/runtime-enforcer \
+  --namespace runtime-enforcer \
+  --set telemetry.tracing=true \
+  --set telemetry.custom.endpoint=https://my-collector.example.com:4317 \
+  --set telemetry.custom.insecure=false
+```
+
+The sidecar collector will forward traces to the configured endpoint while continuing to process violation logs into Prometheus metrics locally.
+
+=== Disable the sidecar and use an external collector directly
+
+If you already have an OTEL collector deployed in your cluster, you can disable the sidecar and point the agent directly at it:
+
+```bash
+helm upgrade runtime-enforcer runtime-enforcer/runtime-enforcer \
+  --namespace runtime-enforcer \
+  --set agent.violations.collector.enabled=false \
+  --set agent.violations.otlpEndpoint=otel-collector.otel-collector.svc.cluster.local:4317 \
+  --set telemetry.tracing=true \
+  --set telemetry.custom.endpoint=http://otel-collector.otel-collector.svc.cluster.local:4317 \
+  --set telemetry.custom.insecure=true
 ```

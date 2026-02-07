@@ -21,6 +21,9 @@ go.work
 # Kubernetes Generated files - skip generated files, except for vendored files
 !vendor/**/zz_generated.*
 
+# API codegen known-violations list produced by update-codegen.sh
+sample_apiserver_violation_exceptions.list
+
 # editor and IDE paraphernalia
 .idea
 .vscode

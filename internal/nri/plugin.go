@@ -47,12 +47,12 @@ func (p *plugin) Synchronize(
 		if err != nil {
 			// When this happens, we can't retrieve the cgroup ID in the target system.
 			// This is a critical error.
-			// 
+			//
 			// By returning a retry.Unrecoverable error, we allow our retry logic in Handler.Start() to
 			// skip the retries and abort immediately.
 			p.lastErr = retry.Unrecoverable(fmt.Errorf("failed to synchronize NRI plugin: %w", err))
 
-			// Container runtime will log this. We log here too for convenience. 
+			// Container runtime will log this. We log here too for convenience.
 			p.logger.ErrorContext(ctx, "failed to synchronize NRI plugin",
 				"error", err)
 			return nil, p.lastErr
