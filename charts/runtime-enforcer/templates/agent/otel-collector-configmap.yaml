@@ -1,0 +1,54 @@
+{{- if .Values.agent.violations.collector.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "runtime-enforcer.fullname" . }}-otel-collector
+  labels:
+  {{- include "runtime-enforcer.labels" . | nindent 4 }}
+data:
+  config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+    connectors:
+      count:
+        logs:
+          runtime_enforcer_violations:
+            description: "Total policy violations detected by runtime-enforcer"
+            attributes:
+              - key: policy.name
+              - key: k8s.namespace.name
+              - key: action
+              - key: node.name
+    processors:
+      deltatocumulative: {}
+    extensions:
+      health_check:
+        endpoint: 0.0.0.0:13133
+    exporters:
+      debug:
+        verbosity: normal
+      prometheus:
+        endpoint: 0.0.0.0:9090
+      {{- if .Values.telemetry.custom.endpoint }}
+      otlp:
+        endpoint: {{ .Values.telemetry.custom.endpoint }}
+        tls:
+          insecure: {{ .Values.telemetry.custom.insecure | default false }}
+      {{- end }}
+    service:
+      extensions: [health_check]
+      pipelines:
+        logs:
+          receivers: [otlp]
+          exporters: [count, debug]
+        metrics:
+          receivers: [count]
+          processors: [deltatocumulative]
+          exporters: [prometheus]
+        traces:
+          receivers: [otlp]
+          exporters: [{{ if .Values.telemetry.custom.endpoint }}otlp{{ else }}debug{{ end }}]
+{{- end }}

@@ -55,6 +55,31 @@ type WorkloadPolicySpec struct {
 	RulesByContainer map[string]*WorkloadPolicyRules `json:"rulesByContainer,omitempty"`
 }
 
+const MaxViolationRecords = 100
+
+// ViolationRecord holds the details of a single policy violation.
+type ViolationRecord struct {
+	// timestamp is when the violation occurred.
+	Timestamp metav1.Time `json:"timestamp"`
+	// podName is the name of the pod where the violation occurred.
+	PodName string `json:"podName"`
+	// containerName is the container where the unauthorized executable ran.
+	ContainerName string `json:"containerName"`
+	// executablePath is the path of the unauthorized executable.
+	ExecutablePath string `json:"executablePath"`
+	// nodeName is the node where the violation occurred.
+	NodeName string `json:"nodeName"`
+	// action is the enforcement action taken (monitor or protect).
+	Action string `json:"action"`
+}
+
+// ViolationStatus holds recent violation records for a WorkloadPolicy.
+type ViolationStatus struct {
+	// violations is the list of the most recent violation records (max 100).
+	// Oldest entries are dropped when the limit is reached.
+	Violations []ViolationRecord `json:"violations,omitempty"`
+}
+
 type WorkloadPolicyStatus struct {
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 	// nodesWithIssues contains the status of each node with issues.
@@ -71,6 +96,9 @@ type WorkloadPolicyStatus struct {
 	NodesTransitioning []string `json:"nodesTransitioning,omitempty"`
 	// phase indicates the current phase of the workload policy.
 	Phase Phase `json:"phase,omitempty"`
+	// violations holds recent violation records for the policy.
+	// +optional
+	Violations *ViolationStatus `json:"violations,omitempty"`
 }
 
 func (s *WorkloadPolicyStatus) AddNodeIssue(nodeName string, issue NodeIssue) {

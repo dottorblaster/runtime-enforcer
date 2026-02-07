@@ -75,6 +75,53 @@ Phase represents the current phase of the workload policy.
 
 
 
+[id="{anchor_prefix}-github-com-rancher-sandbox-runtime-enforcer-api-v1alpha1-violationrecord"]
+==== ViolationRecord
+
+
+
+ViolationRecord holds the details of a single policy violation.
+
+
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-rancher-sandbox-runtime-enforcer-api-v1alpha1-violationstatus[$$ViolationStatus$$]
+****
+
+[cols="20a,50a,15a,15a", options="header"]
+|===
+| Field | Description | Default | Validation
+| *`timestamp`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.35/#time-v1-meta[$$Time$$]__ | timestamp is when the violation occurred. + |  |
+| *`podName`* __string__ | podName is the name of the pod where the violation occurred. + |  |
+| *`containerName`* __string__ | containerName is the container where the unauthorized executable ran. + |  |
+| *`executablePath`* __string__ | executablePath is the path of the unauthorized executable. + |  |
+| *`nodeName`* __string__ | nodeName is the node where the violation occurred. + |  |
+| *`action`* __string__ | action is the enforcement action taken (monitor or protect). + |  |
+|===
+
+
+[id="{anchor_prefix}-github-com-rancher-sandbox-runtime-enforcer-api-v1alpha1-violationstatus"]
+==== ViolationStatus
+
+
+
+ViolationStatus holds recent violation records for a WorkloadPolicy.
+
+
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-rancher-sandbox-runtime-enforcer-api-v1alpha1-workloadpolicystatus[$$WorkloadPolicyStatus$$]
+****
+
+[cols="20a,50a,15a,15a", options="header"]
+|===
+| Field | Description | Default | Validation
+| *`violations`* __xref:{anchor_prefix}-github-com-rancher-sandbox-runtime-enforcer-api-v1alpha1-violationrecord[$$ViolationRecord$$] array__ | violations is the list of the most recent violation records (max 100). Oldest entries are dropped when the limit is reached. + |  |
+|===
+
+
 [id="{anchor_prefix}-github-com-rancher-sandbox-runtime-enforcer-api-v1alpha1-workloadpolicy"]
 ==== WorkloadPolicy
 
@@ -286,6 +333,7 @@ Required: \{} +
 | *`transitioningNodes`* __integer__ | transitioningNodes is the number of nodes where the policy is transitioning mode. + |  | 
 | *`nodesTransitioning`* __string array__ | nodesTransitioning contains the names of the nodes that are transitioning. + |  | 
 | *`phase`* __xref:{anchor_prefix}-github-com-rancher-sandbox-runtime-enforcer-api-v1alpha1-phase[$$Phase$$]__ | phase indicates the current phase of the workload policy. + |  | 
+| *`violations`* __xref:{anchor_prefix}-github-com-rancher-sandbox-runtime-enforcer-api-v1alpha1-violationstatus[$$ViolationStatus$$]__ | violations holds recent violation records for the policy. + |  |
 |===
 
 

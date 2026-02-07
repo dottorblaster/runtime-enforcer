@@ -153,6 +153,8 @@ func (r *WorkloadPolicyStatusSync) processWorkloadPolicy(
 		return fmt.Errorf("failed to compute status for policy %s: %w", newPolicy.NamespacedName(), err)
 	}
 	newPolicy.Status.ObservedGeneration = wp.Generation
+	// Preserve the violation counters set by the agent's ViolationReporter.
+	newPolicy.Status.Violations = wp.Status.Violations
 	r.logger.V(1).Info("updating",
 		"policy", newPolicy.NamespacedName(),
 		"status:", newPolicy.Status)

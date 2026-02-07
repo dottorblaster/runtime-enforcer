@@ -72,6 +72,22 @@ agent:
       type: RuntimeDefault
   serviceAccount:
     annotations: {}
+  violations:
+    otlpEndpoint: ""  # explicit override; when empty + collector.enabled → standalone collector Service
+    flushInterval: 10s
+    collector:
+      enabled: true
+      image:
+        repository: otel/opentelemetry-collector-contrib
+        tag: "0.145.0"
+        pullPolicy: IfNotPresent
+      resources:
+        limits:
+          cpu: 250m
+          memory: 128Mi
+        requests:
+          cpu: 10m
+          memory: 64Mi
   nriSocketPath: /var/run/nri/nri.sock
 kubernetesClusterDomain: cluster.local
 

@@ -7,10 +7,12 @@ import (
 	"time"
 
 	"github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
+	"github.com/rancher-sandbox/runtime-enforcer/internal/agent"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/bpf"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/resolver"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	otellog "go.opentelemetry.io/otel/log"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -21,6 +23,9 @@ type EventScraper struct {
 	resolver            *resolver.Resolver
 	learningEnqueueFunc func(evt KubeProcessInfo)
 	tracer              trace.Tracer
+	violationLogger     otellog.Logger
+	violationReporter   *agent.ViolationReporter
+	nodeName            string
 }
 
 type KubeProcessInfo struct {
@@ -34,14 +39,34 @@ type KubeProcessInfo struct {
 	PolicyName     string `json:"policyName,omitempty"`
 }
 
+type Option func(*EventScraper)
+
+// WithViolationLogger sets an OTEL logger for emitting violation event records.
+func WithViolationLogger(l otellog.Logger, nodeName string) Option {
+	return func(es *EventScraper) {
+		es.violationLogger = l
+		es.nodeName = nodeName
+	}
+}
+
+// WithViolationReporter sets the ViolationReporter for buffering violation
+// records and patching WorkloadPolicy status directly from the agent.
+func WithViolationReporter(vr *agent.ViolationReporter, nodeName string) Option {
+	return func(es *EventScraper) {
+		es.violationReporter = vr
+		es.nodeName = nodeName
+	}
+}
+
 func NewEventScraper(
 	learningChannel <-chan bpf.ProcessEvent,
 	monitoringChannel <-chan bpf.ProcessEvent,
 	logger *slog.Logger,
 	resolver *resolver.Resolver,
 	learningEnqueueFunc func(evt KubeProcessInfo),
+	opts ...Option,
 ) *EventScraper {
-	return &EventScraper{
+	es := &EventScraper{
 		learningChannel:     learningChannel,
 		monitoringChannel:   monitoringChannel,
 		logger:              logger,
@@ -49,6 +74,10 @@ func NewEventScraper(
 		learningEnqueueFunc: learningEnqueueFunc,
 		tracer:              otel.Tracer("event-scraper"),
 	}
+	for _, option := range opts {
+		option(es)
+	}
+	return es
 }
 
 func (es *EventScraper) getKubeProcessInfo(event *bpf.ProcessEvent) *KubeProcessInfo {
@@ -63,6 +92,7 @@ func (es *EventScraper) getKubeProcessInfo(event *bpf.ProcessEvent) *KubeProcess
 		}
 		cgIDLookup = event.CgroupID
 	}
+
 	es.logger.Debug("process event with empty cgIDTracker, falling back to cgroupID", "cgID", event.CgroupID)
 	info, err := es.resolver.GetKubeInfo(cgIDLookup)
 	if err == nil {
@@ -82,10 +112,11 @@ func (es *EventScraper) getKubeProcessInfo(event *bpf.ProcessEvent) *KubeProcess
 			PolicyName:     policyName,
 		}
 	}
+
 	switch {
 	case errors.Is(err, resolver.ErrMissingPodUID):
 		// This could happen if the cgroup ID is not associated with any pod (is on the host), that's why we put it in debug
-		// todo!: with the debug we could miss some real miss in production but not sure we can ignore cgroup IDs on the host in some other way
+		// todo!: with the debug we could miss some actual miss in production
 		es.logger.Debug("missing pod UID for process event",
 			"msg", err.Error(),
 			"exe", event.ExePath)
@@ -101,6 +132,7 @@ func (es *EventScraper) getKubeProcessInfo(event *bpf.ProcessEvent) *KubeProcess
 			"exe", event.ExePath,
 			"error", err)
 	}
+
 	return nil
 }
 
@@ -148,6 +180,48 @@ func (es *EventScraper) Start(ctx context.Context) error {
 				attribute.String("action", action),
 			)
 			span.End()
+
+			es.emitViolationEvent(ctx, kubeInfo, action)
+			es.reportViolation(ctx, kubeInfo, action)
 		}
 	}
+}
+
+func (es *EventScraper) emitViolationEvent(ctx context.Context, info *KubeProcessInfo, action string) {
+	if es.violationLogger == nil {
+		return
+	}
+
+	var rec otellog.Record
+	rec.SetEventName("policy_violation")
+	rec.SetSeverity(otellog.SeverityWarn)
+	rec.SetBody(otellog.StringValue("policy_violation"))
+	rec.SetTimestamp(time.Now())
+	rec.AddAttributes(
+		otellog.String("policy.name", info.PolicyName),
+		otellog.String("k8s.namespace.name", info.Namespace),
+		otellog.String("k8s.pod.name", info.PodName),
+		otellog.String("container.name", info.ContainerName),
+		otellog.String("proc.exepath", info.ExecutablePath),
+		otellog.String("node.name", es.nodeName),
+		otellog.String("action", action),
+	)
+
+	es.violationLogger.Emit(ctx, rec)
+}
+
+func (es *EventScraper) reportViolation(ctx context.Context, info *KubeProcessInfo, action string) {
+	if es.violationReporter == nil {
+		return
+	}
+
+	es.violationReporter.Report(ctx, agent.ViolationInfo{
+		PolicyName:    info.PolicyName,
+		Namespace:     info.Namespace,
+		PodName:       info.PodName,
+		ContainerName: info.ContainerName,
+		ExePath:       info.ExecutablePath,
+		NodeName:      es.nodeName,
+		Action:        action,
+	})
 }

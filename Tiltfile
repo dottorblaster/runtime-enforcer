@@ -26,30 +26,6 @@ helm_resource(
 load("ext://namespace", "namespace_create")
 namespace_create("runtime-enforcer")
 
-# Install open telemetry collector
-load("ext://helm_resource", "helm_resource", "helm_repo")
-helm_repo("open-telemetry", "http://open-telemetry.github.io/opentelemetry-helm-charts")
-helm_resource(
-    "open-telemetry-collector",
-    "open-telemetry/opentelemetry-collector",
-    namespace="runtime-enforcer",
-    flags=[
-        "--set",
-        "image.repository=otel/opentelemetry-collector-k8s",
-        "--set",
-        "mode=deployment",
-        "--set",
-        "config.exporters.file.path=/dev/stdout",
-        "--set",
-        "config.service.pipelines.traces.exporters[0]=file",
-        "--set",
-        "config.service.pipelines.metrics=null",
-        "--set",
-        "config.service.pipelines.logs=null",
-    ]
-)
-
-
 operator_image = settings.get("operator").get("image")
 agent_image = settings.get("agent").get("image")
 
@@ -62,14 +38,6 @@ helm_options = [
         "agent.agent.containerSecurityContext.runAsUser=null",
         "agent.podSecurityContext.runAsNonRoot=false",
 ]
-
-if settings.get("agent").get("enable-otel-tracing"):
-    helm_options += [
-        "telemetry.mode=custom",
-        "telemetry.tracing=true",
-        "telemetry.custom.endpoint=http://open-telemetry-collector-opentelemetry-collector.runtime-enforcer.svc.cluster.local:4317",
-        "telemetry.custom.insecure=true",
-    ]
 
 yaml = helm(
     "./charts/runtime-enforcer",

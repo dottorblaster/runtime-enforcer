@@ -8,7 +8,7 @@ spec:
   selector:
     matchLabels:
     {{- include "runtime-enforcer.agent.labelSelector" . | nindent 6 }}
-  updateStrategy: 
+  updateStrategy:
     type: RollingUpdate
     rollingUpdate:
       maxUnavailable: 0
@@ -26,7 +26,7 @@ spec:
       {{- end }}
       containers:
       - args:
-        {{- if .Values.telemetry.tracing }}
+        {{- if or .Values.telemetry.tracing .Values.agent.violations.collector.enabled }}
         - --enable-tracing
         {{- end }}
         {{- if .Values.learning.enabled }}
@@ -34,6 +34,12 @@ spec:
         {{- end }}
         - --grpc-port={{ .Values.agent.agent.grpcExporterPort }}
         - --grpc-mtls-cert-dir={{ include "runtime-enforcer.grpc.certDir" . }}
+        {{- if .Values.agent.violations.otlpEndpoint }}
+        - --violation-otlp-endpoint={{ .Values.agent.violations.otlpEndpoint }}
+        {{- else if .Values.agent.violations.collector.enabled }}
+        - --violation-otlp-endpoint={{ include "runtime-enforcer.fullname" . }}-otel-collector.{{ .Release.Namespace }}.svc.cluster.local:4317
+        {{- end }}
+        - --violation-flush-interval={{ .Values.agent.violations.flushInterval }}
         {{- toYaml .Values.agent.agent.args | nindent 8 }}
         command:
         - /agent
@@ -42,7 +48,12 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: spec.nodeName
-        {{- if or .Values.telemetry.metrics .Values.telemetry.tracing }}
+        {{- if and .Values.agent.violations.collector.enabled (not .Values.agent.violations.otlpEndpoint) }}
+          - name: OTEL_EXPORTER_OTLP_ENDPOINT
+            value: http://{{ include "runtime-enforcer.fullname" . }}-otel-collector.{{ .Release.Namespace }}.svc.cluster.local:4317
+          - name: OTEL_EXPORTER_OTLP_INSECURE
+            value: "true"
+        {{- else if or .Values.telemetry.metrics .Values.telemetry.tracing }}
         {{- if eq .Values.telemetry.mode "custom" }}
           - name: OTEL_EXPORTER_OTLP_ENDPOINT
             value: {{.Values.telemetry.custom.endpoint}}
@@ -50,7 +61,7 @@ spec:
             value: {{ .Values.telemetry.custom.insecure | default false | quote }}
         {{- if and (not .Values.telemetry.custom.insecure) .Values.telemetry.custom.otelCollectorCertificateSecret }}
           - name: OTEL_EXPORTER_OTLP_CERTIFICATE
-            value: /tmp/otel-collector-certs/ca.crt 
+            value: /tmp/otel-collector-certs/ca.crt
         {{- end }}
         {{- if and (not .Values.telemetry.custom.insecure) .Values.telemetry.custom.otelCollectorClientCertificateSecret }}
           - name: OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE
