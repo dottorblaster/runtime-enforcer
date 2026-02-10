@@ -74,6 +74,8 @@ targets:
     sourceid: golangcilintVersion
     spec:
       file: .pre-commit-config.yaml
+      comment: '{{ source "golangcilintTag" }}'
+      engine: yamlpath
       key: $.repos[0].rev
   update_clangformat_version:
     scmid: default
@@ -83,3 +85,5 @@ targets:
     spec:
       file: .pre-commit-config.yaml
       key: $.repos[1].rev
+      comment: '{{ source "clangformatTag" }}'
+      engine: yamlpath
