@@ -61,11 +61,6 @@ func (r *WorkloadPolicyProposalReconciler) Reconcile(
 
 	_, err = controllerutil.CreateOrPatch(ctx, r.Client, &policy, func() error {
 		policy.Spec = policyProposal.Spec.IntoWorkloadPolicySpec()
-
-		err = controllerutil.SetControllerReference(&policyProposal, &policy, r.Scheme)
-		if err != nil {
-			return fmt.Errorf("failed to set controller reference: %w", err)
-		}
 		return nil
 	})
 	if err != nil {
