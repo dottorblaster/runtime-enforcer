@@ -90,8 +90,6 @@ helm repo update
 helm install runtime-enforcer runtime-enforcer/runtime-enforcer \
   --namespace runtime-enforcer \
   --create-namespace \
-  --set operator.manager.image.tag=latest \
-  --set agent.agent.image.tag=latest \
   --set telemetry.mode=custom \
   --set telemetry.tracing=true \
   --set telemetry.custom.endpoint=http://otel-collector-opentelemetry-collector.otel-collector.svc.cluster.local:4317 \
