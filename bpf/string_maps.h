@@ -101,6 +101,8 @@ static __always_inline void* get_policy_string_map(int index, u64* policy_id) {
 		return bpf_map_lookup_elem(&pol_str_maps_9, policy_id);
 	case 10:
 		return bpf_map_lookup_elem(&pol_str_maps_10, policy_id);
+	default:
+		return 0;
 	}
 	return 0;
 }
