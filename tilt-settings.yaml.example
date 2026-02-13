@@ -1,6 +1,5 @@
 operator: 
     image: <your-repository>/operator
-    enforce-mode: # lsm or kprobe
 agent: 
     image: <your-repository>/agent
     enable-otel-tracing: true/false
