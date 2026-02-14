@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -18,7 +19,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/certwatcher"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
@@ -26,6 +26,7 @@ import (
 
 	"github.com/go-logr/logr"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/klog/v2"
 
 	securityv1alpha1 "github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/controller"
@@ -48,7 +49,7 @@ type Config struct {
 	wpStatusSyncConfig                               controller.WorkloadPolicyStatusSyncConfig
 }
 
-func parseArgs(logger logr.Logger, config *Config) {
+func parseArgs(logger *slog.Logger, config *Config) {
 	flag.StringVar(&config.metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
 	flag.StringVar(&config.probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -88,13 +89,7 @@ func parseArgs(logger logr.Logger, config *Config) {
 		"wp-status-reconciler-agent-grpc-mtls-cert-dir",
 		"",
 		"Path to the directory containing the client and ca TLS certificate.")
-	opts := zap.Options{
-		Development: true,
-	}
-	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
-
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
 	// if the enable-http2 flag is false (the default), http/2 should be disabled
 	// due to its vulnerabilities. More specifically, disabling http/2 will
@@ -134,7 +129,7 @@ func SetupControllers(logger logr.Logger,
 	}
 
 	var wpStatusSync *controller.WorkloadPolicyStatusSync
-	if wpStatusSync, err = controller.NewWorkloadPolicyStatusSync(mgr.GetClient(), wpStatusSyncConf); err != nil {
+	if wpStatusSync, err = controller.NewWorkloadPolicyStatusSync(mgr.GetClient(), wpStatusSyncConf);err != nil {
 		return fmt.Errorf("unable to create WorkloadPolicyStatusSync: %w", err)
 	}
 	if err = mgr.Add(wpStatusSync); err != nil {
@@ -181,7 +176,7 @@ func SetupControllers(logger logr.Logger,
 	return nil
 }
 
-func parseWebhookOptions(logger *logr.Logger, config *Config) (*certwatcher.CertWatcher, []func(*tls.Config)) {
+func parseWebhookOptions(logger *slog.Logger, config *Config) (*certwatcher.CertWatcher, []func(*tls.Config)) {
 	var webhookCertWatcher *certwatcher.CertWatcher
 
 	// Initial webhook TLS options
@@ -202,7 +197,7 @@ func parseWebhookOptions(logger *logr.Logger, config *Config) (*certwatcher.Cert
 			filepath.Join(config.webhookCertPath, config.webhookCertKey),
 		)
 		if err != nil {
-			logger.Error(err, "Failed to initialize webhook certificate watcher")
+			logger.Error("Failed to initialize webhook certificate watcher", "error", err)
 			os.Exit(1)
 		}
 
@@ -215,10 +210,16 @@ func parseWebhookOptions(logger *logr.Logger, config *Config) (*certwatcher.Cert
 }
 
 func main() {
-	setupLog := ctrl.Log.WithName("setup")
+	slogHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})
+	slogger := slog.New(slogHandler).With("component", "operator")
+	slog.SetDefault(slogger)
+	ctrlLogger := logr.FromSlogHandler(slogger.Handler())
+	ctrl.SetLogger(ctrlLogger)
+	klog.SetLogger(ctrlLogger)
+	setupLog := ctrlLogger.WithName("setup")
 
 	var config Config
-	parseArgs(setupLog, &config)
+	parseArgs(slogger, &config)
 
 	scheme := runtime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
@@ -227,7 +228,7 @@ func main() {
 	// Create watchers for metrics and webhooks certificates
 	var metricsCertWatcher *certwatcher.CertWatcher
 
-	webhookCertWatcher, webhookTLSOpts := parseWebhookOptions(&setupLog, &config)
+	webhookCertWatcher, webhookTLSOpts := parseWebhookOptions(slogger, &config)
 	webhookServer := webhook.NewServer(webhook.Options{
 		TLSOpts: webhookTLSOpts,
 	})
@@ -295,7 +296,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = SetupControllers(setupLog, mgr, metricsCertWatcher, webhookCertWatcher, &config.wpStatusSyncConfig); err != nil {
+	if err = SetupControllers(
+		ctrlLogger, mgr, metricsCertWatcher, webhookCertWatcher, &config.wpStatusSyncConfig,
+	); err != nil {
 		setupLog.Error(err, "unable to setup controllers")
 		os.Exit(1)
 	}

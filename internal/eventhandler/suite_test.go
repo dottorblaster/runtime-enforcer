@@ -14,7 +14,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	appsv1 "k8s.io/api/apps/v1"
 
@@ -46,7 +45,7 @@ func TestEventHandler(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
+	logf.SetLogger(GinkgoLogr)
 
 	ctx, cancel = context.WithCancel(context.TODO()) //nolint:fatcontext // false positives
 

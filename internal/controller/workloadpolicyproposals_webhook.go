@@ -81,7 +81,6 @@ func (p *ProposalWebhook) updateResource(
 // in its ownerReferences, where caller still need to specify its kind and name.
 func (p *ProposalWebhook) Default(ctx context.Context, proposal *securityv1alpha1.WorkloadPolicyProposal) error {
 	logger := log.FromContext(ctx)
-
 	logger.Info("mutating resource")
 
 	if len(proposal.OwnerReferences) != 1 {

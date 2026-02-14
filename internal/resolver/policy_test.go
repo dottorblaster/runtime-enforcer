@@ -50,7 +50,7 @@ func (w testWriter) Write(p []byte) (int, error) {
 func newTestResolver(t *testing.T) *Resolver {
 	t.Helper()
 	r, err := NewResolver(
-		slog.New(slog.NewTextHandler(testWriter{t}, nil)),
+		slog.New(slog.NewJSONHandler(testWriter{t}, nil)),
 		mockCgTrackerUpdateFunc,
 		mockCgroupToPolicyMapUpdateFunc,
 		mockPolicyUpdateBinariesFunc,

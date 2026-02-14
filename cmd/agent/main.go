@@ -9,6 +9,7 @@ import (
 	"os"
 
 	"github.com/cilium/ebpf"
+	"github.com/go-logr/logr"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/bpf"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/eventhandler"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/eventscraper"
@@ -17,7 +18,6 @@ import (
 	"github.com/rancher-sandbox/runtime-enforcer/internal/resolver"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	securityv1alpha1 "github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
@@ -210,11 +210,6 @@ func main() {
 
 	ctx := ctrl.SetupSignalHandler()
 
-	opts := zap.Options{
-		Development: false,
-	}
-	opts.BindFlags(flag.CommandLine)
-
 	flag.BoolVar(&config.enableTracing, "enable-tracing", false, "Enable tracing collection")
 	flag.BoolVar(&config.enableOtelSidecar, "enable-otel-sidecar", false, "Enable OpenTelemetry sidecar")
 	flag.BoolVar(&config.enableLearning, "enable-learning", false, "Enable learning mode")
@@ -228,31 +223,29 @@ func main() {
 		"Path to the directory containing the server and ca TLS certificate")
 	flag.Parse()
 
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
-	})).With("component", "agent")
-	slog.SetDefault(logger)
+	slogHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})
+	slogger := slog.New(slogHandler).With("component", "agent")
+	slog.SetDefault(slogger)
+	ctrl.SetLogger(logr.FromSlogHandler(slogger.Handler()))
 
 	if config.enableTracing {
 		// Start otel traces
 		traceShutdown, err = traces.Init()
 		if err != nil {
-			logger.ErrorContext(ctx, "failed to initiate open telemetry trace", "error", err)
+			slogger.ErrorContext(ctx, "failed to initiate open telemetry trace", "error", err)
 			os.Exit(1)
 		}
 	}
 
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
-
 	// This function blocks if everything is alright.
-	if err = startAgent(ctx, logger, config); err != nil {
-		logger.ErrorContext(ctx, "failed to start agent", "error", err)
+	if err = startAgent(ctx, slogger, config); err != nil {
+		slogger.ErrorContext(ctx, "failed to start agent", "error", err)
 		os.Exit(1)
 	}
 
 	if traceShutdown != nil {
 		if err = traceShutdown(ctx); err != nil {
-			logger.ErrorContext(ctx, "failed to shutdown telemetry trace", "error", err)
+			slogger.ErrorContext(ctx, "failed to shutdown telemetry trace", "error", err)
 		}
 	}
 }
