@@ -73,6 +73,59 @@ func setupGRPCExporter(
 	return nil
 }
 
+func setupLearningReconciler(
+	ctx context.Context,
+	logger *slog.Logger,
+	config Config,
+	ctrlMgr manager.Manager,
+) (func(eventscraper.KubeProcessInfo), error) {
+	if !config.enableLearning {
+		logger.InfoContext(ctx, "learning mode is disabled")
+		return func(_ eventscraper.KubeProcessInfo) {
+			panic("enqueue function should be never called when learning is disabled")
+		}, nil
+	}
+
+	learningReconciler := eventhandler.NewLearningReconciler(ctrlMgr.GetClient())
+	if err := learningReconciler.SetupWithManager(ctrlMgr); err != nil {
+		return nil, fmt.Errorf("unable to create learning reconciler: %w", err)
+	}
+	logger.InfoContext(ctx, "learning mode is enabled")
+	return learningReconciler.EnqueueEvent, nil
+}
+
+func setupPolicyInformer(
+	ctx context.Context,
+	logger *slog.Logger,
+	ctrlMgr manager.Manager,
+	resolver *resolver.Resolver,
+) error {
+	workloadPolicyInformer, err := ctrlMgr.GetCache().GetInformer(ctx, &securityv1alpha1.WorkloadPolicy{})
+	if err != nil {
+		return fmt.Errorf("cannot get workload policy informer: %w", err)
+	}
+	handlerRegistration, err := workloadPolicyInformer.AddEventHandler(resolver.PolicyEventHandlers())
+	if err != nil {
+		return fmt.Errorf("failed to add event handler for workload policy: %w", err)
+	}
+
+	// controller-runtime doesn't support a separate startup probe, so we use the readiness probe instead.
+	// See https://github.com/kubernetes-sigs/controller-runtime/issues/2644 for more details.
+	if err = ctrlMgr.AddReadyzCheck("policy readyz", func(_ *http.Request) error {
+		// Instead of informer.HasSynced(), which checks if the internal storage is synced,
+		// we use ResourceEventHandlerRegistration.HasSynced() to ensure that
+		// the event handlers have been synced.
+		if !handlerRegistration.HasSynced() {
+			logger.Warn("workload policy informer has not yet synced")
+			return errors.New("workload policy informer has not yet synced")
+		}
+		return nil
+	}); err != nil {
+		return fmt.Errorf("failed to add policy readiness probe: %w", err)
+	}
+	return nil
+}
+
 func startAgent(ctx context.Context, logger *slog.Logger, config Config) error {
 	var err error
 
@@ -98,20 +151,9 @@ func startAgent(ctx context.Context, logger *slog.Logger, config Config) error {
 	//////////////////////
 	// Create Learning Reconciler if learning is enabled
 	//////////////////////
-	// Initialize with a panic function, replaced when learning is enabled
-	enqueueFunc := func(_ eventscraper.KubeProcessInfo) {
-		panic("enqueue function should be never called when learning is disabled")
-	}
-
-	if config.enableLearning {
-		learningReconciler := eventhandler.NewLearningReconciler(ctrlMgr.GetClient())
-		if err = learningReconciler.SetupWithManager(ctrlMgr); err != nil {
-			return fmt.Errorf("unable to create learning reconciler: %w", err)
-		}
-		enqueueFunc = learningReconciler.EnqueueEvent
-		logger.InfoContext(ctx, "learning mode is enabled")
-	} else {
-		logger.InfoContext(ctx, "learning mode is disabled")
+	enqueueFunc, err := setupLearningReconciler(ctx, logger, config, ctrlMgr)
+	if err != nil {
+		return err
 	}
 
 	//////////////////////
@@ -165,26 +207,8 @@ func startAgent(ctx context.Context, logger *slog.Logger, config Config) error {
 	//////////////////////
 	// Setup Policy Generator with the workload informer
 	//////////////////////
-	workloadPolicyInformer, err := ctrlMgr.GetCache().GetInformer(ctx, &securityv1alpha1.WorkloadPolicy{})
-	if err != nil {
-		return fmt.Errorf("cannot get workload policy informer: %w", err)
-	}
-	handlerRegistration, err := workloadPolicyInformer.AddEventHandler(resolver.PolicyEventHandlers())
-	if err != nil {
-		return fmt.Errorf("failed to add event handler for workload policy: %w", err)
-	}
-
-	if err = ctrlMgr.AddReadyzCheck("policy readyz", func(_ *http.Request) error {
-		// Instead of informer.HasSynced(), which checks if the internal storage is synced,
-		// we use ResourceEventHandlerRegistration.HasSynced() to ensure that
-		// the event handlers have been synced.
-		if !handlerRegistration.HasSynced() {
-			logger.Warn("workload policy informer has not yet synced")
-			return errors.New("workload policy informer has not yet synced")
-		}
-		return nil
-	}); err != nil {
-		return fmt.Errorf("failed to add NRI handler's readiness probe: %w", err)
+	if err = setupPolicyInformer(ctx, logger, ctrlMgr, resolver); err != nil {
+		return err
 	}
 
 	//////////////////////
