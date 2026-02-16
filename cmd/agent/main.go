@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/go-logr/logr"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/bpf"
@@ -36,6 +37,7 @@ type Config struct {
 	nriPluginIdx      string
 	probeAddr         string
 	grpcConf          grpcexporter.Config
+	logLevel          string
 }
 
 // +kubebuilder:rbac:groups=security.rancher.io,resources=workloadpolicies,verbs=get;list;watch
@@ -225,6 +227,21 @@ func startAgent(ctx context.Context, logger *slog.Logger, config Config) error {
 	return nil
 }
 
+func parseLogLevel(level string) slog.Level {
+	switch strings.ToLower(level) {
+	case "debug":
+		return slog.LevelDebug
+	case "info":
+		return slog.LevelInfo
+	case "warn":
+		return slog.LevelWarn
+	case "error":
+		return slog.LevelError
+	default:
+		panic(fmt.Sprintf("invalid log level: %s", level))
+	}
+}
+
 func main() {
 	var err error
 	var config Config
@@ -244,9 +261,15 @@ func main() {
 		"Enable mutual TLS between the agent server and clients")
 	flag.StringVar(&config.grpcConf.CertDirPath, "grpc-mtls-cert-dir", "",
 		"Path to the directory containing the server and ca TLS certificate")
+	flag.StringVar(
+		&config.logLevel,
+		"log-level",
+		"info",
+		"agent logger level (debug, info, warn, error)",
+	)
 	flag.Parse()
 
-	slogHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})
+	slogHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: parseLogLevel(config.logLevel)})
 	slogger := slog.New(slogHandler).With("component", "agent")
 	slog.SetDefault(slogger)
 	ctrl.SetLogger(logr.FromSlogHandler(slogger.Handler()))

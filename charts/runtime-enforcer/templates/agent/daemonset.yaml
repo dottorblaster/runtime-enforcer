@@ -34,6 +34,7 @@ spec:
         {{- end }}
         - --grpc-port={{ .Values.agent.agent.grpcExporterPort }}
         - --grpc-mtls-cert-dir={{ include "runtime-enforcer.grpc.certDir" . }}
+        - --log-level={{ .Values.agent.agent.logLevel }}
         {{- toYaml .Values.agent.agent.args | nindent 8 }}
         command:
         - /agent
