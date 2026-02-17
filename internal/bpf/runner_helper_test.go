@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cilium/ebpf"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -71,7 +70,7 @@ func startManager(ctx context.Context, logger *slog.Logger) (*Manager, func(), e
 	// We always enable learning in tests for now so that we can wait for the first event to come
 	// and understand that BPF programs are loaded and running
 	enableLearning := true
-	manager, err := NewManager(logger, enableLearning, ebpf.LogLevelBranch)
+	manager, err := NewManager(logger, enableLearning)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create BPF manager: %w", err)
 	}

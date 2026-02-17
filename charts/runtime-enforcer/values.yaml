@@ -60,6 +60,8 @@ agent:
       tag: v0.1.0
       pullPolicy: IfNotPresent
     grpcExporterPort: "50051"
+    # agent logger level. Can be one of: debug, info, warn, error.
+    logLevel: info
     resources:
       limits:
         cpu: 500m

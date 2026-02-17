@@ -2,8 +2,10 @@ package bpf
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"sync"
 	"sync/atomic"
 
@@ -108,7 +110,27 @@ func probeEbpfFeatures() error {
 	return nil
 }
 
-func NewManager(logger *slog.Logger, enableLearning bool, eBPFLogLevel ebpf.LogLevel) (*Manager, error) {
+func loadEbpfObjects(spec *ebpf.CollectionSpec, level ebpf.LogLevel) (*bpfObjects, error) {
+	objs := bpfObjects{}
+	opts := &ebpf.CollectionOptions{
+		Programs: ebpf.ProgramOptions{
+			LogLevel: level,
+		},
+	}
+	err := spec.LoadAndAssign(&objs, opts)
+	if err == nil {
+		return &objs, nil
+	}
+
+	// We have an error, we need to understand if it is a verifier error.
+	var verr *ebpf.VerifierError
+	if !errors.As(err, &verr) {
+		return nil, fmt.Errorf("error loading ebpf objects: %w", err)
+	}
+	return nil, fmt.Errorf("verifier error: %s. Dump: %s", err.Error(), fmt.Sprintf("%+v", verr))
+}
+
+func NewManager(logger *slog.Logger, enableLearning bool) (*Manager, error) {
 	if err := rlimit.RemoveMemlock(); err != nil {
 		return nil, fmt.Errorf("failed to remove memlock: %w", err)
 	}
@@ -157,20 +179,21 @@ func NewManager(logger *slog.Logger, enableLearning bool, eBPFLogLevel ebpf.LogL
 		}
 	}
 
-	// We just load the objects here so that we can pass the maps to other components but we don't load ebpf progs yet
-	objs := bpfObjects{}
-	opts := &ebpf.CollectionOptions{
-		Programs: ebpf.ProgramOptions{
-			LogLevel: eBPFLogLevel,
-		},
+	// We just load the objects here so that we can pass the maps to other components but we don't attach ebpf progs yet.
+	// The first time we use `LogLevelStats` as verbosity.
+	// If there is an issue we retry the loading with a higher verbosity.
+	objs, err := loadEbpfObjects(spec, ebpf.LogLevelStats)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to load eBPF objects with stats verbosity: %s\n", err.Error())
+		_, err = loadEbpfObjects(spec, ebpf.LogLevelBranch)
+		fmt.Fprintf(os.Stderr, "failed to load eBPF objects with branch verbosity: %s\n", err.Error())
+		return nil, errors.New("failed to load eBPF objects")
 	}
-	if err = spec.LoadAndAssign(&objs, opts); err != nil {
-		return nil, fmt.Errorf("error loading objects: %w", err)
-	}
+	logger.Info("eBPF prog and maps loaded successfully")
 
 	return &Manager{
 		logger:              newLogger,
-		objs:                &objs,
+		objs:                objs,
 		enableLearning:      enableLearning,
 		learningEventChan:   make(chan ProcessEvent, learningEventChanSize),
 		monitoringEventChan: make(chan ProcessEvent, monitorEventChanSize),
