@@ -3,7 +3,7 @@ minimum_pre_commit_version: '0'
 repos:
   # more info on the usage: https://github.com/golangci/golangci-lint/blob/main/.pre-commit-hooks.yaml
   - repo: https://github.com/golangci/golangci-lint
-    rev: 72798d34b1eb36745915b0d4eea5c2b3b31bdfe3 # v2.9.0
+    rev: 5d1e709b7be35cb2025444e19de266b056b7b7ee # v2.10.1
     hooks:
       - id: golangci-lint
         stages: [pre-commit]
