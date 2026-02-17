@@ -30,7 +30,7 @@ func (w *testLogWriter) Write(p []byte) (int, error) {
 }
 
 func newTestLogger(t *testing.T) *slog.Logger {
-	return slog.New(slog.NewTextHandler(&testLogWriter{t: t}, &slog.HandlerOptions{
+	return slog.New(slog.NewJSONHandler(&testLogWriter{t: t}, &slog.HandlerOptions{
 		Level: slog.LevelDebug,
 	})).With("component", "bpftest")
 }

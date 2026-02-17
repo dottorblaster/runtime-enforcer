@@ -158,6 +158,6 @@ func (r *WorkloadPolicyStatusSync) processWorkloadPolicy(
 	newPolicy.Status.ObservedGeneration = wp.Generation
 	r.logger.V(1).Info("updating",
 		"policy", newPolicy.NamespacedName(),
-		"status:", newPolicy.Status)
+		"status", newPolicy.Status)
 	return r.Status().Update(ctx, newPolicy)
 }

@@ -173,7 +173,7 @@ func TestMain(m *testing.M) {
 func uninstallHelmRepos(charts []helmChart) env.Func {
 	return func(ctx context.Context, config *envconf.Config) (context.Context, error) {
 		manager := helm.New(config.KubeconfigFile())
-		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+		logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
 		// we need to uninstall the chart in reverse order to guarantee dependencies are respected.
 		for i := len(charts) - 1; i >= 0; i-- {
@@ -212,7 +212,7 @@ func uninstallHelmRepos(charts []helmChart) env.Func {
 func installHelmRepos(charts []helmChart) env.Func {
 	return func(ctx context.Context, config *envconf.Config) (context.Context, error) {
 		manager := helm.New(config.KubeconfigFile())
-		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+		logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
 		for _, chart := range charts {
 			var err error
