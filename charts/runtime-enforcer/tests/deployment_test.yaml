@@ -48,3 +48,20 @@ tests:
       - contains:
           path: spec.template.spec.containers[0].args
           content: "--wp-status-reconciler-agent-label-selector=app.kubernetes.io/component=agent,app.kubernetes.io/instance=RELEASE-NAME,app.kubernetes.io/name=runtime-enforcer"
+
+  - it: "check tolerations"
+    set:
+      operator:
+        tolerations:
+          - key: "dedicated"
+            operator: "Equal"
+            value: "experimental"
+            effect: "NoSchedule"
+    asserts:
+      - contains:
+          path: spec.template.spec.tolerations
+          content:
+            key: "dedicated"
+            operator: "Equal"
+            value: "experimental"
+            effect: "NoSchedule"

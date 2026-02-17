@@ -81,5 +81,9 @@ spec:
               csi.cert-manager.io/dns-names: "runtime-enforcer-operator"
       securityContext: {{- toYaml .Values.operator.podSecurityContext | nindent
         8 }}
+      {{- with .Values.operator.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       serviceAccountName: {{ include "runtime-enforcer.fullname" . }}-controller-manager
       terminationGracePeriodSeconds: 10

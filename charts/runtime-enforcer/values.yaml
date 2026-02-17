@@ -29,6 +29,7 @@ operator:
   replicas: 1
   serviceAccount:
     annotations: {}
+  tolerations: []
 agent:
   agent:
     args:
@@ -72,6 +73,7 @@ agent:
       type: RuntimeDefault
   serviceAccount:
     annotations: {}
+  tolerations: []
   nriSocketPath: /var/run/nri/
 kubernetesClusterDomain: cluster.local
 
