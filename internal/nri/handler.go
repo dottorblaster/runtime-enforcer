@@ -92,6 +92,7 @@ func (h *Handler) startNRIPlugin(ctx context.Context) error {
 	p, err := newNRIPlugin(
 		h.logger,
 		h.resolver,
+		stub.WithLogger(newNRILogger(h.logger)),
 		stub.WithPluginIdx(h.pluginIndex),
 		stub.WithSocketPath(h.socketPath),
 	)
