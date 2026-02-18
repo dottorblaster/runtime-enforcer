@@ -12,7 +12,7 @@ operator:
         - ALL
     image:
       repository: ghcr.io/rancher-sandbox/runtime-enforcer/operator
-      tag: v0.1.0
+      tag: v0.2.0
       pullPolicy: IfNotPresent
     resources:
       limits:
