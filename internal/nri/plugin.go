@@ -2,9 +2,11 @@ package nri
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"strings"
 
+	retry "github.com/avast/retry-go/v4"
 	"github.com/containerd/nri/pkg/api"
 	"github.com/containerd/nri/pkg/stub"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/resolver"
@@ -15,6 +17,7 @@ type plugin struct {
 	stub     stub.Stub
 	logger   *slog.Logger
 	resolver *resolver.Resolver
+	lastErr  error
 }
 
 func (p *plugin) getWorkloadInfoAndLog(ctx context.Context, pod *api.PodSandbox) (string, workloadkind.Kind) {
@@ -42,11 +45,17 @@ func (p *plugin) Synchronize(
 	for _, container := range containers {
 		cgroupID, err := cgroupFromContainer(container)
 		if err != nil {
-			// this should never happen but if we are not able to obtain the cgroup ID, it's useless to add the container
-			// to the cache, nobody will ever query this entry into the cache
-			p.logger.ErrorContext(ctx, "failed to get cgroup ID from container",
+			// When this happens, we can't retrieve the cgroup ID in the target system.
+			// This is a critical error.
+			// 
+			// By returning a retry.Unrecoverable error, we allow our retry logic in Handler.Start() to
+			// skip the retries and abort immediately.
+			p.lastErr = retry.Unrecoverable(fmt.Errorf("failed to synchronize NRI plugin: %w", err))
+
+			// Container runtime will log this. We log here too for convenience. 
+			p.logger.ErrorContext(ctx, "failed to synchronize NRI plugin",
 				"error", err)
-			continue
+			return nil, p.lastErr
 		}
 
 		// Populate the sandbox map

@@ -93,6 +93,7 @@ func (h *Handler) startNRIPlugin(ctx context.Context) error {
 		h.logger,
 		h.resolver,
 		stub.WithLogger(newNRILogger(h.logger)),
+		stub.WithPluginName("runtime-enforcer-agent"),
 		stub.WithPluginIdx(h.pluginIndex),
 		stub.WithSocketPath(h.socketPath),
 	)
@@ -102,6 +103,11 @@ func (h *Handler) startNRIPlugin(ctx context.Context) error {
 
 	err = p.Run(ctx)
 	if err != nil {
+		if p.lastErr != nil {
+			// We use the lastErr whenever possible, because the error returned by p.Run()
+			// is usually not very helpful, e.g., `ttrpc: server closed`.
+			err = p.lastErr
+		}
 		return fmt.Errorf("NRI plugin exited with error: %w", err)
 	}
 	return nil
