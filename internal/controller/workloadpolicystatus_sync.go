@@ -12,6 +12,8 @@ import (
 	pb "github.com/rancher-sandbox/runtime-enforcer/proto/agent/v1"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -187,9 +189,40 @@ func (r *WorkloadPolicyStatusSync) sync(
 		}
 	}
 
+	// Scrape violations from each agent and group by policy namespaced name.
+	violationsByPolicy := make(map[types.NamespacedName][]v1alpha1.ViolationRecord)
+	for nodeName, info := range nodesInfo {
+		if info.issue.Code != v1alpha1.NodeIssueNone {
+			continue
+		}
+		agentClient, ok := r.conns[nodeName]
+		if !ok {
+			continue
+		}
+		pbViolations, err := agentClient.scrapeViolations(ctx)
+		if err != nil {
+			r.logger.Error(err, "failed to scrape violations", "node", nodeName)
+			continue
+		}
+		for _, v := range pbViolations {
+			nn := parsePolicyNamespacedName(v.GetPolicyName())
+			rec := v1alpha1.ViolationRecord{
+				Timestamp:      metav1.NewTime(v.GetTimestamp().AsTime()),
+				PodName:        v.GetPodName(),
+				ContainerName:  v.GetContainerName(),
+				ExecutablePath: v.GetExecutablePath(),
+				NodeName:       v.GetNodeName(),
+				Action:         v.GetAction(),
+				Count:          int32(v.GetCount()),
+			}
+			violationsByPolicy[nn] = append(violationsByPolicy[nn], rec)
+		}
+	}
+
 	// Now we iterate over all WSPs and update their status based on the collected policies status from the agents
 	for _, wp := range wpList.Items {
-		err := r.processWorkloadPolicy(ctx, &wp, nodesInfo)
+		nn := types.NamespacedName{Namespace: wp.Namespace, Name: wp.Name}
+		err := r.processWorkloadPolicy(ctx, &wp, nodesInfo, violationsByPolicy[nn])
 		if err != nil {
 			r.logger.Error(
 				err,
@@ -200,4 +233,13 @@ func (r *WorkloadPolicyStatusSync) sync(
 	}
 
 	return nil
+}
+
+// parsePolicyNamespacedName parses a "namespace/name" string into a NamespacedName.
+func parsePolicyNamespacedName(s string) types.NamespacedName {
+	parts := strings.SplitN(s, "/", 2) //nolint:mnd // namespace/name has 2 parts
+	if len(parts) == 2 {                //nolint:mnd // namespace/name has 2 parts
+		return types.NamespacedName{Namespace: parts[0], Name: parts[1]}
+	}
+	return types.NamespacedName{Name: s}
 }

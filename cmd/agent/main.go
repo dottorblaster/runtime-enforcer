@@ -8,16 +8,14 @@ import (
 	"net/http"
 	"os"
 
-	"time"
-
 	"github.com/cilium/ebpf"
-	"github.com/rancher-sandbox/runtime-enforcer/internal/agent"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/bpf"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/eventhandler"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/eventscraper"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/grpcexporter"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/nri"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/resolver"
+	"github.com/rancher-sandbox/runtime-enforcer/internal/violationbuf"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -42,13 +40,11 @@ type Config struct {
 	probeAddr              string
 	grpcConf               grpcexporter.Config
 	violationOTLPEndpoint  string
-	violationFlushInterval time.Duration
 	nodeName               string
 	violationLogger        otellog.Logger
 }
 
 // +kubebuilder:rbac:groups=security.rancher.io,resources=workloadpolicies,verbs=get;list;watch
-// +kubebuilder:rbac:groups=security.rancher.io,resources=workloadpolicies/status,verbs=get;patch
 
 func newControllerManager(config Config) (manager.Manager, error) {
 	scheme := runtime.NewScheme()
@@ -71,8 +67,9 @@ func setupGRPCExporter(
 	logger *slog.Logger,
 	conf *grpcexporter.Config,
 	r *resolver.Resolver,
+	violationBuffer *violationbuf.Buffer,
 ) error {
-	exporter, err := grpcexporter.New(logger, conf, r)
+	exporter, err := grpcexporter.New(logger, conf, r, violationBuffer)
 	if err != nil {
 		return fmt.Errorf("failed to create gRPC exporter: %w", err)
 	}
@@ -200,18 +197,9 @@ func startAgent(ctx context.Context, logger *slog.Logger, config Config) error {
 	}
 
 	//////////////////////
-	// Create the violation reporter
+	// Create the violation buffer
 	//////////////////////
-	violationReporter := agent.NewViolationReporter(
-		ctrlMgr.GetClient(),
-		ctrl.Log.WithName("agent"),
-		agent.ViolationReporterConfig{
-			FlushInterval: config.violationFlushInterval,
-		},
-	)
-	if err = ctrlMgr.Add(violationReporter); err != nil {
-		return fmt.Errorf("failed to add violation reporter to controller manager: %w", err)
-	}
+	violationBuffer := violationbuf.NewBuffer()
 
 	//////////////////////
 	// Create the scraper
@@ -220,7 +208,7 @@ func startAgent(ctx context.Context, logger *slog.Logger, config Config) error {
 	if config.violationLogger != nil {
 		scraperOpts = append(scraperOpts, eventscraper.WithViolationLogger(config.violationLogger, config.nodeName))
 	}
-	scraperOpts = append(scraperOpts, eventscraper.WithViolationReporter(violationReporter, config.nodeName))
+	scraperOpts = append(scraperOpts, eventscraper.WithViolationBuffer(violationBuffer, config.nodeName))
 	evtScraper := eventscraper.NewEventScraper(
 		bpfManager.GetLearningChannel(),
 		bpfManager.GetMonitoringChannel(),
@@ -243,7 +231,7 @@ func startAgent(ctx context.Context, logger *slog.Logger, config Config) error {
 	//////////////////////
 	// Add GRPC exporter
 	//////////////////////
-	if err = setupGRPCExporter(ctrlMgr, logger, &config.grpcConf, resolver); err != nil {
+	if err = setupGRPCExporter(ctrlMgr, logger, &config.grpcConf, resolver, violationBuffer); err != nil {
 		return err
 	}
 
@@ -280,9 +268,6 @@ func main() {
 		"Path to the directory containing the server and ca TLS certificate")
 	flag.StringVar(&config.violationOTLPEndpoint, "violation-otlp-endpoint", "",
 		"OTLP gRPC endpoint for violation event reporting (e.g. collector service or third-party collector, empty = disabled)")
-	flag.DurationVar(&config.violationFlushInterval, "violation-flush-interval",
-		10*time.Second,
-		"Interval at which violation records are flushed to WorkloadPolicy status.")
 	flag.StringVar(&config.nodeName, "node-name", os.Getenv("NODE_NAME"),
 		"Node name for violation reporting (defaults to NODE_NAME env var)")
 	flag.Parse()

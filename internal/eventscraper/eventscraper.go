@@ -7,13 +7,10 @@ import (
 	"time"
 
 	"github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
-	"github.com/rancher-sandbox/runtime-enforcer/internal/agent"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/bpf"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/resolver"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
+	"github.com/rancher-sandbox/runtime-enforcer/internal/violationbuf"
 	otellog "go.opentelemetry.io/otel/log"
-	"go.opentelemetry.io/otel/trace"
 )
 
 type EventScraper struct {
@@ -22,9 +19,8 @@ type EventScraper struct {
 	logger              *slog.Logger
 	resolver            *resolver.Resolver
 	learningEnqueueFunc func(evt KubeProcessInfo)
-	tracer              trace.Tracer
 	violationLogger     otellog.Logger
-	violationReporter   *agent.ViolationReporter
+	violationBuffer     *violationbuf.Buffer
 	nodeName            string
 }
 
@@ -49,11 +45,11 @@ func WithViolationLogger(l otellog.Logger, nodeName string) Option {
 	}
 }
 
-// WithViolationReporter sets the ViolationReporter for buffering violation
-// records and patching WorkloadPolicy status directly from the agent.
-func WithViolationReporter(vr *agent.ViolationReporter, nodeName string) Option {
+// WithViolationBuffer sets the ViolationBuffer for buffering violation
+// records in-memory for later scraping by the controller.
+func WithViolationBuffer(buf *violationbuf.Buffer, nodeName string) Option {
 	return func(es *EventScraper) {
-		es.violationReporter = vr
+		es.violationBuffer = buf
 		es.nodeName = nodeName
 	}
 }
@@ -72,7 +68,6 @@ func NewEventScraper(
 		logger:              logger,
 		resolver:            resolver,
 		learningEnqueueFunc: learningEnqueueFunc,
-		tracer:              otel.Tracer("event-scraper"),
 	}
 	for _, option := range opts {
 		option(es)
@@ -155,8 +150,6 @@ func (es *EventScraper) Start(ctx context.Context) error {
 				continue
 			}
 
-			now := time.Now()
-			var span trace.Span
 			action := event.Mode
 
 			policyName := kubeInfo.PolicyName
@@ -165,24 +158,9 @@ func (es *EventScraper) Start(ctx context.Context) error {
 					"pod", kubeInfo.PodName,
 					"namespace", kubeInfo.Namespace)
 			}
-			_, span = es.tracer.Start(ctx, action)
-			span.SetAttributes(
-				attribute.String("evt.time", now.Format(time.RFC3339)),
-				attribute.Int64("evt.rawtime", now.UnixNano()),
-				attribute.String("policy.name", policyName),
-				attribute.String("k8s.ns.name", kubeInfo.Namespace),
-				attribute.String("k8s.workload.name", kubeInfo.Workload),
-				attribute.String("k8s.workload.kind", kubeInfo.WorkloadKind),
-				attribute.String("k8s.pod.name", kubeInfo.PodName),
-				attribute.String("container.full_id", kubeInfo.ContainerID),
-				attribute.String("container.name", kubeInfo.ContainerName),
-				attribute.String("proc.exepath", kubeInfo.ExecutablePath),
-				attribute.String("action", action),
-			)
-			span.End()
 
 			es.emitViolationEvent(ctx, kubeInfo, action)
-			es.reportViolation(ctx, kubeInfo, action)
+			es.reportViolation(kubeInfo, action)
 		}
 	}
 }
@@ -210,12 +188,12 @@ func (es *EventScraper) emitViolationEvent(ctx context.Context, info *KubeProces
 	es.violationLogger.Emit(ctx, rec)
 }
 
-func (es *EventScraper) reportViolation(ctx context.Context, info *KubeProcessInfo, action string) {
-	if es.violationReporter == nil {
+func (es *EventScraper) reportViolation(info *KubeProcessInfo, action string) {
+	if es.violationBuffer == nil {
 		return
 	}
 
-	es.violationReporter.Report(ctx, agent.ViolationInfo{
+	es.violationBuffer.Record(violationbuf.ViolationInfo{
 		PolicyName:    info.PolicyName,
 		Namespace:     info.Namespace,
 		PodName:       info.PodName,

@@ -71,6 +71,8 @@ type ViolationRecord struct {
 	NodeName string `json:"nodeName"`
 	// action is the enforcement action taken (monitor or protect).
 	Action string `json:"action"`
+	// count is the number of times this violation was observed (deduplicated).
+	Count int32 `json:"count"`
 }
 
 // ViolationStatus holds recent violation records for a WorkloadPolicy.

@@ -74,7 +74,6 @@ agent:
     annotations: {}
   violations:
     otlpEndpoint: ""  # explicit override; when empty + collector.enabled → standalone collector Service
-    flushInterval: 10s
     collector:
       enabled: true
       image:

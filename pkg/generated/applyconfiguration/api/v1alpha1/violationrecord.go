@@ -8,6 +8,8 @@ import (
 
 // ViolationRecordApplyConfiguration represents a declarative configuration of the ViolationRecord type for use
 // with apply.
+//
+// ViolationRecord holds the details of a single policy violation.
 type ViolationRecordApplyConfiguration struct {
 	// timestamp is when the violation occurred.
 	Timestamp *v1.Time `json:"timestamp,omitempty"`
@@ -21,9 +23,11 @@ type ViolationRecordApplyConfiguration struct {
 	NodeName *string `json:"nodeName,omitempty"`
 	// action is the enforcement action taken (monitor or protect).
 	Action *string `json:"action,omitempty"`
+	// count is the number of times this violation was observed (deduplicated).
+	Count *int32 `json:"count,omitempty"`
 }
 
-// ViolationRecord constructs a declarative configuration of the ViolationRecord type for use with
+// ViolationRecordApplyConfiguration constructs a declarative configuration of the ViolationRecord type for use with
 // apply.
 func ViolationRecord() *ViolationRecordApplyConfiguration {
 	return &ViolationRecordApplyConfiguration{}
@@ -31,6 +35,7 @@ func ViolationRecord() *ViolationRecordApplyConfiguration {
 
 // WithTimestamp sets the Timestamp field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the Timestamp field is set to the value of the last call.
 func (b *ViolationRecordApplyConfiguration) WithTimestamp(value v1.Time) *ViolationRecordApplyConfiguration {
 	b.Timestamp = &value
 	return b
@@ -38,6 +43,7 @@ func (b *ViolationRecordApplyConfiguration) WithTimestamp(value v1.Time) *Violat
 
 // WithPodName sets the PodName field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the PodName field is set to the value of the last call.
 func (b *ViolationRecordApplyConfiguration) WithPodName(value string) *ViolationRecordApplyConfiguration {
 	b.PodName = &value
 	return b
@@ -45,6 +51,7 @@ func (b *ViolationRecordApplyConfiguration) WithPodName(value string) *Violation
 
 // WithContainerName sets the ContainerName field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the ContainerName field is set to the value of the last call.
 func (b *ViolationRecordApplyConfiguration) WithContainerName(value string) *ViolationRecordApplyConfiguration {
 	b.ContainerName = &value
 	return b
@@ -52,6 +59,7 @@ func (b *ViolationRecordApplyConfiguration) WithContainerName(value string) *Vio
 
 // WithExecutablePath sets the ExecutablePath field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the ExecutablePath field is set to the value of the last call.
 func (b *ViolationRecordApplyConfiguration) WithExecutablePath(value string) *ViolationRecordApplyConfiguration {
 	b.ExecutablePath = &value
 	return b
@@ -59,6 +67,7 @@ func (b *ViolationRecordApplyConfiguration) WithExecutablePath(value string) *Vi
 
 // WithNodeName sets the NodeName field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the NodeName field is set to the value of the last call.
 func (b *ViolationRecordApplyConfiguration) WithNodeName(value string) *ViolationRecordApplyConfiguration {
 	b.NodeName = &value
 	return b
@@ -66,34 +75,16 @@ func (b *ViolationRecordApplyConfiguration) WithNodeName(value string) *Violatio
 
 // WithAction sets the Action field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the Action field is set to the value of the last call.
 func (b *ViolationRecordApplyConfiguration) WithAction(value string) *ViolationRecordApplyConfiguration {
 	b.Action = &value
 	return b
 }
 
-// ViolationStatusApplyConfiguration represents a declarative configuration of the ViolationStatus type for use
-// with apply.
-//
-// ViolationStatus holds recent violation records for a WorkloadPolicy.
-type ViolationStatusApplyConfiguration struct {
-	// violations is the list of the most recent violation records (max 100).
-	Violations []ViolationRecordApplyConfiguration `json:"violations,omitempty"`
-}
-
-// ViolationStatus constructs a declarative configuration of the ViolationStatus type for use with
-// apply.
-func ViolationStatus() *ViolationStatusApplyConfiguration {
-	return &ViolationStatusApplyConfiguration{}
-}
-
-// WithViolations adds the given value to the Violations field in the declarative configuration
-// and returns the receiver, so that objects can be build by chaining "With" function invocations.
-func (b *ViolationStatusApplyConfiguration) WithViolations(values ...*ViolationRecordApplyConfiguration) *ViolationStatusApplyConfiguration {
-	for i := range values {
-		if values[i] == nil {
-			panic("nil value passed to WithViolations")
-		}
-		b.Violations = append(b.Violations, *values[i])
-	}
+// WithCount sets the Count field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the Count field is set to the value of the last call.
+func (b *ViolationRecordApplyConfiguration) WithCount(value int32) *ViolationRecordApplyConfiguration {
+	b.Count = &value
 	return b
 }

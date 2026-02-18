@@ -48,6 +48,10 @@ func (c *testAgentClient) listPoliciesStatus(_ context.Context) (map[string]*pb.
 	return c.policies, nil
 }
 
+func (c *testAgentClient) scrapeViolations(_ context.Context) ([]*pb.ViolationRecord, error) {
+	return nil, nil
+}
+
 func (c *testAgentClient) close() error {
 	return nil
 }

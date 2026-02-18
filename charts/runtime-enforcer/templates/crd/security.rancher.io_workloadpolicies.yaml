@@ -124,9 +124,9 @@ spec:
                 description: violations holds recent violation records for the policy.
                 properties:
                   violations:
-                    description: violations is the list of the most recent violation
-                      records (max 100). Oldest entries are dropped when the limit
-                      is reached.
+                    description: |-
+                      violations is the list of the most recent violation records (max 100).
+                      Oldest entries are dropped when the limit is reached.
                     items:
                       description: ViolationRecord holds the details of a single policy
                         violation.
@@ -139,6 +139,11 @@ spec:
                           description: containerName is the container where the unauthorized
                             executable ran.
                           type: string
+                        count:
+                          description: count is the number of times this violation
+                            was observed (deduplicated).
+                          format: int32
+                          type: integer
                         executablePath:
                           description: executablePath is the path of the unauthorized
                             executable.
@@ -155,12 +160,13 @@ spec:
                           format: date-time
                           type: string
                       required:
-                      - timestamp
-                      - podName
+                      - action
                       - containerName
+                      - count
                       - executablePath
                       - nodeName
-                      - action
+                      - podName
+                      - timestamp
                       type: object
                     type: array
                 type: object

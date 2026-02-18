@@ -2,12 +2,18 @@ syntax = "proto3";
 
 package runtimeenforcer.agent.v1;
 
+import "google/protobuf/timestamp.proto";
+
 option go_package = "github.com/neuvector/runtime-enforcer/proto/agent/v1;agentv1";
 
 // AgentObserver exposes agent internal state for external components.
 service AgentObserver {
   // ListPoliciesStatus returns the status of workload Policies.
   rpc ListPoliciesStatus(ListPoliciesStatusRequest) returns (ListPoliciesStatusResponse) {}
+
+  // ScrapeViolations drains the agent's in-memory violation buffer and
+  // returns all accumulated records since the last scrape.
+  rpc ScrapeViolations(ScrapeViolationsRequest) returns (ScrapeViolationsResponse) {}
 }
 
 message ListPoliciesStatusRequest {}
@@ -24,7 +30,7 @@ enum PolicyState {
 
 enum PolicyMode {
   POLICY_MODE_UNSPECIFIED = 0;
-  
+
   // Policy monitor mode
   POLICY_MODE_MONITOR = 1;
 
@@ -39,4 +45,21 @@ message PolicyStatus {
 
 message ListPoliciesStatusResponse {
   map<string, PolicyStatus> policies = 1;
+}
+
+message ScrapeViolationsRequest {}
+
+message ViolationRecord {
+  google.protobuf.Timestamp timestamp = 1;
+  string pod_name = 2;
+  string container_name = 3;
+  string executable_path = 4;
+  string node_name = 5;
+  string action = 6;
+  string policy_name = 7;
+  uint32 count = 8;
+}
+
+message ScrapeViolationsResponse {
+  repeated ViolationRecord violations = 1;
 }

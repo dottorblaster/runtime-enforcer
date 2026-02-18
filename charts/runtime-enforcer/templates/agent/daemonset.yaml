@@ -39,7 +39,6 @@ spec:
         {{- else if .Values.agent.violations.collector.enabled }}
         - --violation-otlp-endpoint={{ include "runtime-enforcer.fullname" . }}-otel-collector.{{ .Release.Namespace }}.svc.cluster.local:4317
         {{- end }}
-        - --violation-flush-interval={{ .Values.agent.violations.flushInterval }}
         {{- toYaml .Values.agent.agent.args | nindent 8 }}
         command:
         - /agent

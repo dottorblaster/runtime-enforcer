@@ -145,6 +145,7 @@ func (r *WorkloadPolicyStatusSync) processWorkloadPolicy(
 	ctx context.Context,
 	wp *v1alpha1.WorkloadPolicy,
 	nodesInfo nodesInfoMap,
+	scrapedViolations []v1alpha1.ViolationRecord,
 ) error {
 	expectedMode := convertToPolicyMode(wp.Spec.Mode)
 	newPolicy := wp.DeepCopy()
@@ -153,10 +154,43 @@ func (r *WorkloadPolicyStatusSync) processWorkloadPolicy(
 		return fmt.Errorf("failed to compute status for policy %s: %w", newPolicy.NamespacedName(), err)
 	}
 	newPolicy.Status.ObservedGeneration = wp.Generation
-	// Preserve the violation counters set by the agent's ViolationReporter.
-	newPolicy.Status.Violations = wp.Status.Violations
+
+	// Merge scraped violations into status: append new violations to existing,
+	// then trim to the most recent MaxViolationRecords entries.
+	newPolicy.Status.Violations = mergeViolations(wp.Status.Violations, scrapedViolations)
+
 	r.logger.V(1).Info("updating",
 		"policy", newPolicy.NamespacedName(),
 		"status:", newPolicy.Status)
 	return r.Status().Update(ctx, newPolicy)
+}
+
+// mergeViolations appends scraped violations to the existing violation status,
+// trimming the head (oldest) to keep only the most recent MaxViolationRecords.
+func mergeViolations(
+	existing *v1alpha1.ViolationStatus,
+	scraped []v1alpha1.ViolationRecord,
+) *v1alpha1.ViolationStatus {
+	if len(scraped) == 0 && existing == nil {
+		return nil
+	}
+
+	var merged []v1alpha1.ViolationRecord
+	if existing != nil {
+		merged = existing.Violations
+	}
+	merged = append(merged, scraped...)
+
+	// Trim head (oldest entries) to keep the most recent MaxViolationRecords.
+	if len(merged) > v1alpha1.MaxViolationRecords {
+		merged = merged[len(merged)-v1alpha1.MaxViolationRecords:]
+	}
+
+	if len(merged) == 0 {
+		return nil
+	}
+
+	return &v1alpha1.ViolationStatus{
+		Violations: merged,
+	}
 }

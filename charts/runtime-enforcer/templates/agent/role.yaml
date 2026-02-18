@@ -15,13 +15,6 @@ rules:
 - apiGroups:
   - security.rancher.io
   resources:
-  - workloadpolicies/status
-  verbs:
-  - get
-  - patch
-- apiGroups:
-  - security.rancher.io
-  resources:
   - workloadpolicyproposals
   verbs:
   - create
