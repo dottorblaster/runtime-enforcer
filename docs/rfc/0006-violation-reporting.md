@@ -1,10 +1,10 @@
-|              |                                          |
-| :----------- | :--------------------------------------- |
-| Feature Name | Kubernetes-Native Violation Reporting    |
-| Start Date   | 2026-02-06                               |
-| Category     | Observability                            |
-| RFC PR       | [fill this in after opening PR]          |
-| State        | **DRAFT**                                |
+|              |                                                              |
+| :----------- | :----------------------------------------------------------- |
+| Feature Name | Kubernetes-Native Violation Reporting                        |
+| Start Date   | 2026-02-06                                                   |
+| Category     | Observability                                                |
+| RFC PR       | https://github.com/rancher-sandbox/runtime-enforcer/pull/275 |
+| State        | **ACCEPTED**                                                 |
 
 # Summary
 
