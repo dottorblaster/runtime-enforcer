@@ -1,0 +1,23 @@
+Checks:
+- bugprone-*
+- performance-*
+- readability-*
+- portability-*
+- modernize-*
+- clang-analyzer-*
+- -modernize-macro-to-enum
+- -readability-function-cognitive-complexity
+- -bugprone-reserved-identifier
+- -bugprone-sizeof-expression
+- -performance-no-int-to-ptr
+- -bugprone-multi-level-implicit-pointer-conversion
+- -readability-magic-numbers
+- -readability-identifier-length
+- -bugprone-easily-swappable-parameters 
+- -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling
+ExtraArgs:
+- --target=bpf
+- -I/usr/include/
+- -D__TARGET_ARCH_x86 
+WarningsAsErrors: '*'
+FormatStyle: file

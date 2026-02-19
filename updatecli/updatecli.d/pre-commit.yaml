@@ -1,13 +1,12 @@
 name: Update .pre-commit-config.yaml
 sources:
-  clangformatTag:
+  cppLinterTag:
     kind: gittag
     spec:
       key: name
-      url: https://github.com/pre-commit/mirrors-clang-format
+      url: https://github.com/cpp-linter/cpp-linter-hooks
       versionFilter:
-        kind: semver
-        pattern: 18.1.*
+        kind: latest
   golangcilintTag:
     kind: gittag
     spec:
@@ -15,14 +14,13 @@ sources:
       url: https://github.com/golangci/golangci-lint/
       versionFilter:
         kind: latest
-  clangformatVersion:
+  cppLinterVersion:
     kind: gittag
     spec:
       key: hash
-      url: https://github.com/pre-commit/mirrors-clang-format
+      url: https://github.com/cpp-linter/cpp-linter-hooks
       versionFilter:
-        kind: semver
-        pattern: 18.1.*
+        kind: latest
   golangcilintVersion:
     kind: gittag
     spec:
@@ -77,13 +75,13 @@ targets:
       comment: '{{ source "golangcilintTag" }}'
       engine: yamlpath
       key: $.repos[0].rev
-  update_clangformat_version:
+  update_cpplinter_version:
     scmid: default
-    name: 'Update clang-format version to {{ source "clangformatTag" }}'
+    name: 'Update cpp linter version to {{ source "cppLinterTag" }}'
     kind: yaml
-    sourceid: clangformatVersion
+    sourceid: cppLinterVersion
     spec:
       file: .pre-commit-config.yaml
       key: $.repos[1].rev
-      comment: '{{ source "clangformatTag" }}'
+      comment: '{{ source "cppLinterTag" }}'
       engine: yamlpath

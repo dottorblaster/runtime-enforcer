@@ -12,13 +12,11 @@
 
 #define DELETED_STRING " (deleted)"
 
-#define SAFE_PATH_LEN(x) (x) & (MAX_PATH_LEN - 1)
+#define SAFE_PATH_LEN(x) ((x) & (MAX_PATH_LEN - 1))
 // we need `MAX_PATH_LEN * 2 -1` because we need to tell the verifier that
 // our offset will never cross the second `MAX_PATH_LEN` segment.
-#define SAFE_PATH_ACCESS(x) (x) & (MAX_PATH_LEN * 2 - 1)
-#define SAFE_COMPONENT_ACCESS(x) (x) & (MAX_COMPONENT_LEN - 1)
-
-extern int bpf_iter_num_new(struct bpf_iter_num *it, int start, int end) __ksym __weak;
+#define SAFE_PATH_ACCESS(x) ((x) & (MAX_PATH_LEN * 2 - 1))
+#define SAFE_COMPONENT_ACCESS(x) ((x) & (MAX_COMPONENT_LEN - 1))
 
 struct path_read_data {
 	struct dentry *root_dentry;
@@ -27,7 +25,7 @@ struct path_read_data {
 	struct vfsmount *vfsmnt;
 	struct mount *mnt;
 	char *bptr;
-	int curr_off;
+	u32 curr_off;
 	bool resolved;
 };
 
@@ -51,7 +49,7 @@ static __always_inline bool d_unlinked(struct dentry *dentry) {
 	return d_unhashed(dentry) && !IS_ROOT(dentry);
 }
 
-static __always_inline void copy_name(char *buf, int *buflen, struct dentry *dentry) {
+static __always_inline void copy_name(char *buf, u32 *buflen, struct dentry *dentry) {
 	struct qstr d_name = {};
 	bpf_core_read(&d_name, bpf_core_type_size(struct qstr), &dentry->d_name);
 	// d_name.len doesn't contain the terminator. we do +1 to reserve space for the initial '/'
@@ -61,7 +59,6 @@ static __always_inline void copy_name(char *buf, int *buflen, struct dentry *den
 	bpf_probe_read_kernel(&buf[SAFE_PATH_ACCESS(*buflen + 1)],
 	                      SAFE_COMPONENT_ACCESS(d_name.len * sizeof(char)),
 	                      d_name.name);
-	return;
 }
 
 static __always_inline long path_read(struct path_read_data *data) {
@@ -121,7 +118,7 @@ static __always_inline long path_read(struct path_read_data *data) {
 //  the third `MAX_PATH_LEN` segment.
 //
 // `bpf_d_path_approx` returns the offset of the last written byte in the buffer.
-static __always_inline int bpf_d_path_approx(const struct path *path, char *buf) {
+static __always_inline u32 bpf_d_path_approx(const struct path *path, char *buf) {
 	int off = MAX_PATH_LEN * 2;
 	struct dentry *dentry = NULL;
 	if(bpf_core_read(&dentry, sizeof(dentry), &path->dentry) != 0) {
