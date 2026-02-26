@@ -38,12 +38,19 @@ type ViolationRecord struct {
 	Count         uint32
 }
 
+// MaxBufferEntries is the maximum number of unique violation keys the buffer
+// will hold between drains. Once the limit is reached, new unique violations
+// are dropped (existing keys still get their count incremented). This prevents
+// unbounded memory growth when the controller is slow to scrape.
+const MaxBufferEntries = 10_000
+
 // Buffer is a thread-safe in-memory violation buffer with deduplication.
 // The EventScraper calls Record() for each violation; the gRPC server calls
 // Drain() when the controller scrapes.
 type Buffer struct {
-	mu      sync.Mutex
+	mtx     sync.Mutex
 	entries map[dedupKey]*ViolationRecord
+	dropped uint64
 }
 
 // NewBuffer creates a new violation buffer.
@@ -65,12 +72,17 @@ func (b *Buffer) Record(info ViolationInfo) {
 		Action:        info.Action,
 	}
 
-	b.mu.Lock()
-	defer b.mu.Unlock()
+	b.mtx.Lock()
+	defer b.mtx.Unlock()
 
 	if rec, ok := b.entries[key]; ok {
 		rec.Count++
 		rec.Timestamp = time.Now()
+		return
+	}
+
+	if len(b.entries) >= MaxBufferEntries {
+		b.dropped++
 		return
 	}
 
@@ -88,16 +100,25 @@ func (b *Buffer) Record(info ViolationInfo) {
 }
 
 // Drain atomically swaps the buffer, returning all accumulated records
-// and leaving an empty buffer.
+// and leaving an empty buffer. The dropped counter is also reset.
 func (b *Buffer) Drain() []ViolationRecord {
-	b.mu.Lock()
+	b.mtx.Lock()
 	old := b.entries
 	b.entries = make(map[dedupKey]*ViolationRecord)
-	b.mu.Unlock()
+	b.dropped = 0
+	b.mtx.Unlock()
 
 	records := make([]ViolationRecord, 0, len(old))
 	for _, rec := range old {
 		records = append(records, *rec)
 	}
 	return records
+}
+
+// Dropped returns the number of unique violations dropped since the last drain
+// because the buffer was at capacity.
+func (b *Buffer) Dropped() uint64 {
+	b.mtx.Lock()
+	defer b.mtx.Unlock()
+	return b.dropped
 }
