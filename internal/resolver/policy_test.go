@@ -80,18 +80,18 @@ func TestHandleWP_Lifecycle(t *testing.T) {
 	// during cgroup detachment, not purely from wpState transitions.
 	r.mu.Lock()
 	r.podCache["test-pod-uid"] = &podEntry{
-		info: &podInfo{
-			podID:        "test-pod-uid",
-			namespace:    "test-ns",
-			name:         "test-pod",
-			workloadName: "test",
-			workloadType: "Deployment",
-			labels:       map[string]string{v1alpha1.PolicyLabelKey: "example"},
+		meta: &PodMeta{
+			ID:           "test-pod-uid",
+			Namespace:    "test-ns",
+			Name:         "test-pod",
+			WorkloadName: "test",
+			WorkloadType: "Deployment",
+			Labels:       map[string]string{v1alpha1.PolicyLabelKey: "example"},
 		},
-		containers: map[ContainerID]*containerInfo{
-			cid1: {cgID: 100, name: c1},
-			cid2: {cgID: 101, name: c2},
-			cid3: {cgID: 102, name: c3},
+		containers: map[ContainerID]*ContainerMeta{
+			cid1: {CgroupID: 100, Name: c1, ID: cid1},
+			cid2: {CgroupID: 101, Name: c2, ID: cid2},
+			cid3: {CgroupID: 102, Name: c3, ID: cid3},
 		},
 	}
 	r.mu.Unlock()

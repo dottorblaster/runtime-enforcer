@@ -9,11 +9,6 @@ import (
 	"github.com/rancher-sandbox/runtime-enforcer/internal/types/policymode"
 )
 
-type CgroupID = uint64
-type ContainerID = string
-type PodID = string
-type ContainerName = string
-
 type Resolver struct {
 	// let's see if we can split this unique lock in multiple locks later
 	mu              sync.Mutex

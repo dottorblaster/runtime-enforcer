@@ -76,14 +76,18 @@ func (r *Resolver) clearPolicyIDFromBPF(policyID PolicyID) error {
 // This must be called with the resolver lock held.
 func (r *Resolver) applyPolicyToPod(state *podEntry, applied policyByContainer) error {
 	for _, container := range state.containers {
-		polID, ok := applied[container.name]
+		polID, ok := applied[container.Name]
 		if !ok {
 			// No entry for this container: either not in policy, or unchanged.
 			continue
 		}
-		if err := r.cgroupToPolicyMapUpdateFunc(polID, []CgroupID{container.cgID}, bpf.AddPolicyToCgroups); err != nil {
+		if err := r.cgroupToPolicyMapUpdateFunc(
+			polID,
+			[]CgroupID{container.CgroupID},
+			bpf.AddPolicyToCgroups,
+		); err != nil {
 			return fmt.Errorf("failed to add policy to cgroups for pod %s, container %s, policy %s: %w",
-				state.podName(), container.name, state.policyName(), err)
+				state.podName(), container.Name, state.policyName(), err)
 		}
 	}
 	return nil
@@ -98,20 +102,20 @@ func (r *Resolver) removePolicyFromPod(
 	wpState, removed policyByContainer,
 ) error {
 	for _, container := range podEntry.containers {
-		policyID, ok := removed[container.name]
+		policyID, ok := removed[container.Name]
 		if !ok {
 			continue
 		}
 		if err := r.cgroupToPolicyMapUpdateFunc(
-			PolicyIDNone, []CgroupID{container.cgID}, bpf.RemoveCgroups,
+			PolicyIDNone, []CgroupID{container.CgroupID}, bpf.RemoveCgroups,
 		); err != nil {
 			return fmt.Errorf("failed to remove cgroups for pod %s, container %s, policy %s: %w",
-				podEntry.podName(), container.name, podEntry.policyName(), err)
+				podEntry.podName(), container.Name, podEntry.policyName(), err)
 		}
 		if err := r.clearPolicyIDFromBPF(policyID); err != nil {
-			return fmt.Errorf("failed to clear policy for wp %s, container %s: %w", wpKey, container.name, err)
+			return fmt.Errorf("failed to clear policy for wp %s, container %s: %w", wpKey, container.Name, err)
 		}
-		delete(wpState, container.name)
+		delete(wpState, container.Name)
 	}
 	return nil
 }

@@ -46,8 +46,8 @@ func (r *Resolver) GetKubeInfo(cgID CgroupID) (*KubeInfo, error) {
 	containerName := notFound
 	containerID := notFound
 	for cID, info := range pod.containers {
-		if cgID == info.cgID {
-			containerName = info.name
+		if cgID == info.CgroupID {
+			containerName = info.Name
 			containerID = cID
 			break
 		}
@@ -55,12 +55,12 @@ func (r *Resolver) GetKubeInfo(cgID CgroupID) (*KubeInfo, error) {
 
 	return &KubeInfo{
 		PodID:         podID,
-		PodName:       pod.info.name,
-		Namespace:     pod.info.namespace,
+		PodName:       pod.meta.Name,
+		Namespace:     pod.meta.Namespace,
 		ContainerName: containerName,
-		WorkloadName:  pod.info.workloadName,
-		WorkloadType:  pod.info.workloadType,
+		WorkloadName:  pod.meta.WorkloadName,
+		WorkloadType:  pod.meta.WorkloadType,
 		ContainerID:   containerID,
-		Labels:        pod.info.labels,
+		Labels:        pod.meta.Labels,
 	}, nil
 }

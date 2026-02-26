@@ -13,8 +13,6 @@ type ContainerData struct {
 	Name string
 }
 
-type Labels map[string]string
-
 type PodData struct {
 	UID          PodID
 	Name         string
@@ -27,15 +25,15 @@ type PodData struct {
 
 func convertPodData(data *PodData) *podEntry {
 	return &podEntry{
-		info: &podInfo{
-			podID:        data.UID,
-			name:         data.Name,
-			namespace:    data.Namespace,
-			workloadName: data.WorkloadName,
-			workloadType: data.WorkloadType,
-			labels:       data.Labels,
+		meta: &PodMeta{
+			ID:           data.UID,
+			Name:         data.Name,
+			Namespace:    data.Namespace,
+			WorkloadName: data.WorkloadName,
+			WorkloadType: data.WorkloadType,
+			Labels:       data.Labels,
 		},
-		containers: make(map[ContainerID]*containerInfo),
+		containers: make(map[ContainerID]*ContainerMeta),
 	}
 }
 
@@ -54,22 +52,23 @@ func (r *Resolver) AddPodContainerFromNri(data *PodData) error {
 		if info, exists := state.containers[containerID]; exists {
 			// this is possible for example when there is a restart in the NRI plugin and we receive all the data again.
 			// cID and containerName should never change but as an extra check we return an error for now.
-			if info.cgID == container.CgID && info.name == container.Name {
+			if info.CgroupID == container.CgID && info.Name == container.Name {
 				// If everything is identical, as expected, we can just continue
 				continue
 			}
 			return fmt.Errorf("containerID %s for pod %s already exists. old (name: %s,cID: %d) new (name: %s,cID: %d)",
 				containerID,
 				data.Name,
-				info.name,
-				info.cgID,
+				info.Name,
+				info.CgroupID,
 				container.Name,
 				container.CgID)
 		}
 
-		state.containers[containerID] = &containerInfo{
-			cgID: container.CgID,
-			name: container.Name,
+		state.containers[containerID] = &ContainerMeta{
+			CgroupID: container.CgID,
+			Name:     container.Name,
+			ID:       containerID,
 		}
 
 		// populate the cgroup cache
@@ -121,9 +120,9 @@ func (r *Resolver) RemovePodContainerFromNri(podID PodID, containerID ContainerI
 	}
 
 	// remove the cgroup ID from the cache
-	delete(r.cgroupIDToPodID, container.cgID)
+	delete(r.cgroupIDToPodID, container.CgroupID)
 
-	return r.cgroupToPolicyMapUpdateFunc(PolicyIDNone, []CgroupID{container.cgID}, bpf.RemoveCgroups)
+	return r.cgroupToPolicyMapUpdateFunc(PolicyIDNone, []CgroupID{container.CgroupID}, bpf.RemoveCgroups)
 }
 
 func (r *Resolver) NRISynchronized() {

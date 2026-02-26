@@ -19,16 +19,10 @@ func TestPodEntry(t *testing.T) {
 	}
 
 	podEntry := &podEntry{
-		info: &podInfo{
-			namespace: namespace,
-			name:      name,
-			labels:    labels,
-		},
-		containers: map[ContainerID]*containerInfo{
-			"test-container": {
-				cgID: CgroupID(12),
-				name: "test-container-name",
-			},
+		meta: &PodMeta{
+			Namespace: namespace,
+			Name:      name,
+			Labels:    labels,
 		},
 	}
 
