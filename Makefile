@@ -1,6 +1,10 @@
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest
 
+HELM_VALUES_SCHEMA_JSON_VERSION := v2.3.1
+
+HELM_SCHEMA ?= go run github.com/losisin/helm-values-schema-json/v2@$(HELM_VALUES_SCHEMA_JSON_VERSION)
+
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
@@ -258,6 +262,10 @@ generate-proto: $(PROTOC_GEN_GO) $(PROTOC_GEN_GO_GRPC)
 generate-api:
 	go install ./hack/tools.go
 	API_KNOWN_VIOLATIONS_DIR=. UPDATE_API_KNOWN_VIOLATIONS=true ./hack/update-codegen.sh
+
+.PHONY: generate-chart
+generate-chart: ## Generate Helm chart values schema.
+	$(HELM_SCHEMA) --values charts/runtime-enforcer/values.yaml --output charts/runtime-enforcer/values.schema.json
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
 # $1 - target path with name of binary

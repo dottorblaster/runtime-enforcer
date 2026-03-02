@@ -87,3 +87,16 @@ targets:
     spec:
       file: charts/runtime-enforcer/values.yaml
       key: $.agent.agent.image.tag
+  generate_values_schema:
+    kind: shell
+    disablesourceinput: true
+    scmid: default
+    name: Generate values.schema.json file
+    spec:
+      changedif:
+        kind: file/checksum
+        spec:
+          files:
+            - charts/runtime-enforcer/values.schema.json
+      command: |
+        make generate-chart
