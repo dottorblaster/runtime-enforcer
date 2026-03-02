@@ -30,3 +30,6 @@ type ContainerView struct {
 	Meta    ContainerMeta
 	PodMeta PodMeta
 }
+
+// PodView at the moment is just an alias of PodInput.
+type PodView PodInput

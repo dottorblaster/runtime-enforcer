@@ -53,3 +53,14 @@ func (r *Resolver) GetContainerView(cgID CgroupID) (*ContainerView, error) {
 		},
 	}, nil
 }
+
+func (r *Resolver) PodCacheSnapshot() map[PodID]PodView {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	snapshot := make(map[PodID]PodView, len(r.podCache))
+	for podID, entry := range r.podCache {
+		snapshot[podID] = entry.toView()
+	}
+	return snapshot
+}

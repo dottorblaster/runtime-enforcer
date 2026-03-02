@@ -24,3 +24,19 @@ func (pod *podEntry) podName() string {
 func (pod *podEntry) podNamespace() string {
 	return pod.meta.Namespace
 }
+
+func (pod *podEntry) toView() PodView {
+	view := PodView{
+		Meta:       *pod.meta,
+		Containers: make(map[ContainerID]ContainerMeta),
+	}
+	// We need a deep copy
+	view.Meta.Labels = make(map[string]string, len(pod.meta.Labels))
+	for k, v := range pod.meta.Labels {
+		view.Meta.Labels[k] = v
+	}
+	for id, meta := range pod.containers {
+		view.Containers[id] = *meta
+	}
+	return view
+}
