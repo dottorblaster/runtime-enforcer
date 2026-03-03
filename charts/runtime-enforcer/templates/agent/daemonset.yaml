@@ -56,30 +56,30 @@ spec:
         - /agent
         env:
         {{- with .Values.agent.agent.env }}
-        {{- toYaml . | nindent 10 }}
+        {{- toYaml . | nindent 8 }}
         {{- end }}
-          - name: NODE_NAME
-            valueFrom:
-              fieldRef:
-                fieldPath: spec.nodeName
-        {{- if or .Values.telemetry.metrics .Values.telemetry.tracing }}
-        {{- if eq .Values.telemetry.mode "custom" }}
-          - name: OTEL_EXPORTER_OTLP_ENDPOINT
-            value: {{.Values.telemetry.custom.endpoint}}
-          - name: OTEL_EXPORTER_OTLP_INSECURE
-            value: {{ .Values.telemetry.custom.insecure | default false | quote }}
-        {{- if and (not .Values.telemetry.custom.insecure) .Values.telemetry.custom.otelCollectorCertificateSecret }}
-          - name: OTEL_EXPORTER_OTLP_CERTIFICATE
-            value: /tmp/otel-collector-certs/ca.crt 
-        {{- end }}
-        {{- if and (not .Values.telemetry.custom.insecure) .Values.telemetry.custom.otelCollectorClientCertificateSecret }}
-          - name: OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE
-            value: /tmp/otel-collector-client-certs/tls.crt
-          - name: OTEL_EXPORTER_OTLP_CLIENT_KEY
-            value: /tmp/otel-collector-client-certs/tls.key
-        {{- end }}
-        {{- end }}
-        {{- end }}
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+      {{- if or .Values.telemetry.metrics .Values.telemetry.tracing }}
+      {{- if eq .Values.telemetry.mode "custom" }}
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: {{.Values.telemetry.custom.endpoint}}
+        - name: OTEL_EXPORTER_OTLP_INSECURE
+          value: {{ .Values.telemetry.custom.insecure | default false | quote }}
+      {{- if and (not .Values.telemetry.custom.insecure) .Values.telemetry.custom.otelCollectorCertificateSecret }}
+        - name: OTEL_EXPORTER_OTLP_CERTIFICATE
+          value: /tmp/otel-collector-certs/ca.crt 
+      {{- end }}
+      {{- if and (not .Values.telemetry.custom.insecure) .Values.telemetry.custom.otelCollectorClientCertificateSecret }}
+        - name: OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE
+          value: /tmp/otel-collector-client-certs/tls.crt
+        - name: OTEL_EXPORTER_OTLP_CLIENT_KEY
+          value: /tmp/otel-collector-client-certs/tls.key
+      {{- end }}
+      {{- end }}
+      {{- end }}
         image: {{ .Values.agent.agent.image.repository }}:{{ .Values.agent.agent.image.tag
           | default .Chart.AppVersion }}
         imagePullPolicy: {{ .Values.agent.agent.image.pullPolicy }}
