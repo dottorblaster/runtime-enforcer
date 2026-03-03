@@ -167,10 +167,6 @@ func (es *EventScraper) emitViolationEvent(ctx context.Context, info *KubeProces
 }
 
 func (es *EventScraper) reportViolation(info *KubeProcessInfo, action string) {
-	if es.violationBuffer == nil {
-		return
-	}
-
 	es.violationBuffer.Record(violationbuf.ViolationInfo{
 		PolicyName:    info.PolicyName,
 		Namespace:     info.Namespace,
