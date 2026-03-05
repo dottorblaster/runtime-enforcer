@@ -32,6 +32,17 @@ func (p *plugin) getWorkloadInfoAndLog(ctx context.Context, pod *api.PodSandbox)
 	return workloadName, workloadKind
 }
 
+func podSandboxToPodMeta(pod *api.PodSandbox, workloadName string, workloadKind workloadkind.Kind) resolver.PodMeta {
+	return resolver.PodMeta{
+		ID:           pod.GetUid(),
+		Name:         pod.GetName(),
+		Namespace:    pod.GetNamespace(),
+		WorkloadName: workloadName,
+		WorkloadType: string(workloadKind),
+		Labels:       pod.GetLabels(),
+	}
+}
+
 // Synchronize synchronizes the state of the NRI plugin with the current state of the pods and containers.
 func (p *plugin) Synchronize(
 	ctx context.Context,
@@ -89,14 +100,7 @@ func (p *plugin) Synchronize(
 
 		workloadName, workloadKind := p.getWorkloadInfoAndLog(ctx, pod)
 		podData := resolver.PodInput{
-			Meta: resolver.PodMeta{
-				ID:           pod.GetUid(),
-				Name:         pod.GetName(),
-				Namespace:    pod.GetNamespace(),
-				WorkloadName: workloadName,
-				WorkloadType: string(workloadKind),
-				Labels:       pod.GetLabels(),
-			},
+			Meta:       podSandboxToPodMeta(pod, workloadName, workloadKind),
 			Containers: containers,
 		}
 
@@ -126,14 +130,7 @@ func (p *plugin) StartContainer(
 
 	workloadName, workloadKind := p.getWorkloadInfoAndLog(ctx, pod)
 	podData := resolver.PodInput{
-		Meta: resolver.PodMeta{
-			ID:           pod.GetUid(),
-			Name:         pod.GetName(),
-			Namespace:    pod.GetNamespace(),
-			Labels:       pod.GetLabels(),
-			WorkloadName: workloadName,
-			WorkloadType: string(workloadKind),
-		},
+		Meta: podSandboxToPodMeta(pod, workloadName, workloadKind),
 		Containers: map[resolver.ContainerID]resolver.ContainerMeta{
 			container.GetId(): {
 				CgroupID: cgroupID,
