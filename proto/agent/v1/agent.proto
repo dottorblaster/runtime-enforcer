@@ -1,3 +1,4 @@
+// protolint:disable MAX_LINE_LENGTH
 syntax = "proto3";
 
 package runtimeenforcer.agent.v1;
@@ -20,18 +21,18 @@ service AgentObserver {
 }
 
 message ContainerMeta {
-	string ID = 1;
-	string Name = 2;
-	uint64 CgroupID = 3;
+  string id = 1;
+  string name = 2;
+  uint64 cgroup_id = 3;
 }
 
 message PodMeta {
-	string ID = 1;
-	string Name = 2;
-	string Namespace = 3;
-	string WorkloadName = 4;
-	string WorkloadType = 5;
-	map<string,string> Labels = 6;
+  string id = 1;
+  string name = 2;
+  string namespace = 3;
+  string workload_name = 4;
+  string workload_type = 5;
+  map<string,string> labels = 6;
 }
 
 message PodView {
@@ -41,14 +42,16 @@ message PodView {
 }
 
 // ListPodCacheRequest is the request for listing the pod cache.
-message ListPodCacheRequest {}
+message ListPodCacheRequest {
+}
 
 // ListPodCacheResponse is the response containing the pod cache.
 message ListPodCacheResponse {
   repeated PodView pods = 1;
 }
 
-message ListPoliciesStatusRequest {}
+message ListPoliciesStatusRequest {
+}
 
 enum PolicyState {
   POLICY_STATE_UNSPECIFIED = 0;
@@ -80,7 +83,8 @@ message ListPoliciesStatusResponse {
   map<string, PolicyStatus> policies = 1;
 }
 
-message ScrapeViolationsRequest {}
+message ScrapeViolationsRequest {
+}
 
 message ViolationRecord {
   google.protobuf.Timestamp timestamp = 1;

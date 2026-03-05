@@ -57,7 +57,7 @@ func (s *agentObserver) ListPoliciesStatus(
 func podViewToProto(podView *resolver.PodView) *pb.PodView {
 	view := &pb.PodView{
 		Meta: &pb.PodMeta{
-			ID:           podView.Meta.ID,
+			Id:           podView.Meta.ID,
 			Name:         podView.Meta.Name,
 			Namespace:    podView.Meta.Namespace,
 			WorkloadName: podView.Meta.WorkloadName,
@@ -68,9 +68,9 @@ func podViewToProto(podView *resolver.PodView) *pb.PodView {
 	}
 	for containerID, containerMeta := range podView.Containers {
 		view.Containers[containerID] = &pb.ContainerMeta{
-			ID:       containerID,
+			Id:       containerID,
 			Name:     containerMeta.Name,
-			CgroupID: containerMeta.CgroupID,
+			CgroupId: containerMeta.CgroupID,
 		}
 	}
 	return view
