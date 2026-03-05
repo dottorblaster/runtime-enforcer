@@ -2,7 +2,6 @@ package eventscraper
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 	"time"
 
@@ -52,58 +51,34 @@ func NewEventScraper(
 }
 
 func (es *EventScraper) getKubeProcessInfo(event *bpf.ProcessEvent) *KubeProcessInfo {
-	// trackerID should be the ID of the cgroup of the container where the process is running
-	cgIDLookup := event.CgTrackerID
-	// this could happen if the resolver has not yet seen the pod or it was not able to scrape the container info
-	if cgIDLookup == 0 {
-		// most of the times the cgroupID should be identical to the trackerID if the process is not in a nested cgroup inside the container
-		if event.CgroupID == 0 {
-			es.logger.Warn("process event with empty cgroupID and cgIDTracker, skipping event")
-			return nil
-		}
-		cgIDLookup = event.CgroupID
-	}
-	es.logger.Debug("process event with empty cgIDTracker, falling back to cgroupID", "cgID", event.CgroupID)
-	containerView, err := es.resolver.GetContainerView(cgIDLookup)
-	if err == nil {
-		policyName := ""
-		pod := containerView.PodMeta
-		container := containerView.Meta
-		if pod.Labels != nil {
-			policyName = pod.Labels[v1alpha1.PolicyLabelKey]
-		}
-
-		return &KubeProcessInfo{
-			Namespace:      pod.Namespace,
-			Workload:       pod.WorkloadName,
-			WorkloadKind:   pod.WorkloadType,
-			ContainerName:  container.Name,
-			ExecutablePath: event.ExePath,
-			PodName:        pod.Name,
-			ContainerID:    container.ID,
-			PolicyName:     policyName,
-		}
-	}
-	switch {
-	case errors.Is(err, resolver.ErrMissingPodUID):
-		// This could happen if the cgroup ID is not associated with any pod (is on the host), that's why we put it in debug
-		// todo!: with the debug we could miss some real miss in production but not sure we can ignore cgroup IDs on the host in some other way
-		es.logger.Debug("missing pod UID for process event",
-			"msg", err.Error(),
-			"exe", event.ExePath)
-	case errors.Is(err, resolver.ErrMissingPodInfo):
-		// This could happen if the pod was found but the info is not yet populated
-		es.logger.Warn("missing pod info for process event",
-			"msg", err.Error(),
-			"exe", event.ExePath)
-	default:
-		// Some other error
-		es.logger.Error("unknown error getting kube info for process event",
-			"cgID", cgIDLookup,
+	// trackerID is the ID of the container cgroup where the process is running.
+	// NRI will populate cgroup tracker map before we will start to generate learning/monitor events from ebpf.
+	containerView, err := es.resolver.GetContainerView(event.CgTrackerID)
+	if err != nil {
+		es.logger.Error("failed to get pod info",
+			"cgTrackerID", event.CgTrackerID,
 			"exe", event.ExePath,
 			"error", err)
+		return nil
 	}
-	return nil
+
+	podMeta := containerView.PodMeta
+	containerMeta := containerView.Meta
+	policyName := ""
+	if podMeta.Labels != nil {
+		policyName = podMeta.Labels[v1alpha1.PolicyLabelKey]
+	}
+
+	return &KubeProcessInfo{
+		Namespace:      podMeta.Namespace,
+		Workload:       podMeta.WorkloadName,
+		WorkloadKind:   podMeta.WorkloadType,
+		ContainerName:  containerMeta.Name,
+		ExecutablePath: event.ExePath,
+		PodName:        podMeta.Name,
+		ContainerID:    containerMeta.ID,
+		PolicyName:     policyName,
+	}
 }
 
 // Start begins the event scraping process.

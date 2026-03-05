@@ -236,11 +236,11 @@ static __always_inline __u64 get_tracker_id_from_curr_task() {
 	}
 
 	__u64 trackerid = cgrp_get_tracker_id(cgroupid);
-	if(trackerid) {
-		cgroupid = trackerid;
+	if(!trackerid) {
+		return 0;
 	}
 
-	return cgroupid;
+	return trackerid;
 }
 
 /////////////////////////
