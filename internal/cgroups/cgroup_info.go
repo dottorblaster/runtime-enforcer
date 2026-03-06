@@ -87,7 +87,6 @@ func (c *CgroupInfo) CgroupResolutionPrefix() string {
 // In cgroupv1, k8s containers could share the same cgroup under some controllers (e.g cpuset),
 // but usually under the memory controller each container has its own cgroup.
 func findMemoryController(path string) (uint32, error) {
-	//nolint:gosec // path is always set internally by us not by the user.
 	file, err := os.Open(path)
 	if err != nil {
 		return 0, fmt.Errorf("failed to open %s: %w", path, err)
