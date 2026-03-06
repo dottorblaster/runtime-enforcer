@@ -3,10 +3,8 @@ package controller
 import (
 	"context"
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"net"
-	"os"
 	"path/filepath"
 	"strconv"
 	"time"
@@ -18,13 +16,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-const (
-	agentClientTimeout = 5 * time.Second
-
-	tlsCertFile = "tls.crt"
-	tlsKeyFile  = "tls.key"
-	caCertFile  = "ca.crt"
-)
+const agentClientTimeout = 5 * time.Second
 
 // agentClientFactory is responsible for creating agent clients.
 type agentClientFactory struct {
@@ -44,20 +36,12 @@ func newAgentClientFactory(conf *AgentGRPCConfig) (*agentClientFactory, error) {
 	var tlsKeyPath string
 	var caCertPath string
 	if conf.MTLSEnabled {
-		// if mTLS is enabled, we need to validate the cert path
-		if conf.CertDirPath == "" {
-			return nil, errors.New("certificate directory path is empty")
+		if err := tlsutil.ValidateCertDir(conf.CertDirPath); err != nil {
+			return nil, err
 		}
-		if _, err := os.Stat(conf.CertDirPath); os.IsNotExist(err) {
-			return nil, fmt.Errorf("certificate directory does not exist: %w", err)
-		}
-		tlsCertPath = filepath.Join(conf.CertDirPath, tlsCertFile)
-		tlsKeyPath = filepath.Join(conf.CertDirPath, tlsKeyFile)
-		caCertPath = filepath.Join(conf.CertDirPath, caCertFile)
-		_, err := tls.LoadX509KeyPair(tlsCertPath, tlsKeyPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load key pair: %w", err)
-		}
+		tlsCertPath = filepath.Join(conf.CertDirPath, tlsutil.CertFile)
+		tlsKeyPath = filepath.Join(conf.CertDirPath, tlsutil.KeyFile)
+		caCertPath = filepath.Join(conf.CertDirPath, tlsutil.CAFile)
 	}
 	return &agentClientFactory{
 		port:        strconv.Itoa(conf.Port),
@@ -79,9 +63,9 @@ func (f *agentClientFactory) getConnCredentials(podNamespacedName string) (crede
 		return nil, err
 	}
 
-	clientCert, err := tls.LoadX509KeyPair(f.tlsCertPath, f.tlsKeyPath)
+	clientCert, err := tlsutil.LoadKeyPair(f.tlsCertPath, f.tlsKeyPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load client key pair: %w", err)
+		return nil, err
 	}
 
 	tlsConfig := &tls.Config{

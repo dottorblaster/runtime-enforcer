@@ -3,11 +3,9 @@ package grpcexporter
 import (
 	"context"
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net"
-	"os"
 	"path/filepath"
 	"time"
 
@@ -19,13 +17,7 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-const (
-	tlsCertFile = "tls.crt"
-	tlsKeyFile  = "tls.key"
-	caCertFile  = "ca.crt"
-
-	gracefulGRPCTimeout = 5 * time.Second
-)
+const gracefulGRPCTimeout = 5 * time.Second
 
 type Config struct {
 	MTLSEnabled bool
@@ -45,9 +37,9 @@ func (s *Server) getConnCredentials() grpc.ServerOption {
 		return grpc.EmptyServerOption{}
 	}
 
-	caCertPath := filepath.Join(s.conf.CertDirPath, caCertFile)
-	tlsCertPath := filepath.Join(s.conf.CertDirPath, tlsCertFile)
-	tlsKeyPath := filepath.Join(s.conf.CertDirPath, tlsKeyFile)
+	caCertPath := filepath.Join(s.conf.CertDirPath, tlsutil.CAFile)
+	tlsCertPath := filepath.Join(s.conf.CertDirPath, tlsutil.CertFile)
+	tlsKeyPath := filepath.Join(s.conf.CertDirPath, tlsutil.KeyFile)
 
 	tlsConfig := &tls.Config{
 		// gosec: wants the version specified also here
@@ -65,10 +57,10 @@ func (s *Server) getConnCredentials() grpc.ServerOption {
 			}
 
 			// Get server certificate
-			cert, err := tls.LoadX509KeyPair(tlsCertPath, tlsKeyPath)
+			cert, err := tlsutil.LoadKeyPair(tlsCertPath, tlsKeyPath)
 			if err != nil {
 				s.logger.Error("mTLS handshake: failed to load key pair", "error", err)
-				return nil, fmt.Errorf("failed to load key pair: %w", err)
+				return nil, err
 			}
 
 			// Return a new config for the connection
@@ -83,22 +75,6 @@ func (s *Server) getConnCredentials() grpc.ServerOption {
 	return grpc.Creds(credentials.NewTLS(tlsConfig))
 }
 
-func checkCertDirIsValid(certDirPath string) error {
-	if certDirPath == "" {
-		return errors.New("certificate directory path is empty")
-	}
-	if _, err := os.Stat(certDirPath); os.IsNotExist(err) {
-		return fmt.Errorf("certificate directory does not exist: %w", err)
-	}
-	tlsCertPath := filepath.Join(certDirPath, tlsCertFile)
-	tlsKeyPath := filepath.Join(certDirPath, tlsKeyFile)
-	_, err := tls.LoadX509KeyPair(tlsCertPath, tlsKeyPath)
-	if err != nil {
-		return fmt.Errorf("failed to load key pair: %w", err)
-	}
-	return nil
-}
-
 func New(
 	logger *slog.Logger,
 	conf *Config,
@@ -107,7 +83,7 @@ func New(
 ) (*Server, error) {
 	if conf.MTLSEnabled {
 		// Check that the certificate path is valid before starting the server
-		if err := checkCertDirIsValid(conf.CertDirPath); err != nil {
+		if err := tlsutil.ValidateCertDir(conf.CertDirPath); err != nil {
 			return nil, fmt.Errorf("invalid certificate directory: %w", err)
 		}
 	}
