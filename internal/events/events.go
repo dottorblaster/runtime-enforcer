@@ -5,25 +5,13 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"os"
 
+	"github.com/rancher-sandbox/runtime-enforcer/internal/tlsutil"
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
 	otellog "go.opentelemetry.io/otel/log"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
 	"google.golang.org/grpc/credentials"
 )
-
-func loadCACertPool(path string) (*x509.CertPool, error) {
-	caPem, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read CA certificate %s: %w", path, err)
-	}
-	pool := x509.NewCertPool()
-	if !pool.AppendCertsFromPEM(caPem) {
-		return nil, fmt.Errorf("failed to parse CA certificate from %s", path)
-	}
-	return pool, nil
-}
 
 // Init creates an OTEL log provider that exports violation events to the given
 // gRPC endpoint over TLS. This uses an explicit endpoint to keep the violation
@@ -37,7 +25,7 @@ func Init(ctx context.Context, endpoint, caCertPath string) (otellog.Logger, fun
 
 	if caCertPath != "" {
 		// Validate that the CA certificate is readable at startup.
-		if _, err := loadCACertPool(caCertPath); err != nil {
+		if _, err := tlsutil.LoadCACertPool(caCertPath); err != nil {
 			return nil, nil, err
 		}
 		tlsConfig := &tls.Config{
@@ -46,7 +34,7 @@ func Init(ctx context.Context, endpoint, caCertPath string) (otellog.Logger, fun
 			// re-read the CA file on every handshake to handle rotation.
 			InsecureSkipVerify: true, //nolint:gosec // verification is done in VerifyConnection
 			VerifyConnection: func(cs tls.ConnectionState) error {
-				certPool, err := loadCACertPool(caCertPath)
+				certPool, err := tlsutil.LoadCACertPool(caCertPath)
 				if err != nil {
 					return err
 				}

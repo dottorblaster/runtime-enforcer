@@ -3,7 +3,6 @@ package grpcexporter
 import (
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -13,6 +12,7 @@ import (
 	"time"
 
 	"github.com/rancher-sandbox/runtime-enforcer/internal/resolver"
+	"github.com/rancher-sandbox/runtime-enforcer/internal/tlsutil"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/violationbuf"
 	pb "github.com/rancher-sandbox/runtime-enforcer/proto/agent/v1"
 	"google.golang.org/grpc"
@@ -58,15 +58,10 @@ func (s *Server) getConnCredentials() grpc.ServerOption {
 		// is updated in the filesystem.
 		GetConfigForClient: func(_ *tls.ClientHelloInfo) (*tls.Config, error) {
 			// Get CA certificate
-			caPem, err := os.ReadFile(caCertPath)
+			certPool, err := tlsutil.LoadCACertPool(caCertPath)
 			if err != nil {
-				s.logger.Error("mTLS handshake: failed to read CA", "path", caCertPath, "error", err)
-				return nil, fmt.Errorf("failed to read CA: %w", err)
-			}
-			certPool := x509.NewCertPool()
-			if !certPool.AppendCertsFromPEM(caPem) {
-				s.logger.Error("mTLS handshake: failed to parse CA", "path", caCertPath)
-				return nil, errors.New("failed to parse CA")
+				s.logger.Error("mTLS handshake: failed to load CA", "path", caCertPath, "error", err)
+				return nil, err
 			}
 
 			// Get server certificate
