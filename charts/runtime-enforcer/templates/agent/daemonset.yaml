@@ -35,7 +35,7 @@ spec:
       {{- end }}
       containers:
       - args:
-        {{- if or .Values.telemetry.tracing .Values.telemetry.violations.collector.enabled }}
+        {{- if and .Values.telemetry.sendViolations (ne .Values.telemetry.collectorStrategy "none") }}
         - --enable-tracing
         {{- end }}
         {{- if .Values.learning.enabled }}
@@ -57,27 +57,25 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
-        {{- if .Values.telemetry.violations.collector.enabled }}
+        {{- if eq .Values.telemetry.collectorStrategy "default" }}
         - name: OTEL_EXPORTER_OTLP_ENDPOINT
           value: https://{{ include "runtime-enforcer.fullname" . }}-otel-collector.{{ .Release.Namespace }}.svc.cluster.local:4317
         - name: OTEL_EXPORTER_OTLP_CERTIFICATE
           value: {{ include "runtime-enforcer.grpc.certDir" . }}/ca.crt
-        {{- else if or .Values.telemetry.metrics .Values.telemetry.tracing }}
-        {{- if eq .Values.telemetry.mode "custom" }}
+        {{- else if eq .Values.telemetry.collectorStrategy "external" }}
         - name: OTEL_EXPORTER_OTLP_ENDPOINT
-          value: {{.Values.telemetry.custom.endpoint}}
+          value: {{ .Values.telemetry.externalCollector.endpoint }}
         - name: OTEL_EXPORTER_OTLP_INSECURE
-          value: {{ .Values.telemetry.custom.insecure | default false | quote }}
-        {{- if and (not .Values.telemetry.custom.insecure) .Values.telemetry.custom.otelCollectorCertificateSecret }}
+          value: {{ .Values.telemetry.externalCollector.insecure | default false | quote }}
+        {{- if and (not .Values.telemetry.externalCollector.insecure) .Values.telemetry.externalCollector.otelCollectorCertificateSecret }}
         - name: OTEL_EXPORTER_OTLP_CERTIFICATE
           value: /tmp/otel-collector-certs/ca.crt
         {{- end }}
-        {{- if and (not .Values.telemetry.custom.insecure) .Values.telemetry.custom.otelCollectorClientCertificateSecret }}
+        {{- if and (not .Values.telemetry.externalCollector.insecure) .Values.telemetry.externalCollector.otelCollectorClientCertificateSecret }}
         - name: OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE
           value: /tmp/otel-collector-client-certs/tls.crt
         - name: OTEL_EXPORTER_OTLP_CLIENT_KEY
           value: /tmp/otel-collector-client-certs/tls.key
-        {{- end }}
         {{- end }}
         {{- end }}
         {{- with .Values.agent.env }}
