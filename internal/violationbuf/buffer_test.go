@@ -11,7 +11,7 @@ import (
 func TestBufferRecordAndDrain(t *testing.T) {
 	buf := violationbuf.NewBuffer()
 
-	buf.Record(violationbuf.ViolationInfo{
+	buf.Record(violationbuf.ViolationRecord{
 		PolicyName:    "pol1",
 		Namespace:     "ns1",
 		PodName:       "pod1",
@@ -36,7 +36,7 @@ func TestBufferOverwritesOldest(t *testing.T) {
 
 	// Fill the buffer to capacity.
 	for i := range violationbuf.MaxBufferEntries {
-		buf.Record(violationbuf.ViolationInfo{
+		dropped := buf.Record(violationbuf.ViolationRecord{
 			PolicyName:    fmt.Sprintf("pol-%d", i),
 			Namespace:     "ns1",
 			PodName:       "pod1",
@@ -45,10 +45,11 @@ func TestBufferOverwritesOldest(t *testing.T) {
 			NodeName:      "node1",
 			Action:        "monitor",
 		})
+		require.False(t, dropped, "should not drop while filling buffer")
 	}
 
 	// Add one more — should overwrite the oldest (pol-0).
-	buf.Record(violationbuf.ViolationInfo{
+	dropped := buf.Record(violationbuf.ViolationRecord{
 		PolicyName:    "pol-overflow",
 		Namespace:     "ns1",
 		PodName:       "pod1",
@@ -57,6 +58,7 @@ func TestBufferOverwritesOldest(t *testing.T) {
 		NodeName:      "node1",
 		Action:        "monitor",
 	})
+	require.True(t, dropped, "should report a drop when buffer overflows")
 
 	records := buf.Drain()
 	require.Len(t, records, violationbuf.MaxBufferEntries)
@@ -70,7 +72,7 @@ func TestBufferOverwritesOldest(t *testing.T) {
 func TestBufferDifferentKeys(t *testing.T) {
 	buf := violationbuf.NewBuffer()
 
-	buf.Record(violationbuf.ViolationInfo{
+	buf.Record(violationbuf.ViolationRecord{
 		PolicyName:    "pol1",
 		Namespace:     "ns1",
 		PodName:       "pod1",
@@ -80,7 +82,7 @@ func TestBufferDifferentKeys(t *testing.T) {
 		Action:        "monitor",
 	})
 
-	buf.Record(violationbuf.ViolationInfo{
+	buf.Record(violationbuf.ViolationRecord{
 		PolicyName:    "pol1",
 		Namespace:     "ns1",
 		PodName:       "pod2",
@@ -98,7 +100,7 @@ func TestBufferDrainReverseChronologicalOrder(t *testing.T) {
 	buf := violationbuf.NewBuffer()
 
 	for i := range 5 {
-		buf.Record(violationbuf.ViolationInfo{
+		buf.Record(violationbuf.ViolationRecord{
 			PolicyName:    fmt.Sprintf("pol-%d", i),
 			Namespace:     "ns1",
 			PodName:       "pod1",
@@ -122,7 +124,7 @@ func TestBufferDrainChronologicalOrderAfterOverflow(t *testing.T) {
 	totalRecords := violationbuf.MaxBufferEntries + 50
 
 	for i := range totalRecords {
-		buf.Record(violationbuf.ViolationInfo{
+		buf.Record(violationbuf.ViolationRecord{
 			PolicyName:    fmt.Sprintf("pol-%d", i),
 			Namespace:     "ns1",
 			PodName:       "pod1",

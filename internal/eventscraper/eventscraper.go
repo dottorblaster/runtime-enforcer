@@ -167,7 +167,8 @@ func (es *EventScraper) emitViolationEvent(ctx context.Context, info *KubeProces
 }
 
 func (es *EventScraper) reportViolation(info *KubeProcessInfo, action string) {
-	es.violationBuffer.Record(violationbuf.ViolationInfo{
+	dropped := es.violationBuffer.Record(violationbuf.ViolationRecord{
+		Timestamp:     time.Now(),
 		PolicyName:    info.PolicyName,
 		Namespace:     info.Namespace,
 		PodName:       info.PodName,
@@ -176,4 +177,7 @@ func (es *EventScraper) reportViolation(info *KubeProcessInfo, action string) {
 		NodeName:      es.nodeName,
 		Action:        action,
 	})
+	if dropped {
+		es.logger.Warn("violation buffer full, oldest entry dropped")
+	}
 }
