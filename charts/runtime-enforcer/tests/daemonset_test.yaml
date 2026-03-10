@@ -221,6 +221,14 @@ tests:
           path: "spec.template.spec.containers[0].args"
           content: "--enable-tracing"
 
+  - it: "should reject invalid collectorStrategy values"
+    set:
+      telemetry:
+        collectorStrategy: "invalid"
+    asserts:
+      - failedTemplate:
+          errorPattern: collectorStrategy
+
   - it: "should set --enable-tracing when sendViolations is true and collectorStrategy is not none"
     set:
       telemetry:
