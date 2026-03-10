@@ -35,9 +35,6 @@ spec:
       {{- end }}
       containers:
       - args:
-        {{- if and .Values.telemetry.sendViolations (ne .Values.telemetry.collectorStrategy "none") }}
-        - --enable-tracing
-        {{- end }}
         {{- if .Values.learning.enabled }}
         - --enable-learning
         {{- end }}

@@ -211,16 +211,6 @@ tests:
             name: OTEL_EXPORTER_OTLP_ENDPOINT
           any: true
 
-  - it: "should not set --enable-tracing when sendViolations is false"
-    set:
-      telemetry:
-        sendViolations: false
-        collectorStrategy: default
-    asserts:
-      - notContains:
-          path: "spec.template.spec.containers[0].args"
-          content: "--enable-tracing"
-
   - it: "should reject invalid collectorStrategy values"
     set:
       telemetry:
@@ -228,15 +218,3 @@ tests:
     asserts:
       - failedTemplate:
           errorPattern: collectorStrategy
-
-  - it: "should set --enable-tracing when sendViolations is true and collectorStrategy is not none"
-    set:
-      telemetry:
-        sendViolations: true
-        collectorStrategy: external
-        externalCollector:
-          endpoint: "https://my-collector:4317"
-    asserts:
-      - contains:
-          path: "spec.template.spec.containers[0].args"
-          content: "--enable-tracing"

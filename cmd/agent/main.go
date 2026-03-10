@@ -35,7 +35,6 @@ import (
 )
 
 type Config struct {
-	enableTracing             bool
 	enableLearning            bool
 	learningNamespaceSelector string
 	nriSocketPath             string
@@ -43,8 +42,8 @@ type Config struct {
 	probeAddr                 string
 	grpcConf                  grpcexporter.Config
 	logLevel                  string
-	violationOTLPEndpoint     string
-	violationOTLPCACert       string
+	otlpEndpoint              string
+	otlpCACert                string
 	nodeName                  string
 	violationLogger           otellog.Logger
 }
@@ -296,7 +295,6 @@ func main() {
 
 	ctx := ctrl.SetupSignalHandler()
 
-	flag.BoolVar(&config.enableTracing, "enable-tracing", false, "Enable tracing collection")
 	flag.BoolVar(&config.enableLearning, "enable-learning", false, "Enable learning mode")
 	flag.StringVar(
 		&config.learningNamespaceSelector,
@@ -319,14 +317,14 @@ func main() {
 		"agent logger level (debug, info, warn, error)",
 	)
 	flag.StringVar(
-		&config.violationOTLPEndpoint,
-		"violation-otlp-endpoint",
+		&config.otlpEndpoint,
+		"otlp-endpoint",
 		os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"),
-		"OTLP gRPC endpoint for violation event reporting (defaults to OTEL_EXPORTER_OTLP_ENDPOINT env var, empty = disabled)",
+		"OTLP gRPC endpoint (defaults to OTEL_EXPORTER_OTLP_ENDPOINT env var, empty = disabled)",
 	)
 	flag.StringVar(
-		&config.violationOTLPCACert,
-		"violation-otlp-ca-cert",
+		&config.otlpCACert,
+		"otlp-ca-cert",
 		os.Getenv("OTEL_EXPORTER_OTLP_CERTIFICATE"),
 		"Path to the CA certificate for verifying the OTLP collector's TLS certificate (defaults to OTEL_EXPORTER_OTLP_CERTIFICATE env var)",
 	)
@@ -339,25 +337,23 @@ func main() {
 	slog.SetDefault(slogger)
 	ctrl.SetLogger(logr.FromSlogHandler(slogger.Handler()))
 
-	if config.enableTracing {
+	var eventShutdown func(context.Context) error
+	if config.otlpEndpoint != "" {
 		// Start otel traces
 		traceShutdown, err = traces.Init()
 		if err != nil {
 			slogger.ErrorContext(ctx, "failed to initiate open telemetry trace", "error", err)
 			os.Exit(1)
 		}
-	}
 
-	var eventShutdown func(context.Context) error
-	if config.violationOTLPEndpoint != "" {
 		var violationLogger otellog.Logger
-		violationLogger, eventShutdown, err = events.Init(ctx, config.violationOTLPEndpoint, config.violationOTLPCACert)
+		violationLogger, eventShutdown, err = events.Init(ctx, config.otlpEndpoint, config.otlpCACert)
 		if err != nil {
 			slogger.ErrorContext(ctx, "failed to initiate violation event pipeline", "error", err)
 			os.Exit(1)
 		}
 		config.violationLogger = violationLogger
-		slogger.InfoContext(ctx, "violation event reporting enabled", "endpoint", config.violationOTLPEndpoint)
+		slogger.InfoContext(ctx, "OTLP telemetry enabled", "endpoint", config.otlpEndpoint)
 	}
 
 	// This function blocks if everything is alright.
