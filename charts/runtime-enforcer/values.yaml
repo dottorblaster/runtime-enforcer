@@ -155,7 +155,7 @@ learning:
 
 telemetry:
   sendViolations: true
-  collectorStrategy: "default" # "none" or "default" or "external"
+  collectorStrategy: "default" # @schema enum: [none, default, external]
   defaultCollector:
     image:
       repository: otel/opentelemetry-collector-contrib

@@ -358,7 +358,11 @@
             "properties": {
                 "collectorStrategy": {
                     "type": "string",
-                    "enum": ["none", "default", "external"]
+                    "enum": [
+                        "none",
+                        "default",
+                        "external"
+                    ]
                 },
                 "defaultCollector": {
                     "type": "object",
