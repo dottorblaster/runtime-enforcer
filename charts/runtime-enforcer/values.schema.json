@@ -357,7 +357,8 @@
             "type": "object",
             "properties": {
                 "collectorStrategy": {
-                    "type": "string"
+                    "type": "string",
+                    "enum": ["none", "default", "external"]
                 },
                 "defaultCollector": {
                     "type": "object",
