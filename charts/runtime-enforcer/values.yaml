@@ -112,6 +112,9 @@ agent:
     runAsNonRoot: false
     seccompProfile:
       type: RuntimeDefault
+    # this is required for us the access the cgroup setting on the host
+    appArmorProfile:
+      type: Unconfined
   serviceAccount:
     # agent.serviceAccount.annotations -- Additional annotations to add to agent's service account.
     # @schema additionalProperties:true

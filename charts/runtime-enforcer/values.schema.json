@@ -91,6 +91,15 @@
                 "podSecurityContext": {
                     "type": "object",
                     "properties": {
+                        "appArmorProfile": {
+                            "type": "object",
+                            "properties": {
+                                "type": {
+                                    "type": "string"
+                                }
+                            },
+                            "additionalProperties": false
+                        },
                         "runAsNonRoot": {
                             "type": "boolean"
                         },
