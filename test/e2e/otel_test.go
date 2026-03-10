@@ -81,7 +81,7 @@ func getOtelCollectorTest() types.Feature {
 				t.Log("waiting for OTEL collector deployment to be available")
 				err := wait.For(
 					conditions.New(r).DeploymentAvailable(
-						"runtime-enforcer-otel-collector",
+						otelCollectorDeploymentName,
 						runtimeEnforcerNamespace,
 					),
 					wait.WithTimeout(DefaultOperationTimeout),
@@ -159,7 +159,7 @@ func getOtelCollectorTest() types.Feature {
 				// runtime_enforcer_violations_total metric.
 				t.Log("querying OTEL collector Prometheus endpoint for violation metrics")
 
-				collectorPodName, err := findPod(ctx, runtimeEnforcerNamespace, "runtime-enforcer-otel-collector")
+				collectorPodName, err := findPod(ctx, runtimeEnforcerNamespace, otelCollectorDeploymentName)
 				require.NoError(t, err, "should find OTEL collector pod")
 
 				localPort, stopCh, err := portForwardPod(
