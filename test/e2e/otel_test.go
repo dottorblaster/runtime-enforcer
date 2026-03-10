@@ -15,7 +15,6 @@ import (
 	"github.com/rancher-sandbox/runtime-enforcer/internal/types/policymode"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	otlplogsv1 "go.opentelemetry.io/proto/otlp/logs/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -161,7 +160,7 @@ func getOtelCollectorTest() types.Feature {
 				// record with the expected attributes on the collector's file
 				// exporter output.
 				t.Log("waiting for violation log record on OTEL collector and verifying attributes")
-				err = otelLogStream.WaitUntil(ctx, DefaultOperationTimeout, func(rec *otlplogsv1.LogRecord) bool {
+				err = otelLogStream.WaitUntil(ctx, DefaultOperationTimeout, func(rec *otlpLogRecord) bool {
 					exePath, ok := LogRecordAttribute(rec, "proc.exepath")
 					if !ok || exePath != "/usr/bin/apt" {
 						return false

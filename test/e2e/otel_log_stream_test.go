@@ -3,13 +3,11 @@ package e2e_test
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"testing"
 	"time"
-
-	otlplogsv1 "go.opentelemetry.io/proto/otlp/logs/v1"
-	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const (
@@ -17,20 +15,45 @@ const (
 	scannerBufferSize          = 1024 * 1024 // 1 MB
 )
 
+// otlpKeyValue mirrors the OTLP JSON attribute representation.
+type otlpKeyValue struct {
+	Key   string `json:"key"`
+	Value struct {
+		StringValue string `json:"stringValue"`
+	} `json:"value"`
+}
+
+// otlpLogRecord mirrors the OTLP JSON LogRecord representation.
+type otlpLogRecord struct {
+	SeverityText string         `json:"severityText"`
+	EventName    string         `json:"eventName"`
+	Body         json.RawMessage `json:"body"`
+	Attributes   []otlpKeyValue `json:"attributes"`
+}
+
+// otlpLogsData mirrors the OTLP JSON file exporter output for logs.
+type otlpLogsData struct {
+	ResourceLogs []struct {
+		ScopeLogs []struct {
+			LogRecords []otlpLogRecord `json:"logRecords"`
+		} `json:"scopeLogs"`
+	} `json:"resourceLogs"`
+}
+
 // OtelLogStream reads an io.ReadCloser (typically from the Kubernetes pod/logs
 // API) and parses OTLP JSON log records emitted by the collector's file
 // exporter. Parsed log records are sent to a buffered channel so that tests
 // can consume them via WaitUntil.
 type OtelLogStream struct {
 	stream  io.ReadCloser
-	records chan *otlplogsv1.LogRecord
+	records chan *otlpLogRecord
 	cancel  context.CancelFunc
 }
 
 func NewOtelLogStream(stream io.ReadCloser) *OtelLogStream {
 	return &OtelLogStream{
 		stream:  stream,
-		records: make(chan *otlplogsv1.LogRecord, logRecordChannelBufferSize),
+		records: make(chan *otlpLogRecord, logRecordChannelBufferSize),
 	}
 }
 
@@ -39,10 +62,9 @@ func (s *OtelLogStream) Stop() {
 	s.stream.Close()
 }
 
-// Start reads lines from the stream, unmarshals each as an OTLP LogsData JSON
-// object (one per line, as written by the file exporter), and sends individual
-// LogRecord values to the internal channel. It blocks until the context is
-// cancelled.
+// Start reads lines from the stream, unmarshals each as an OTLP JSON object
+// (one per line, as written by the file exporter), and sends individual log
+// records to the internal channel. It blocks until the context is cancelled.
 func (s *OtelLogStream) Start(ctx context.Context, t *testing.T) error {
 	ctx, cancel := context.WithCancel(ctx)
 	s.cancel = cancel
@@ -52,7 +74,6 @@ func (s *OtelLogStream) Start(ctx context.Context, t *testing.T) error {
 
 	for {
 		if !scanner.Scan() {
-			// Stream closed or EOF – check context before retrying.
 			select {
 			case <-ctx.Done():
 				return nil
@@ -69,27 +90,20 @@ func (s *OtelLogStream) Start(ctx context.Context, t *testing.T) error {
 		}
 
 		line := scanner.Bytes()
-		if len(line) == 0 {
+		if len(line) == 0 || line[0] != '{' {
 			continue
 		}
 
-		var logsData otlplogsv1.LogsData
-		if err := protojson.Unmarshal(line, &logsData); err != nil {
-			// Not every line from the container is OTLP JSON (e.g. the
-			// collector prints its own startup messages). Skip silently.
-			t.Logf("OtelLogStream: skipping non-OTLP line: %v", err)
+		var data otlpLogsData
+		if err := json.Unmarshal(line, &data); err != nil {
 			continue
 		}
 
-		s.extractLogRecords(&logsData)
-	}
-}
-
-func (s *OtelLogStream) extractLogRecords(data *otlplogsv1.LogsData) {
-	for _, rl := range data.GetResourceLogs() {
-		for _, sl := range rl.GetScopeLogs() {
-			for _, lr := range sl.GetLogRecords() {
-				s.records <- lr
+		for i := range data.ResourceLogs {
+			for j := range data.ResourceLogs[i].ScopeLogs {
+				for k := range data.ResourceLogs[i].ScopeLogs[j].LogRecords {
+					s.records <- &data.ResourceLogs[i].ScopeLogs[j].LogRecords[k]
+				}
 			}
 		}
 	}
@@ -100,7 +114,7 @@ func (s *OtelLogStream) extractLogRecords(data *otlplogsv1.LogsData) {
 func (s *OtelLogStream) WaitUntil(
 	ctx context.Context,
 	timeout time.Duration,
-	cb func(record *otlplogsv1.LogRecord) bool,
+	cb func(record *otlpLogRecord) bool,
 ) error {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -119,10 +133,10 @@ func (s *OtelLogStream) WaitUntil(
 
 // LogRecordAttribute returns the string value of the attribute with the given
 // key, or ("", false) if not found.
-func LogRecordAttribute(rec *otlplogsv1.LogRecord, key string) (string, bool) {
-	for _, attr := range rec.GetAttributes() {
-		if attr.GetKey() == key {
-			return attr.GetValue().GetStringValue(), true
+func LogRecordAttribute(rec *otlpLogRecord, key string) (string, bool) {
+	for _, attr := range rec.Attributes {
+		if attr.Key == key {
+			return attr.Value.StringValue, true
 		}
 	}
 	return "", false
