@@ -123,3 +123,4 @@ questions:
       The secret should contain the keys `tls.crt` and `tls.key`.
     group: Telemetry
     show_if: telemetry.collectorStrategy=external && telemetry.externalCollector.insecure=false
+

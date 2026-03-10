@@ -100,6 +100,16 @@ spec:
         - name: grpc-certs
           mountPath: {{ include "runtime-enforcer.grpc.certDir" . }}
           readOnly: true
+        {{- if and (eq .Values.telemetry.collectorStrategy "external") (not .Values.telemetry.externalCollector.insecure) .Values.telemetry.externalCollector.otelCollectorCertificateSecret }}
+        - name: otel-collector-ca-cert
+          mountPath: /tmp/otel-collector-certs
+          readOnly: true
+        {{- end }}
+        {{- if and (eq .Values.telemetry.collectorStrategy "external") (not .Values.telemetry.externalCollector.insecure) .Values.telemetry.externalCollector.otelCollectorClientCertificateSecret }}
+        - name: otel-collector-client-cert
+          mountPath: /tmp/otel-collector-client-certs
+          readOnly: true
+        {{- end }}
 
       hostPID: {{ .Values.agent.hostPID }}
       securityContext: {{- toYaml .Values.agent.podSecurityContext | nindent 8 }}
@@ -129,3 +139,13 @@ spec:
             csi.cert-manager.io/issuer-name: {{ include "runtime-enforcer.caIssuerName" . }}
             csi.cert-manager.io/issuer-kind: Issuer
             csi.cert-manager.io/dns-names: ${POD_NAME}.${POD_NAMESPACE}
+      {{- if and (eq .Values.telemetry.collectorStrategy "external") (not .Values.telemetry.externalCollector.insecure) .Values.telemetry.externalCollector.otelCollectorCertificateSecret }}
+      - name: otel-collector-ca-cert
+        secret:
+          secretName: {{ .Values.telemetry.externalCollector.otelCollectorCertificateSecret }}
+      {{- end }}
+      {{- if and (eq .Values.telemetry.collectorStrategy "external") (not .Values.telemetry.externalCollector.insecure) .Values.telemetry.externalCollector.otelCollectorClientCertificateSecret }}
+      - name: otel-collector-client-cert
+        secret:
+          secretName: {{ .Values.telemetry.externalCollector.otelCollectorClientCertificateSecret }}
+      {{- end }}

@@ -184,10 +184,9 @@ telemetry:
     # telemetry.externalCollector.otelCollectorCertificateSecret should contain a key ca.crt
     # storing the certificate to validate the remote collector certificate.
     otelCollectorCertificateSecret: ""
-    # telemetry.externalCollector.otelCollectorClientCertificateSecret secret is optional. It's
-    # only required when the remote collector requires client authentication
-    # (mTLS). It should contains two keys: tls.crt and tls.key storing the client
-    # certificate and key respectively.
+    # telemetry.externalCollector.otelCollectorClientCertificateSecret is optional.
+    # Only required when the remote collector requires client authentication (mTLS).
+    # The secret should contain the keys `tls.crt` and `tls.key`.
     otelCollectorClientCertificateSecret: ""
 
 # ValidatingAdmissionPolicy for Pod policy validation
