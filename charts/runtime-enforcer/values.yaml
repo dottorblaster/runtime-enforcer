@@ -154,7 +154,6 @@ learning:
   namespaceSelectorObject: {}
 
 telemetry:
-  sendViolations: true
   collectorStrategy: "default" # @schema enum: [none, default, external]
   defaultCollector:
     image:

@@ -64,15 +64,6 @@ questions:
   ###############################################################################
   # Telemetry
   ###############################################################################
-  - variable: telemetry.sendViolations
-    type: boolean
-    default: true
-    required: true
-    label: Send Violations
-    description: |
-      Enable sending policy violation events to the OpenTelemetry collector.
-    group: Telemetry
-
   - variable: telemetry.collectorStrategy
     type: enum
     options:

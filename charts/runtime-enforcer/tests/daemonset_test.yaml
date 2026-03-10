@@ -165,7 +165,6 @@ tests:
   - it: "should set OTEL env vars to built-in collector when collectorStrategy is default"
     set:
       telemetry:
-        sendViolations: true
         collectorStrategy: default
     asserts:
       - contains:
@@ -182,7 +181,6 @@ tests:
   - it: "should set OTEL env vars to external endpoint when collectorStrategy is external"
     set:
       telemetry:
-        sendViolations: true
         collectorStrategy: external
         externalCollector:
           endpoint: "https://my-collector:4317"
@@ -202,7 +200,6 @@ tests:
   - it: "should not set OTEL env vars when collectorStrategy is none"
     set:
       telemetry:
-        sendViolations: true
         collectorStrategy: none
     asserts:
       - notContains:

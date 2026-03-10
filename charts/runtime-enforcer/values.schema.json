@@ -432,9 +432,6 @@
                         }
                     },
                     "additionalProperties": false
-                },
-                "sendViolations": {
-                    "type": "boolean"
                 }
             },
             "additionalProperties": false
