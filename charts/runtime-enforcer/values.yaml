@@ -171,14 +171,14 @@ telemetry:
     # telemetry.externalCollector.endpoint is the Otel collector endpoint to send metrics and
     # traces to. It should be in the format https://<hostname>:<port>.
     endpoint: ""
-    # telemetry.externalCollector.insecure is used to configure the OpenTelemetry exporter to skip
-    # the certificate validation when sending metrics and traces to a remote
-    # collector.
-    insecure: false
     # The following settings are required to configure the OpenTelemetry exporter
     # in the controller and policy server to send metrics and traces to a remote
     # collector using TLS. Both secrets must be created in the same namespace
     # where the controller is deployed.
+    #
+    # If otelCollectorCertificateSecret is not set, TLS verification is disabled
+    # (insecure mode). When set, the certificate is used to validate the remote
+    # collector.
     #
     # telemetry.externalCollector.otelCollectorCertificateSecret should contain a key ca.crt
     # storing the certificate to validate the remote collector certificate.

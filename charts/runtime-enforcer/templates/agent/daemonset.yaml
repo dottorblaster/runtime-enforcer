@@ -62,13 +62,14 @@ spec:
         {{- else if eq .Values.telemetry.collectorStrategy "external" }}
         - name: OTEL_EXPORTER_OTLP_ENDPOINT
           value: {{ .Values.telemetry.externalCollector.endpoint }}
-        - name: OTEL_EXPORTER_OTLP_INSECURE
-          value: {{ .Values.telemetry.externalCollector.insecure | default false | quote }}
-        {{- if and (not .Values.telemetry.externalCollector.insecure) .Values.telemetry.externalCollector.otelCollectorCertificateSecret }}
+        {{- if .Values.telemetry.externalCollector.otelCollectorCertificateSecret }}
         - name: OTEL_EXPORTER_OTLP_CERTIFICATE
           value: /tmp/otel-collector-certs/ca.crt
+        {{- else }}
+        - name: OTEL_EXPORTER_OTLP_INSECURE
+          value: "true"
         {{- end }}
-        {{- if and (not .Values.telemetry.externalCollector.insecure) .Values.telemetry.externalCollector.otelCollectorClientCertificateSecret }}
+        {{- if .Values.telemetry.externalCollector.otelCollectorClientCertificateSecret }}
         - name: OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE
           value: /tmp/otel-collector-client-certs/tls.crt
         - name: OTEL_EXPORTER_OTLP_CLIENT_KEY
@@ -100,12 +101,12 @@ spec:
         - name: grpc-certs
           mountPath: {{ include "runtime-enforcer.grpc.certDir" . }}
           readOnly: true
-        {{- if and (eq .Values.telemetry.collectorStrategy "external") (not .Values.telemetry.externalCollector.insecure) .Values.telemetry.externalCollector.otelCollectorCertificateSecret }}
+        {{- if .Values.telemetry.externalCollector.otelCollectorCertificateSecret }}
         - name: otel-collector-ca-cert
           mountPath: /tmp/otel-collector-certs
           readOnly: true
         {{- end }}
-        {{- if and (eq .Values.telemetry.collectorStrategy "external") (not .Values.telemetry.externalCollector.insecure) .Values.telemetry.externalCollector.otelCollectorClientCertificateSecret }}
+        {{- if .Values.telemetry.externalCollector.otelCollectorClientCertificateSecret }}
         - name: otel-collector-client-cert
           mountPath: /tmp/otel-collector-client-certs
           readOnly: true
@@ -139,12 +140,12 @@ spec:
             csi.cert-manager.io/issuer-name: {{ include "runtime-enforcer.caIssuerName" . }}
             csi.cert-manager.io/issuer-kind: Issuer
             csi.cert-manager.io/dns-names: ${POD_NAME}.${POD_NAMESPACE}
-      {{- if and (eq .Values.telemetry.collectorStrategy "external") (not .Values.telemetry.externalCollector.insecure) .Values.telemetry.externalCollector.otelCollectorCertificateSecret }}
+      {{- if and (eq .Values.telemetry.collectorStrategy "external") .Values.telemetry.externalCollector.otelCollectorCertificateSecret }}
       - name: otel-collector-ca-cert
         secret:
           secretName: {{ .Values.telemetry.externalCollector.otelCollectorCertificateSecret }}
       {{- end }}
-      {{- if and (eq .Values.telemetry.collectorStrategy "external") (not .Values.telemetry.externalCollector.insecure) .Values.telemetry.externalCollector.otelCollectorClientCertificateSecret }}
+      {{- if and (eq .Values.telemetry.collectorStrategy "external") .Values.telemetry.externalCollector.otelCollectorClientCertificateSecret }}
       - name: otel-collector-client-cert
         secret:
           secretName: {{ .Values.telemetry.externalCollector.otelCollectorClientCertificateSecret }}
