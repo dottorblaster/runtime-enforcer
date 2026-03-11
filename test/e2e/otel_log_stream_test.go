@@ -31,13 +31,21 @@ type otlpLogRecord struct {
 	Attributes   []otlpKeyValue `json:"attributes"`
 }
 
+// otlpScopeLogs groups log records under an instrumentation scope.
+type otlpScopeLogs struct {
+	LogRecords []otlpLogRecord `json:"logRecords"`
+}
+
+// otlpResourceLogs is a single resource entry containing scope logs.
+type otlpResourceLogs struct {
+	ScopeLogs []otlpScopeLogs `json:"scopeLogs"`
+}
+
 // otlpLogsData mirrors the OTLP JSON file exporter output for logs.
+// The file exporter may write either {"resourceLogs":[...]} (wrapped)
+// or {"resource":...,"scopeLogs":[...]} (unwrapped, one entry per line).
 type otlpLogsData struct {
-	ResourceLogs []struct {
-		ScopeLogs []struct {
-			LogRecords []otlpLogRecord `json:"logRecords"`
-		} `json:"scopeLogs"`
-	} `json:"resourceLogs"`
+	ResourceLogs []otlpResourceLogs `json:"resourceLogs"`
 }
 
 // OtelLogStream reads an io.ReadCloser (typically from the Kubernetes pod/logs
@@ -94,19 +102,42 @@ func (s *OtelLogStream) Start(ctx context.Context, t *testing.T) error {
 			continue
 		}
 
-		var data otlpLogsData
-		if err := json.Unmarshal(line, &data); err != nil {
-			continue
-		}
-
-		for i := range data.ResourceLogs {
-			for j := range data.ResourceLogs[i].ScopeLogs {
-				for k := range data.ResourceLogs[i].ScopeLogs[j].LogRecords {
-					s.records <- &data.ResourceLogs[i].ScopeLogs[j].LogRecords[k]
-				}
-			}
+		records := s.parseLogRecords(line)
+		for i := range records {
+			s.records <- &records[i]
 		}
 	}
+}
+
+// parseLogRecords tries to extract log records from a JSON line. It handles
+// both the wrapped format ({"resourceLogs":[...]}) and the unwrapped format
+// where a single resource entry is written per line ({"resource":...,"scopeLogs":[...]}).
+func (s *OtelLogStream) parseLogRecords(line []byte) []otlpLogRecord {
+	// Try the wrapped format first: {"resourceLogs":[...]}
+	var data otlpLogsData
+	if err := json.Unmarshal(line, &data); err == nil {
+		var records []otlpLogRecord
+		for _, rl := range data.ResourceLogs {
+			for _, sl := range rl.ScopeLogs {
+				records = append(records, sl.LogRecords...)
+			}
+		}
+		if len(records) > 0 {
+			return records
+		}
+	}
+
+	// Fall back to the unwrapped format: {"resource":...,"scopeLogs":[...]}
+	var single otlpResourceLogs
+	if err := json.Unmarshal(line, &single); err == nil {
+		var records []otlpLogRecord
+		for _, sl := range single.ScopeLogs {
+			records = append(records, sl.LogRecords...)
+		}
+		return records
+	}
+
+	return nil
 }
 
 // WaitUntil invokes cb for each log record received from the collector until
