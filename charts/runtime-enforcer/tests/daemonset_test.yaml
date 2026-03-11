@@ -178,13 +178,12 @@ tests:
             name: OTEL_EXPORTER_OTLP_CERTIFICATE
             value: "/etc/runtime-enforcer/certs/ca.crt"
 
-  - it: "should set OTEL env vars to external endpoint when collectorStrategy is external"
+  - it: "should set OTEL env vars to external endpoint with insecure when no CA cert"
     set:
       telemetry:
         collectorStrategy: external
         externalCollector:
           endpoint: "https://my-collector:4317"
-          insecure: false
     asserts:
       - contains:
           path: "spec.template.spec.containers[0].env"
@@ -195,7 +194,31 @@ tests:
           path: "spec.template.spec.containers[0].env"
           content:
             name: OTEL_EXPORTER_OTLP_INSECURE
-            value: "false"
+            value: "true"
+
+  - it: "should set OTEL certificate env var when CA cert secret is provided"
+    set:
+      telemetry:
+        collectorStrategy: external
+        externalCollector:
+          endpoint: "https://my-collector:4317"
+          otelCollectorCertificateSecret: "my-ca-cert"
+    asserts:
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content:
+            name: OTEL_EXPORTER_OTLP_ENDPOINT
+            value: "https://my-collector:4317"
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content:
+            name: OTEL_EXPORTER_OTLP_CERTIFICATE
+            value: "/tmp/otel-collector-certs/ca.crt"
+      - notContains:
+          path: "spec.template.spec.containers[0].env"
+          content:
+            name: OTEL_EXPORTER_OTLP_INSECURE
+          any: true
 
   - it: "should not set OTEL env vars when collectorStrategy is none"
     set:

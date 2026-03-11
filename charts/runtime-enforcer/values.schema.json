@@ -421,9 +421,6 @@
                         "endpoint": {
                             "type": "string"
                         },
-                        "insecure": {
-                            "type": "boolean"
-                        },
                         "otelCollectorCertificateSecret": {
                             "type": "string"
                         },
