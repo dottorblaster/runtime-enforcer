@@ -36,12 +36,14 @@ func TestRunMarkReadyUpdatesLabelAndWaitsForPolicy(t *testing.T) {
 
 	var out bytes.Buffer
 	opts := &markReadyOptions{
-		PolicyName: name,
-		Namespace:  ns,
-		DryRun:     false,
+		commonOptions: commonOptions{
+			Namespace: ns,
+			DryRun:    false,
+		},
+		ProposalName: name,
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), markReadyTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultOperationTimeout)
 	defer cancel()
 
 	err := runMarkReady(ctx, securityClient, opts, &out)

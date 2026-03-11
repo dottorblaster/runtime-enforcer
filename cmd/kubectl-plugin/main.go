@@ -36,6 +36,7 @@ func newRootCmd() *cobra.Command {
 	cmd.SetUsageTemplate(rootUsageTemplate)
 
 	cmd.AddCommand(newMarkReadyCmd())
+	cmd.AddCommand(newSwitchModeCmd())
 
 	return cmd
 }
