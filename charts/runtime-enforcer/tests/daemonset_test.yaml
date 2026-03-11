@@ -162,12 +162,10 @@ tests:
       - notExists:
           path: spec.template.spec.affinity
 
-  - it: "should set OTEL env vars to built-in collector when violations collector is enabled"
+  - it: "should set OTEL env vars to built-in collector when collectorStrategy is default"
     set:
       telemetry:
-        violations:
-          collector:
-            enabled: true
+        collectorStrategy: default
     asserts:
       - contains:
           path: "spec.template.spec.containers[0].env"
@@ -180,17 +178,12 @@ tests:
             name: OTEL_EXPORTER_OTLP_CERTIFICATE
             value: "/etc/runtime-enforcer/certs/ca.crt"
 
-  - it: "should set OTEL env vars to custom endpoint when collector is disabled and tracing is enabled"
+  - it: "should set OTEL env vars to external endpoint with insecure when no CA cert"
     set:
       telemetry:
-        tracing: true
-        mode: custom
-        violations:
-          collector:
-            enabled: false
-        custom:
+        collectorStrategy: external
+        externalCollector:
           endpoint: "https://my-collector:4317"
-          insecure: false
     asserts:
       - contains:
           path: "spec.template.spec.containers[0].env"
@@ -201,34 +194,36 @@ tests:
           path: "spec.template.spec.containers[0].env"
           content:
             name: OTEL_EXPORTER_OTLP_INSECURE
-            value: "false"
+            value: "true"
 
-  - it: "should set OTEL env vars to custom endpoint when collector is disabled and metrics is enabled"
+  - it: "should set OTEL certificate env var when CA cert secret is provided"
     set:
       telemetry:
-        metrics: true
-        mode: custom
-        violations:
-          collector:
-            enabled: false
-        custom:
+        collectorStrategy: external
+        externalCollector:
           endpoint: "https://my-collector:4317"
-          insecure: false
+          otelCollectorCertificateSecret: "my-ca-cert"
     asserts:
       - contains:
           path: "spec.template.spec.containers[0].env"
           content:
             name: OTEL_EXPORTER_OTLP_ENDPOINT
             value: "https://my-collector:4317"
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content:
+            name: OTEL_EXPORTER_OTLP_CERTIFICATE
+            value: "/tmp/otel-collector-certs/ca.crt"
+      - notContains:
+          path: "spec.template.spec.containers[0].env"
+          content:
+            name: OTEL_EXPORTER_OTLP_INSECURE
+          any: true
 
-  - it: "should not set OTEL env vars when collector is disabled and no tracing/metrics"
+  - it: "should not set OTEL env vars when collectorStrategy is none"
     set:
       telemetry:
-        tracing: false
-        metrics: false
-        violations:
-          collector:
-            enabled: false
+        collectorStrategy: none
     asserts:
       - notContains:
           path: "spec.template.spec.containers[0].env"
@@ -236,19 +231,10 @@ tests:
             name: OTEL_EXPORTER_OTLP_ENDPOINT
           any: true
 
-  - it: "should prefer collector env vars over custom when collector is enabled"
+  - it: "should reject invalid collectorStrategy values"
     set:
       telemetry:
-        tracing: true
-        mode: custom
-        violations:
-          collector:
-            enabled: true
-        custom:
-          endpoint: "https://my-collector:4317"
+        collectorStrategy: "invalid"
     asserts:
-      - contains:
-          path: "spec.template.spec.containers[0].env"
-          content:
-            name: OTEL_EXPORTER_OTLP_ENDPOINT
-            value: "https://RELEASE-NAME-runtime-enforcer-otel-collector.NAMESPACE.svc.cluster.local:4317"
+      - failedTemplate:
+          errorPattern: collectorStrategy

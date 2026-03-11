@@ -62,71 +62,48 @@ questions:
     show_if: learning.enabled=true
 
   ###############################################################################
-  # OpenTelemetry
+  # Telemetry
   ###############################################################################
-  - variable: telemetry.mode
-    type: string
-    default: custom
+  - variable: telemetry.collectorStrategy
+    type: enum
+    options:
+      - none
+      - default
+      - external
+    default: default
     required: true
-    label: Telemetry mode
+    label: Collector Strategy
     description: |
-      Custom mode will allow you to configure the OpenTelemetry Collector by your own and runtime enforcer will send data to it.
-    group: OpenTelemetry
+      "none" disables telemetry collection. "default" deploys a built-in OpenTelemetry collector. "external" sends telemetry to a user-provided collector.
+    group: Telemetry
 
-  - variable: telemetry.metrics
-    type: boolean
-    default: false
-    required: true
-    label: Enable Metrics
-    description: |
-      Enable metrics collection for all components installed by runtime enforcer.
-      Important: Requires OpenTelemetry CRDs available.
-    group: OpenTelemetry
-
-  - variable: telemetry.tracing
-    type: boolean
-    default: false
-    required: true
-    label: Enable Tracing
-    description: |
-      Enable tracing collection for all components installed by runtime enforcer.
-      Important: Requires OpenTelemetry CRDs available.
-    group: OpenTelemetry
-
-  - variable: telemetry.custom.endpoint
+  - variable: telemetry.externalCollector.endpoint
     type: string
     default: ""
-    label: OpenTelemetry endpoint
+    label: External Collector Endpoint
     description: |
-      Endpoint of the OpenTelemetry collector.
-    group: OpenTelemetry
-    show_if: telemetry.mode=custom
+      Endpoint of the external OpenTelemetry collector (e.g. https://<hostname>:<port>).
+    group: Telemetry
+    show_if: telemetry.collectorStrategy=external
 
-  - variable: telemetry.custom.insecure
-    type: boolean
-    default: false
-    label: Insecure communication
-    description: |
-      Disable TLS verification for the OpenTelemetry collector.
-    group: OpenTelemetry
-    show_if: telemetry.mode=custom
-
-  - variable: telemetry.custom.otelCollectorCertificateSecret
+  - variable: telemetry.externalCollector.otelCollectorCertificateSecret
     type: string
     default: ""
     label: Certificate secret
     description: |
-      Secret containing the certificate for the OpenTelemetry collector.
+      Secret containing the CA certificate for the external OpenTelemetry collector.
       The secret should contain the key `ca.crt`.
-    group: OpenTelemetry
-    show_if: telemetry.mode=custom && telemetry.custom.insecure=false
+      If not set, TLS verification is disabled (insecure mode).
+    group: Telemetry
+    show_if: telemetry.collectorStrategy=external
 
-  - variable: telemetry.custom.otelCollectorClientCertificateSecret
+  - variable: telemetry.externalCollector.otelCollectorClientCertificateSecret
     type: string
     default: ""
     label: Client certificate secret
     description: |
-      Secret containing the client certificate for the OpenTelemetry collector (mTLS).
+      Secret containing the client certificate for the external OpenTelemetry collector (mTLS).
       The secret should contain the keys `tls.crt` and `tls.key`.
-    group: OpenTelemetry
-    show_if: telemetry.mode=custom && telemetry.custom.insecure=false
+    group: Telemetry
+    show_if: telemetry.collectorStrategy=external
+

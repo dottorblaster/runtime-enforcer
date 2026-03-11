@@ -154,58 +154,38 @@ learning:
   namespaceSelectorObject: {}
 
 telemetry:
-  # runtime-enforcer telemetry configuration allow one OpenTelemetry
-  # collector communication options: 
-  # - custom: It will configure the controller and policy server to send metrics
-  # and traces to a custom collector
-
-  # The default configuration is to use the custom option.
-  mode: custom
-  # telemetry.metrics is used to enable/disable the metrics collection and
-  # exportation to the OpenTelemetry collector.
-  metrics: false
-  # telemetry.tracing is used to enable/disable the tracing collection and
-  # exportation to the OpenTelemetry collector.
-  tracing: false
-
-  violations:
-    collector:
-      enabled: true
-      image:
-        repository: otel/opentelemetry-collector-contrib
-        tag: "0.145.0"
-        pullPolicy: IfNotPresent
-      resources:
-        limits:
-          cpu: 250m
-          memory: 128Mi
-        requests:
-          cpu: 10m
-          memory: 64Mi
-
-  # The following settings are mandatory to configure the OpenTelemetry
-  # exporter in the controller and policy server to send metrics and traces to
-  # a custom collector.
-  custom:
-    # telemetry.custom.endpoint is the Otel collector endpoint to send metrics and
+  collectorStrategy: "default" # @schema enum: [none, default, external]
+  defaultCollector:
+    image:
+      repository: otel/opentelemetry-collector-contrib
+      tag: "0.145.0"
+      pullPolicy: IfNotPresent
+    resources:
+      limits:
+        cpu: 250m
+        memory: 128Mi
+      requests:
+        cpu: 10m
+        memory: 64Mi
+  externalCollector:
+    # telemetry.externalCollector.endpoint is the Otel collector endpoint to send metrics and
     # traces to. It should be in the format https://<hostname>:<port>.
     endpoint: ""
-    # telemetry.custom.insecure is used to configure the OpenTelemetry exporter to skip
-    # the certificate validation when sending metrics and traces to a remote
-    # collector.
-    insecure: false
     # The following settings are required to configure the OpenTelemetry exporter
     # in the controller and policy server to send metrics and traces to a remote
     # collector using TLS. Both secrets must be created in the same namespace
     # where the controller is deployed.
     #
-    # telemetry.custom.otelCollectorCertificateSecret should contains a key ca.crt
-    # storing the certifcate to validate the remote collector certificate.
+    # If otelCollectorCertificateSecret is not set, TLS verification is disabled
+    # (insecure mode). When set, the certificate is used to validate the remote
+    # collector.
+    #
+    # telemetry.externalCollector.otelCollectorCertificateSecret should contain a key ca.crt
+    # storing the certificate to validate the remote collector certificate.
     otelCollectorCertificateSecret: ""
-    # telemetry.custom.otelCollectorClientCertificateSecret secret is optional. It's
-    # only required when the remote collector requires client authentication
-    # (mTLS). It should contains two keys: tls.crt and tls.key storing the client
-    # certificate and key respectively.
+    # telemetry.externalCollector.otelCollectorClientCertificateSecret is optional.
+    # Only required when the remote collector requires client authentication (mTLS).
+    # The secret should contain the keys `tls.crt` and `tls.key`.
     otelCollectorClientCertificateSecret: ""
 
 # ValidatingAdmissionPolicy for Pod policy validation

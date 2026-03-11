@@ -114,3 +114,9 @@ func TestRollingUpdate(t *testing.T) {
 
 	testEnv.Test(t, getRollingUpdateTest())
 }
+
+func TestOtelCollector(t *testing.T) {
+	t.Log("test OTEL collector violation metrics")
+
+	testEnv.Test(t, getOtelCollectorTest())
+}

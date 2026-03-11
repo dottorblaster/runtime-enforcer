@@ -1,4 +1,4 @@
-{{- if .Values.telemetry.violations.collector.enabled }}
+{{- if eq .Values.telemetry.collectorStrategy "default" }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -35,12 +35,6 @@ data:
         verbosity: normal
       prometheus:
         endpoint: 0.0.0.0:9090
-      {{- if .Values.telemetry.custom.endpoint }}
-      otlp:
-        endpoint: {{ .Values.telemetry.custom.endpoint }}
-        tls:
-          insecure: {{ .Values.telemetry.custom.insecure | default false }}
-      {{- end }}
     service:
       extensions: [health_check]
       pipelines:
@@ -51,7 +45,4 @@ data:
           receivers: [count]
           processors: [deltatocumulative]
           exporters: [prometheus]
-        traces:
-          receivers: [otlp]
-          exporters: [{{ if .Values.telemetry.custom.endpoint }}otlp{{ else }}debug{{ end }}]
 {{- end }}

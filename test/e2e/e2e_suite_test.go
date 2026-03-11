@@ -26,8 +26,9 @@ const (
 	helmRepoNotFoundString  = "no repo named"
 	helmRepoReleaseNotFound = "release: not found"
 
-	runtimeEnforcerE2EPrefix = "run-enf-e2e-"
-	runtimeEnforcerNamespace = runtimeEnforcerE2EPrefix + "runtime-enforcer"
+	runtimeEnforcerE2EPrefix    = "run-enf-e2e-"
+	runtimeEnforcerNamespace    = runtimeEnforcerE2EPrefix + "runtime-enforcer"
+	otelCollectorDeploymentName = "runtime-enforcer-otel-collector"
 )
 
 func useExistingCluster() bool {

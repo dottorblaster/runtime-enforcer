@@ -1,4 +1,4 @@
-{{- if .Values.telemetry.violations.collector.enabled }}
+{{- if eq .Values.telemetry.collectorStrategy "default" }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -26,8 +26,8 @@ spec:
       {{- end }}
       containers:
       - name: otel-collector
-        image: {{ .Values.telemetry.violations.collector.image.repository }}:{{ .Values.telemetry.violations.collector.image.tag }}
-        imagePullPolicy: {{ .Values.telemetry.violations.collector.image.pullPolicy }}
+        image: {{ .Values.telemetry.defaultCollector.image.repository }}:{{ .Values.telemetry.defaultCollector.image.tag }}
+        imagePullPolicy: {{ .Values.telemetry.defaultCollector.image.pullPolicy }}
         command:
         - /otelcol-contrib
         - --config=/etc/otel/config.yaml
@@ -46,7 +46,7 @@ spec:
           httpGet:
             path: /
             port: 13133
-        resources: {{- toYaml .Values.telemetry.violations.collector.resources | nindent 10 }}
+        resources: {{- toYaml .Values.telemetry.defaultCollector.resources | nindent 10 }}
         securityContext:
           runAsNonRoot: true
           runAsUser: 10001

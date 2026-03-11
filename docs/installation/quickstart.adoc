@@ -323,29 +323,13 @@ protect 37298bcde8726ade2516b5d3c63aa663 cb28aa0b03259160 evt.time=2026-01-14T10
 
 == Advanced Configuration
 
-=== Forward traces to an external collector
+=== Use an external collector
 
-To forward traces to an external OTEL collector (e.g. for ingestion into Jaeger or Tempo), set the `telemetry.custom.endpoint`:
-
-```bash
-helm upgrade runtime-enforcer runtime-enforcer/runtime-enforcer \
-  --namespace runtime-enforcer \
-  --set telemetry.tracing=true \
-  --set telemetry.custom.endpoint=https://my-collector.example.com:4317 \
-  --set telemetry.custom.insecure=false
-```
-
-The standalone collector will forward traces to the configured endpoint while continuing to process violation events into Prometheus metrics locally.
-
-=== Disable the standalone collector and use an external collector directly
-
-If you already have an OTEL collector deployed in your cluster, you can disable the standalone collector and point the agent at an external one via the `telemetry.custom.endpoint`:
+If you already have an OTEL collector deployed in your cluster, you can use the `external` collector strategy to point the agent directly at it:
 
 ```bash
 helm upgrade runtime-enforcer runtime-enforcer/runtime-enforcer \
   --namespace runtime-enforcer \
-  --set telemetry.violations.collector.enabled=false \
-  --set telemetry.tracing=true \
-  --set telemetry.custom.endpoint=http://otel-collector.otel-collector.svc.cluster.local:4317 \
-  --set telemetry.custom.insecure=true
+  --set telemetry.collectorStrategy=external \
+  --set telemetry.externalCollector.endpoint=https://otel-collector.otel-collector.svc.cluster.local:4317 \
 ```
