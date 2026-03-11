@@ -33,6 +33,10 @@ data:
     exporters:
       debug:
         verbosity: normal
+      file:
+        path: /dev/stdout
+        format: json
+        flush_interval: 1s
       prometheus:
         endpoint: 0.0.0.0:9090
     service:
@@ -40,7 +44,7 @@ data:
       pipelines:
         logs:
           receivers: [otlp]
-          exporters: [count, debug]
+          exporters: [count, debug, file]
         metrics:
           receivers: [count]
           processors: [deltatocumulative]

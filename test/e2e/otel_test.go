@@ -18,6 +18,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/portforward"
@@ -90,11 +91,37 @@ func getOtelCollectorTest() types.Feature {
 
 				return ctx
 			}).
-		Assess("violations produce Prometheus metrics on the collector",
-			func(ctx context.Context, t *testing.T, config *envconf.Config) context.Context {
+		Assess("OTEL collector log stream is started",
+			func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
+				r := ctx.Value(key("client")).(*resources.Resources)
+
+				collectorPodName, err := findPod(ctx, runtimeEnforcerNamespace, otelCollectorDeploymentName)
+				require.NoError(t, err, "should find OTEL collector pod")
+
+				ctx = context.WithValue(ctx, key("collectorPodName"), collectorPodName)
+
+				clientset, err := kubernetes.NewForConfig(r.GetConfig())
+				require.NoError(t, err)
+
+				stream, err := clientset.CoreV1().
+					Pods(runtimeEnforcerNamespace).
+					GetLogs(collectorPodName, &corev1.PodLogOptions{Follow: true}).
+					Stream(ctx)
+				require.NoError(t, err, "should open log stream to collector pod")
+
+				otelLogStream := NewOtelLogStream(stream)
+				go func() {
+					_ = otelLogStream.Start(ctx, t)
+				}()
+
+				return context.WithValue(ctx, key("otelLogStream"), otelLogStream)
+			}).
+		Assess("violations produce OTEL log records with expected attributes",
+			func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
 				namespace := ctx.Value(key("namespace")).(string)
 				expectedPodName := ctx.Value(key("targetPodName")).(string)
 				r := ctx.Value(key("client")).(*resources.Resources)
+				otelLogStream := ctx.Value(key("otelLogStream")).(*OtelLogStream)
 
 				// Create a monitor-mode policy so the violation is recorded but
 				// the command is not blocked (we need it to succeed so exec
@@ -129,7 +156,49 @@ func getOtelCollectorTest() types.Feature {
 					[]string{"/usr/bin/sh", "-c", "/usr/bin/apt update"}, &stdout, &stderr)
 				require.NoError(t, err)
 
-				// Wait for the violation to appear in WorkloadPolicy status first.
+				// Verify that the violation appears as an individual OTEL log
+				// record with the expected attributes on the collector's file
+				// exporter output.
+				t.Log("waiting for violation log record on OTEL collector and verifying attributes")
+				err = otelLogStream.WaitUntil(ctx, DefaultOperationTimeout, func(rec *otlpLogRecord) bool {
+					exePath, ok := LogRecordAttribute(rec, "proc.exepath")
+					if !ok || exePath != "/usr/bin/apt" {
+						return false
+					}
+
+					policyName, _ := LogRecordAttribute(rec, "policy.name")
+					assert.Equal(t, "test-policy", policyName, "policy.name attribute")
+
+					nsName, _ := LogRecordAttribute(rec, "k8s.namespace.name")
+					assert.Equal(t, namespace, nsName, "k8s.namespace.name attribute")
+
+					podName, _ := LogRecordAttribute(rec, "k8s.pod.name")
+					assert.Equal(t, expectedPodName, podName, "k8s.pod.name attribute")
+
+					action, _ := LogRecordAttribute(rec, "action")
+					assert.Equal(t, policymode.MonitorString, action, "action attribute")
+
+					_, hasNodeName := LogRecordAttribute(rec, "node.name")
+					assert.True(t, hasNodeName, "node.name attribute should be present")
+
+					_, hasContainerName := LogRecordAttribute(rec, "container.name")
+					assert.True(t, hasContainerName, "container.name attribute should be present")
+
+					return true
+				})
+				require.NoError(t, err, "should receive an OTEL log record for /usr/bin/apt violation")
+
+				ctx = context.WithValue(ctx, key("policy"), policy)
+
+				return ctx
+			}).
+		Assess("violations produce Prometheus metrics on the collector",
+			func(ctx context.Context, t *testing.T, config *envconf.Config) context.Context {
+				namespace := ctx.Value(key("namespace")).(string)
+				policy := ctx.Value(key("policy")).(*v1alpha1.WorkloadPolicy)
+				collectorPodName := ctx.Value(key("collectorPodName")).(string)
+
+				// Wait for the violation to appear in WorkloadPolicy status.
 				// This confirms the gRPC scrape path works and gives the OTEL
 				// pipeline enough time to process the event.
 				t.Log("waiting for violation to appear in WorkloadPolicy status")
@@ -139,15 +208,16 @@ func getOtelCollectorTest() types.Feature {
 						Namespace: namespace,
 					},
 				}
-				err = wait.For(conditions.New(r).ResourceMatch(policyToCheck, func(obj k8s.Object) bool {
+				err := wait.For(conditions.New(
+					ctx.Value(key("client")).(*resources.Resources),
+				).ResourceMatch(policyToCheck, func(obj k8s.Object) bool {
 					wp, ok := obj.(*v1alpha1.WorkloadPolicy)
 					if !ok || len(wp.Status.Violations) == 0 {
 						return false
 					}
 					for _, v := range wp.Status.Violations {
 						if v.ExecutablePath == "/usr/bin/apt" &&
-							v.Action == policymode.MonitorString &&
-							v.PodName == expectedPodName {
+							v.Action == policymode.MonitorString {
 							return true
 						}
 					}
@@ -159,9 +229,6 @@ func getOtelCollectorTest() types.Feature {
 				// runtime_enforcer_violations_total metric.
 				t.Log("querying OTEL collector Prometheus endpoint for violation metrics")
 
-				collectorPodName, err := findPod(ctx, runtimeEnforcerNamespace, otelCollectorDeploymentName)
-				require.NoError(t, err, "should find OTEL collector pod")
-
 				localPort, stopCh, err := portForwardPod(
 					config, runtimeEnforcerNamespace, collectorPodName, 9090,
 				)
@@ -171,9 +238,6 @@ func getOtelCollectorTest() types.Feature {
 				promURL := fmt.Sprintf("http://localhost:%d/metrics", localPort)
 
 				// Poll the Prometheus endpoint until the violation metric appears.
-				// The OTEL pipeline is asynchronous: the agent batches events, the
-				// collector processes them through the count connector and
-				// deltatocumulative processor before they appear on /metrics.
 				var metricsBody string
 				require.Eventually(t, func() bool {
 					body, fetchErr := fetchURL(promURL)
@@ -193,13 +257,19 @@ func getOtelCollectorTest() types.Feature {
 				assertMetricHasLabel(t, metricsBody, "runtime_enforcer_violations", "policy_name", "test-policy")
 				assertMetricHasLabel(t, metricsBody, "runtime_enforcer_violations", "k8s_namespace_name", namespace)
 				assertMetricHasLabel(t, metricsBody, "runtime_enforcer_violations", "action", policymode.MonitorString)
-				// node_name is set dynamically; just verify the label is present.
 				assertMetricHasLabelKey(t, metricsBody, "runtime_enforcer_violations", "node_name")
 
 				deleteWorkloadPolicy(ctx, t, policy.DeepCopy())
 
 				return ctx
 			}).
+		Teardown(func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
+			t.Log("stopping OTEL log stream")
+			if otelLogStream, ok := ctx.Value(key("otelLogStream")).(*OtelLogStream); ok && otelLogStream != nil {
+				otelLogStream.Stop()
+			}
+			return ctx
+		}).
 		Teardown(func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
 			t.Log("uninstalling test resources")
 			namespace := ctx.Value(key("namespace")).(string)
