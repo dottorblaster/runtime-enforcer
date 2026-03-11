@@ -53,9 +53,10 @@ type otlpLogsData struct {
 // exporter. Parsed log records are sent to a buffered channel so that tests
 // can consume them via WaitUntil.
 type OtelLogStream struct {
-	stream  io.ReadCloser
-	records chan *otlpLogRecord
-	cancel  context.CancelFunc
+	stream       io.ReadCloser
+	records      chan *otlpLogRecord
+	cancel       context.CancelFunc
+	jsonLinesSeen int
 }
 
 func NewOtelLogStream(stream io.ReadCloser) *OtelLogStream {
@@ -103,6 +104,20 @@ func (s *OtelLogStream) Start(ctx context.Context, t *testing.T) error {
 		}
 
 		records := s.parseLogRecords(line)
+
+		// Log the first few JSON lines for diagnostics regardless of
+		// whether they produced records, so we can see the actual format
+		// if parsing fails.
+		s.jsonLinesSeen++
+		if s.jsonLinesSeen <= 3 {
+			truncated := string(line)
+			if len(truncated) > 256 {
+				truncated = truncated[:256] + "..."
+			}
+			t.Logf("OtelLogStream: JSON line #%d (parsed %d records): %s",
+				s.jsonLinesSeen, len(records), truncated)
+		}
+
 		for i := range records {
 			s.records <- &records[i]
 		}

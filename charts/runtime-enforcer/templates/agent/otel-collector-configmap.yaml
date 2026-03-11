@@ -36,6 +36,7 @@ data:
       file:
         path: /dev/stdout
         format: json
+        flush_interval: 1s
       prometheus:
         endpoint: 0.0.0.0:9090
     service:
