@@ -24,7 +24,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
-	"github.com/rancher-sandbox/runtime-enforcer/internal/traces"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/violationbuf"
 	otellog "go.opentelemetry.io/otel/log"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -346,8 +345,6 @@ func main() {
 	var err error
 	config := parseFlags()
 
-	var traceShutdown func(context.Context) error
-
 	ctx := ctrl.SetupSignalHandler()
 
 	slogHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: parseLogLevel(config.logLevel)})
@@ -357,13 +354,6 @@ func main() {
 
 	var eventShutdown func(context.Context) error
 	if config.otlpEndpoint != "" {
-		// Start otel traces
-		traceShutdown, err = traces.Init()
-		if err != nil {
-			slogger.ErrorContext(ctx, "failed to initiate open telemetry trace", "error", err)
-			os.Exit(1)
-		}
-
 		var violationLogger otellog.Logger
 		violationLogger, eventShutdown, err = events.Init(
 			ctx,
@@ -384,12 +374,6 @@ func main() {
 	if err = startAgent(ctx, slogger, config); err != nil {
 		slogger.ErrorContext(ctx, "failed to start agent", "error", err)
 		os.Exit(1)
-	}
-
-	if traceShutdown != nil {
-		if err = traceShutdown(ctx); err != nil {
-			slogger.ErrorContext(ctx, "failed to shutdown telemetry trace", "error", err)
-		}
 	}
 
 	if eventShutdown != nil {
