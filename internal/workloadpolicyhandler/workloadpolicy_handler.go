@@ -69,7 +69,7 @@ func (r *WorkloadPolicyHandler) Reconcile(
 		return ctrl.Result{}, nil
 	}
 
-	if err = r.resolver.HandleWPUpdate(&wp); err != nil {
+	if err = r.resolver.ReconcileWP(&wp); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to update WorkloadPolicy '%s': %w", req.NamespacedName, err)
 	}
 

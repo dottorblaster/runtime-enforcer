@@ -54,7 +54,7 @@ func TestHandleWP_Lifecycle(t *testing.T) {
 	r.mu.Unlock()
 
 	// Add
-	require.NoError(t, r.HandleWPUpdate(wp))
+	require.NoError(t, r.ReconcileWP(wp))
 	require.Contains(t, r.wpState, key)
 	state := r.wpState[key]
 	require.Len(t, state.polByContainer, 2)
@@ -83,7 +83,7 @@ func TestHandleWP_Lifecycle(t *testing.T) {
 	wp.Spec.RulesByContainer[c3] = &v1alpha1.WorkloadPolicyRules{
 		Executables: v1alpha1.WorkloadPolicyExecutables{Allowed: []string{"/bin/ls"}},
 	}
-	require.NoError(t, r.HandleWPUpdate(wp))
+	require.NoError(t, r.ReconcileWP(wp))
 	state = r.wpState[key]
 	require.Len(t, state.polByContainer, 2)
 	require.NotContains(t, state.polByContainer, c1)

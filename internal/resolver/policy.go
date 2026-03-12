@@ -173,11 +173,11 @@ func (r *Resolver) syncWorkloadPolicy(wp *v1alpha1.WorkloadPolicy) (policyByCont
 	return newContainers, nil
 }
 
-// HandleWPUpdate reinforces the workload policy from the current spec, removes containers
+// ReconcileWP enforces the workload policy from the current spec, removes containers
 // that are no longer in the spec, then applies policy to all matching pods.
-func (r *Resolver) HandleWPUpdate(wp *v1alpha1.WorkloadPolicy) error {
+func (r *Resolver) ReconcileWP(wp *v1alpha1.WorkloadPolicy) error {
 	r.logger.Info(
-		"update-wp-policy",
+		"reconcile wp-policy",
 		"name", wp.Name,
 		"namespace", wp.Namespace,
 	)
