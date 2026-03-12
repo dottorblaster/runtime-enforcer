@@ -114,7 +114,7 @@ func (r *WorkloadPolicyStatusSync) sync(
 	}
 
 	if len(wpList.Items) == 0 {
-		r.logger.Info("No WorkloadPolicies found, retrying later")
+		r.logger.V(1).Info("No WorkloadPolicies found, retrying later")
 		return nil
 	}
 
