@@ -16,7 +16,7 @@ operator:
       - ALL
   image:
     repository: ghcr.io/rancher-sandbox/runtime-enforcer/operator
-    tag: v0.3.0
+    tag: v0.4.0
     pullPolicy: IfNotPresent
   # To make the Pods "Guaranteed" (evicted last under node pressure), kubelet requires
   # requests and limits are specified for all the containers and they are equal.
@@ -87,7 +87,7 @@ agent:
         - ALL
   image:
     repository: ghcr.io/rancher-sandbox/runtime-enforcer/agent
-    tag: v0.3.0
+    tag: v0.4.0
     pullPolicy: IfNotPresent
   grpcExporterPort: "50051"
   # agent logger level. Can be one of: debug, info, warn, error.
