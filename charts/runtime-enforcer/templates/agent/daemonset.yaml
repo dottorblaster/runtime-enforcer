@@ -57,11 +57,15 @@ spec:
         {{- if eq .Values.telemetry.collectorStrategy "default" }}
         - name: OTEL_EXPORTER_OTLP_ENDPOINT
           value: https://{{ include "runtime-enforcer.fullname" . }}-otel-collector.{{ .Release.Namespace }}.svc.cluster.local:4317
+        - name: OTEL_EXPORTER_OTLP_PROTOCOL
+          value: grpc
         - name: OTEL_EXPORTER_OTLP_CERTIFICATE
           value: {{ include "runtime-enforcer.grpc.certDir" . }}/ca.crt
         {{- else if eq .Values.telemetry.collectorStrategy "external" }}
         - name: OTEL_EXPORTER_OTLP_ENDPOINT
           value: {{ .Values.telemetry.externalCollector.endpoint }}
+        - name: OTEL_EXPORTER_OTLP_PROTOCOL
+          value: {{ .Values.telemetry.externalCollector.protocol }}
         {{- if .Values.telemetry.externalCollector.otelCollectorCertificateSecret }}
         - name: OTEL_EXPORTER_OTLP_CERTIFICATE
           value: /tmp/otel-collector-certs/ca.crt

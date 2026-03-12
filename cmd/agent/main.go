@@ -42,6 +42,7 @@ type Config struct {
 	grpcConf                  grpcexporter.Config
 	logLevel                  string
 	otlpEndpoint              string
+	otlpProtocol              string
 	otlpCACert                string
 	otlpClientCert            string
 	otlpClientKey             string
@@ -337,6 +338,8 @@ func parseFlags() Config {
 	)
 	flag.StringVar(&config.nodeName, "node-name", os.Getenv("NODE_NAME"),
 		"Node name for violation reporting (defaults to NODE_NAME env var)")
+	flag.StringVar(&config.otlpProtocol, "otlp-protocol", os.Getenv("OTEL_EXPORTER_OTLP_PROTOCOL"),
+		"OTLP protocol (defaults to OTEL_EXPORTER_OTLP_PROTOCOL env var)")
 	flag.Parse()
 	return config
 }
@@ -361,6 +364,7 @@ func main() {
 			config.otlpCACert,
 			config.otlpClientCert,
 			config.otlpClientKey,
+			config.otlpProtocol,
 		)
 		if err != nil {
 			slogger.ErrorContext(ctx, "failed to initiate violation event pipeline", "error", err)

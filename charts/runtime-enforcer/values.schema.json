@@ -435,6 +435,13 @@
                         },
                         "otelCollectorClientCertificateSecret": {
                             "type": "string"
+                        },
+                        "protocol": {
+                            "type": "string",
+                            "enum": [
+                                "grpc",
+                                "http/protobuf"
+                            ]
                         }
                     },
                     "additionalProperties": false
