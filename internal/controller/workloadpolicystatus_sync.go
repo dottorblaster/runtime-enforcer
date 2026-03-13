@@ -12,7 +12,6 @@ import (
 	"github.com/rancher-sandbox/runtime-enforcer/internal/grpcexporter"
 	pb "github.com/rancher-sandbox/runtime-enforcer/proto/agent/v1"
 
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -36,20 +35,15 @@ type nodesInfoMap map[string]nodeInfo
 type WorkloadPolicyStatusSync struct {
 	client.Client
 
-	conns              map[string]grpcexporter.AgentClientAPI
-	agentClientFactory *grpcexporter.AgentClientFactory
-	updateInterval     time.Duration
-	agentNamespace     string
-	agentLabelSelector map[string]string
-	logger             logr.Logger
+	agentClientPool *grpcexporter.AgentClientPool
+	updateInterval  time.Duration
+	logger          logr.Logger
 }
 
 // WorkloadPolicyStatusSyncConfig holds the configuration for the WorkloadPolicyStatusSync.
 type WorkloadPolicyStatusSyncConfig struct {
-	AgentGRPCConf      grpcexporter.AgentFactoryConfig
-	UpdateInterval     time.Duration
-	AgentNamespace     string
-	AgentLabelSelector string
+	AgentPoolConf  grpcexporter.AgentClientPoolConfig
+	UpdateInterval time.Duration
 }
 
 func NewWorkloadPolicyStatusSync(
@@ -60,30 +54,15 @@ func NewWorkloadPolicyStatusSync(
 		return nil, fmt.Errorf("invalid update interval: %v", config.UpdateInterval)
 	}
 
-	agentLabelSelector := make(map[string]string)
-	labels := strings.SplitSeq(config.AgentLabelSelector, ",")
-	for label := range labels {
-		parts := strings.Split(label, "=")
-		if len(parts) != 2 { //nolint:mnd // label is composed of 2 parts
-			return nil, fmt.Errorf("label should be in the format 'key=value': %s. Invalid selector %s",
-				label,
-				config.AgentLabelSelector)
-		}
-		agentLabelSelector[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
-	}
-
-	factory, err := grpcexporter.NewAgentClientFactory(&config.AgentGRPCConf)
+	agentClientPool, err := grpcexporter.NewAgentClientPool(config.AgentPoolConf)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create agent client factory: %w", err)
+		return nil, fmt.Errorf("failed to create agent client pool: %w", err)
 	}
 
 	return &WorkloadPolicyStatusSync{
-		Client:             c,
-		conns:              make(map[string]grpcexporter.AgentClientAPI),
-		agentClientFactory: factory,
-		updateInterval:     config.UpdateInterval,
-		agentNamespace:     config.AgentNamespace,
-		agentLabelSelector: agentLabelSelector,
+		Client:          c,
+		agentClientPool: agentClientPool,
+		updateInterval:  config.UpdateInterval,
 	}, nil
 }
 
@@ -118,39 +97,21 @@ func (r *WorkloadPolicyStatusSync) sync(
 		return nil
 	}
 
-	// Get all pods with the agent label in the agent namespace
-	var podList corev1.PodList
-	if err := r.List(ctx, &podList,
-		client.InNamespace(r.agentNamespace),
-		client.MatchingLabels(r.agentLabelSelector),
-	); err != nil {
+	clients, err := r.agentClientPool.UpdatePool(ctx, r.Client)
+	if err != nil {
 		return err
 	}
+	nodesInfo := make(nodesInfoMap, len(clients))
 
-	r.logger.V(1).Info("List agent pods", "numPods", len(podList.Items))
-	if len(podList.Items) == 0 {
-		// we should have pods running the agent, so if we don't find any, we return an error
-		return errors.New("no agent pods found")
-	}
-
-	// remove stale connections.
-	r.gcStaleConnections(&podList)
-
-	nodesInfo := make(nodesInfoMap, len(podList.Items))
-
-	for _, pod := range podList.Items {
-		if !isPodReady(&pod) {
-			r.logger.Info("Pod not ready, retrying later", "pod", pod.Name)
-			// In this list we can have multiple pods for a single node if we are in the middle of an update.
-			// one of them should have the list of policies, so we put nil only there are no entries.
-			if _, exists := nodesInfo[pod.Spec.NodeName]; !exists {
-				nodesInfo[pod.Spec.NodeName] = nodeInfo{
-					policies: nil,
-					issue: v1alpha1.NodeIssue{
-						Code:    v1alpha1.NodeIssuePodNotReady,
-						Message: fmt.Sprintf("pod: %s is not ready, phase: %s", pod.Name, pod.Status.Phase),
-					},
-				}
+	for nodeName, client := range clients {
+		if client == nil {
+			r.logger.Info("cannot get a agent client for the node", "node", nodeName)
+			nodesInfo[nodeName] = nodeInfo{
+				policies: nil,
+				issue: v1alpha1.NodeIssue{
+					Code:    v1alpha1.NodeIssuePodNotReady,
+					Message: "No agent client available",
+				},
 			}
 			continue
 		}
@@ -160,9 +121,12 @@ func (r *WorkloadPolicyStatusSync) sync(
 			Code:    v1alpha1.NodeIssueNone,
 			Message: "",
 		}
-		policies, err := r.getPodPoliciesStatus(ctx, &pod)
+		var policies map[string]*pb.PolicyStatus
+		policies, err = client.ListPoliciesStatus(ctx)
 		if err != nil {
-			r.logger.Error(err, "failed to get pod policies status", "pod", pod.Name)
+			// in case of error we close the connection and we will open a new one at the next sync
+			r.agentClientPool.MarkStaleAgentClient(nodeName)
+			r.logger.Error(err, "failed to get policies status", "node", nodeName)
 			nodeIssue = v1alpha1.NodeIssue{
 				Code:    v1alpha1.NodeIssueMissingPolicy,
 				Message: fmt.Sprintf("cannot list node policies: %v", err),
@@ -170,25 +134,24 @@ func (r *WorkloadPolicyStatusSync) sync(
 		} else if len(policies) == 0 {
 			// if there are no policies for this pod we have an error because in previous steps
 			// we checked that we have policies deployed in the cluster.
-			r.logger.Error(errors.New("empty policy list"), "No policies found", "pod", pod.Name)
+			r.logger.Error(errors.New("empty policy list"), "No policies found", "node", nodeName)
 			nodeIssue = v1alpha1.NodeIssue{
 				Code:    v1alpha1.NodeIssueMissingPolicy,
 				Message: "empty policy list",
 			}
 		}
-		nodesInfo[pod.Spec.NodeName] = nodeInfo{
+		nodesInfo[nodeName] = nodeInfo{
 			policies: policies,
 			issue:    nodeIssue,
 		}
 	}
 
-	violationsByPolicy := r.getViolationsByPolicy(ctx, nodesInfo)
+	violationsByPolicy := r.getViolationsByPolicy(ctx, clients)
 
 	// Now we iterate over all WSPs and update their status based on the collected policies status from the agents
 	for _, wp := range wpList.Items {
 		namespacedName := types.NamespacedName{Namespace: wp.Namespace, Name: wp.Name}
-		err := r.processWorkloadPolicy(ctx, &wp, nodesInfo, violationsByPolicy[namespacedName])
-		if err != nil {
+		if err = r.processWorkloadPolicy(ctx, &wp, nodesInfo, violationsByPolicy[namespacedName]); err != nil {
 			r.logger.Error(
 				err,
 				"failed to process workload policy",
@@ -203,19 +166,17 @@ func (r *WorkloadPolicyStatusSync) sync(
 // getViolationsByPolicy gets all the violations for a single policy.
 func (r *WorkloadPolicyStatusSync) getViolationsByPolicy(
 	ctx context.Context,
-	nodesInfo nodesInfoMap,
+	clients map[string]grpcexporter.AgentClientAPI,
 ) map[types.NamespacedName][]v1alpha1.ViolationRecord {
 	violationsByPolicy := make(map[types.NamespacedName][]v1alpha1.ViolationRecord)
-	for nodeName, info := range nodesInfo {
-		if info.issue.Code != v1alpha1.NodeIssueNone {
+	for nodeName, client := range clients {
+		if client == nil {
+			r.logger.Info("cannot get a agent client for the node", "node", nodeName)
 			continue
 		}
-		agentClient, nodeReady := r.conns[nodeName]
-		if !nodeReady {
-			continue
-		}
-		pbViolations, err := agentClient.ScrapeViolations(ctx)
+		pbViolations, err := client.ScrapeViolations(ctx)
 		if err != nil {
+			r.agentClientPool.MarkStaleAgentClient(nodeName)
 			r.logger.Error(err, "failed to scrape violations", "node", nodeName)
 			continue
 		}

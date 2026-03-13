@@ -3,5 +3,7 @@ operator:
 agent: 
     image: <your-repository>/agent
     enable-otel-tracing: true/false
+debugger:
+    image: <your-repository>/debugger
 clusters:
     - <your non-kind cluster>

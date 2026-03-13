@@ -1,0 +1,53 @@
+{{- if .Values.debugger.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "runtime-enforcer.fullname" . }}-debugger
+  labels:
+    {{- include "runtime-enforcer.labels" . | nindent 4 }}
+    app.kubernetes.io/component: debugger
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "runtime-enforcer.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: debugger
+  template:
+    metadata:
+      labels:
+        {{- include "runtime-enforcer.labels" . | nindent 8 }}
+        app.kubernetes.io/component: debugger
+    spec:
+      serviceAccountName: {{ include "runtime-enforcer.fullname" . }}-debugger
+      containers:
+      - name: debugger
+        image: {{ .Values.debugger.image.repository }}:{{ .Values.debugger.image.tag }}
+        imagePullPolicy: {{ .Values.debugger.image.pullPolicy }}
+        env:
+        - name: DEBUGGER_GRPC_PORT
+          value: {{ .Values.agent.grpcExporterPort | quote }}
+        - name: DEBUGGER_INTERVAL
+          value: {{ .Values.debugger.interval | quote }}
+        - name: DEBUGGER_AGENT_LABEL_SELECTOR
+          value: {{ include "runtime-enforcer.agent.labelSelectorString" . | quote }}
+        - name: DEBUGGER_CERT_DIR
+          value: {{ include "runtime-enforcer.grpc.certDir" . | quote }}
+        {{- with .Values.debugger.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        volumeMounts:
+        - name: grpc-certs
+          mountPath: {{ include "runtime-enforcer.grpc.certDir" . }}
+          readOnly: true
+        securityContext: {{- toYaml .Values.debugger.containerSecurityContext | nindent 10 }}
+      volumes:
+      - name: grpc-certs
+        csi:
+          driver: "csi.cert-manager.io"
+          readOnly: true
+          volumeAttributes:
+            csi.cert-manager.io/issuer-name: {{ include "runtime-enforcer.caIssuerName" . }}
+            csi.cert-manager.io/issuer-kind: Issuer
+            csi.cert-manager.io/dns-names: "runtime-enforcer-debugger"
+{{- end }}

@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/tls"
-	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -30,11 +29,8 @@ import (
 
 	securityv1alpha1 "github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/controller"
+	"github.com/rancher-sandbox/runtime-enforcer/internal/grpcexporter"
 	// +kubebuilder:scaffold:imports
-)
-
-const (
-	namespaceNamePath = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 )
 
 type Config struct {
@@ -69,25 +65,25 @@ func parseArgs(logger *slog.Logger, config *Config) {
 	flag.StringVar(&config.metricsCertKey, "metrics-cert-key", "tls.key", "The name of the metrics server key file.")
 	flag.BoolVar(&config.enableHTTP2, "enable-http2", false,
 		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
-	flag.IntVar(&config.wpStatusSyncConfig.AgentGRPCConf.Port,
+	flag.IntVar(&config.wpStatusSyncConfig.AgentPoolConf.Port,
 		"wp-status-reconciler-agent-grpc-port",
-		0,
+		grpcexporter.DefaultAgentPort,
 		"The port the agent grpc server listens on.")
 	flag.DurationVar(&config.wpStatusSyncConfig.UpdateInterval,
 		"wp-status-reconciler-update-interval",
 		0,
 		"The interval at which the workload policy status reconciler updates the status of WorkloadPolicy resources.")
-	flag.StringVar(&config.wpStatusSyncConfig.AgentLabelSelector,
+	flag.StringVar(&config.wpStatusSyncConfig.AgentPoolConf.LabelSelectorString,
 		"wp-status-reconciler-agent-label-selector",
-		"",
+		grpcexporter.DefaultAgentLabelSelectorString,
 		"The label selector for the agent pods as a comma concatenated string.")
-	flag.BoolVar(&config.wpStatusSyncConfig.AgentGRPCConf.MTLSEnabled,
+	flag.BoolVar(&config.wpStatusSyncConfig.AgentPoolConf.MTLSEnabled,
 		"wp-status-reconciler-agent-grpc-mtls-enabled",
 		true,
 		"Enable mTLS when dialing the agent gRPC endpoint.")
-	flag.StringVar(&config.wpStatusSyncConfig.AgentGRPCConf.CertDirPath,
+	flag.StringVar(&config.wpStatusSyncConfig.AgentPoolConf.CertDirPath,
 		"wp-status-reconciler-agent-grpc-mtls-cert-dir",
-		"",
+		grpcexporter.DefaultCertDirPath,
 		"Path to the directory containing the client and ca TLS certificate.")
 	flag.Parse()
 
@@ -117,16 +113,6 @@ func SetupControllers(logger logr.Logger,
 
 	logger.Info("Setting up WorkloadPolicyStatusSync with",
 		"config", wpStatusSyncConf)
-
-	// get the namespace name from the system
-	data, err := os.ReadFile(namespaceNamePath)
-	if err != nil {
-		return fmt.Errorf("failed to read namespace file: %w", err)
-	}
-	wpStatusSyncConf.AgentNamespace = string(data)
-	if wpStatusSyncConf.AgentNamespace == "" {
-		return errors.New("empty agent namespace")
-	}
 
 	var wpStatusSync *controller.WorkloadPolicyStatusSync
 	if wpStatusSync, err = controller.NewWorkloadPolicyStatusSync(mgr.GetClient(), wpStatusSyncConf); err != nil {
@@ -296,6 +282,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	config.wpStatusSyncConfig.AgentPoolConf.Logger = slog.New(slogHandler).With("component", "agent-pool")
 	if err = SetupControllers(
 		ctrlLogger, mgr, metricsCertWatcher, webhookCertWatcher, &config.wpStatusSyncConfig,
 	); err != nil {

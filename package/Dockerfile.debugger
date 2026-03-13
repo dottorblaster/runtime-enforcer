@@ -1,0 +1,22 @@
+FROM docker.io/library/golang:1.26.1 AS builder
+
+RUN apt update
+RUN apt install -y build-essential libelf-dev clang llvm libbpf-dev
+
+WORKDIR /src
+COPY api/ /src/api
+COPY cmd/ /src/cmd
+COPY pkg/ /src/pkg
+COPY bpf/ /src/bpf/
+COPY proto/ /src/proto
+COPY internal/ /src/internal
+COPY go.mod go.sum /src/
+COPY Makefile /src/
+RUN make debugger
+
+# We use alpine and not `scratch` since it provides a more complete environment.
+FROM alpine
+WORKDIR /
+COPY --from=builder /src/bin/debugger /debugger
+
+ENTRYPOINT ["/debugger"]

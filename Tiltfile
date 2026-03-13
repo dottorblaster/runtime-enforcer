@@ -28,6 +28,7 @@ namespace_create("runtime-enforcer")
 
 operator_image = settings.get("operator").get("image")
 agent_image = settings.get("agent").get("image")
+debugger_image = settings.get("debugger").get("image")
 
 helm_options = [
         "operator.image.repository=" + operator_image,
@@ -37,6 +38,10 @@ helm_options = [
         "operator.podSecurityContext.runAsNonRoot=false",
         "agent.containerSecurityContext.runAsUser=null",
         "agent.podSecurityContext.runAsNonRoot=false",
+        "debugger.enabled=true",
+        "debugger.image.repository=" + debugger_image,
+		# this is necessary to copy the debugger binary under `/debugger`
+        "debugger.containerSecurityContext.runAsUser=null",
 ]
 
 yaml = helm(
@@ -119,5 +124,35 @@ docker_build_with_restart(
     ],
     live_update=[
         sync("./bin/agent", "/agent"),
+    ],
+)
+
+local_resource(
+    "runtime_debugger_tilt",
+    "make debugger",
+    deps=[
+        "go.mod",
+        "go.sum",
+        "cmd/debugger",
+        "api",
+        "internal",
+        "proto",
+    ],
+)
+
+entrypoint = ["/debugger"]
+dockerfile = "./hack/Dockerfile.debugger.tilt"
+
+load("ext://restart_process", "docker_build_with_restart")
+docker_build_with_restart(
+    debugger_image,
+    ".",
+    dockerfile=dockerfile,
+    entrypoint=entrypoint,
+    only=[
+        "./bin/debugger",
+    ],
+    live_update=[
+        sync("./bin/debugger", "/debugger"),
     ],
 )

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -19,19 +20,35 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
+type testLogWriter struct {
+	t *testing.T
+}
+
+func (w *testLogWriter) Write(p []byte) (int, error) {
+	// use the formatted output to avoid the new line
+	w.t.Logf("%s", string(p))
+	return len(p), nil
+}
+
 func createTestWPStatusSync(t *testing.T) *WorkloadPolicyStatusSync {
 	scheme := runtime.NewScheme()
 	corev1.AddToScheme(scheme)
 	v1alpha1.AddToScheme(scheme)
 	cl := fake.NewClientBuilder().WithScheme(scheme).WithObjects().Build()
 	config := &WorkloadPolicyStatusSyncConfig{
-		AgentGRPCConf: grpcexporter.AgentFactoryConfig{
-			Port:        50051,
-			MTLSEnabled: false,
+		AgentPoolConf: grpcexporter.AgentClientPoolConfig{
+			AgentFactoryConfig: grpcexporter.AgentFactoryConfig{
+				Port:        50051,
+				MTLSEnabled: false,
+			},
+			LabelSelectorString: "app=agent",
+			// We explicitly provide a namespace so that this is not computed at runtime.
+			Namespace: "test-namespace",
+			Logger: slog.New(slog.NewJSONHandler(&testLogWriter{t: t}, &slog.HandlerOptions{
+				Level: slog.LevelDebug,
+			})).With("component", "agent-pool"),
 		},
-		UpdateInterval:     1 * time.Second,
-		AgentNamespace:     "test-namespace",
-		AgentLabelSelector: "app=agent",
+		UpdateInterval: 1 * time.Second,
 	}
 
 	r, err := NewWorkloadPolicyStatusSync(cl, config)
@@ -45,14 +62,12 @@ type testAgentClient struct {
 	scrapeErr  error
 }
 
-func newTestAgentClient(policies map[string]*pb.PolicyStatus) *testAgentClient {
-	return &testAgentClient{
-		policies: policies,
-	}
-}
-
 func (c *testAgentClient) ListPoliciesStatus(_ context.Context) (map[string]*pb.PolicyStatus, error) {
 	return c.policies, nil
+}
+
+func (c *testAgentClient) ListPodCache(_ context.Context) ([]*pb.PodView, error) {
+	return nil, nil
 }
 
 func (c *testAgentClient) ScrapeViolations(_ context.Context) ([]*pb.ViolationRecord, error) {
@@ -61,37 +76,6 @@ func (c *testAgentClient) ScrapeViolations(_ context.Context) ([]*pb.ViolationRe
 
 func (c *testAgentClient) Close() error {
 	return nil
-}
-
-func TestGCStaleConnections(t *testing.T) {
-	r := createTestWPStatusSync(t)
-
-	node1, node2, node3 := "node1", "node2", "node3"
-	mockAgentClient := newTestAgentClient(nil)
-
-	// populate the connections for the controller
-	r.conns = map[string]grpcexporter.AgentClientAPI{
-		node1: mockAgentClient,
-		node2: mockAgentClient,
-		node3: mockAgentClient,
-	}
-
-	// node3 is no more present in the cluster we should remove it.
-	podList := &corev1.PodList{
-		Items: []corev1.Pod{
-			{
-				Spec: corev1.PodSpec{NodeName: node1},
-			},
-			{
-				Spec: corev1.PodSpec{NodeName: node2},
-			},
-		},
-	}
-	r.gcStaleConnections(podList)
-	require.Equal(t, map[string]grpcexporter.AgentClientAPI{
-		node1: mockAgentClient,
-		node2: mockAgentClient,
-	}, r.conns)
 }
 
 func TestComputeWpStatus(t *testing.T) {
@@ -353,17 +337,12 @@ func TestGetViolationsByPolicy(t *testing.T) {
 				pbRec("default/policy-b", "pod-3", "node2"),
 			},
 		}
-		r.conns = map[string]grpcexporter.AgentClientAPI{
+		clients := map[string]grpcexporter.AgentClientAPI{
 			"node1": client1,
 			"node2": client2,
 		}
 
-		nodesInfo := nodesInfoMap{
-			"node1": nodeInfo{issue: v1alpha1.NodeIssue{Code: v1alpha1.NodeIssueNone}},
-			"node2": nodeInfo{issue: v1alpha1.NodeIssue{Code: v1alpha1.NodeIssueNone}},
-		}
-
-		got := r.getViolationsByPolicy(context.Background(), nodesInfo)
+		got := r.getViolationsByPolicy(context.Background(), clients)
 
 		nnA := types.NamespacedName{Namespace: "default", Name: "policy-a"}
 		nnB := types.NamespacedName{Namespace: "default", Name: "policy-b"}
@@ -374,56 +353,32 @@ func TestGetViolationsByPolicy(t *testing.T) {
 		require.Equal(t, []v1alpha1.ViolationRecord{apiRec("pod-3", "node2")}, got[nnB])
 	})
 
-	t.Run("skips nodes with issues", func(t *testing.T) {
-		r := createTestWPStatusSync(t)
-
-		client := &testAgentClient{
-			violations: []*pb.ViolationRecord{
-				pbRec("default/policy-a", "pod-1", "node1"),
-			},
-		}
-		r.conns = map[string]grpcexporter.AgentClientAPI{
-			"node1": client,
-		}
-
-		nodesInfo := nodesInfoMap{
-			"node1": nodeInfo{issue: v1alpha1.NodeIssue{Code: v1alpha1.NodeIssueMissingPolicy}},
-		}
-
-		got := r.getViolationsByPolicy(context.Background(), nodesInfo)
-		require.Empty(t, got)
-	})
-
 	t.Run("skips nodes without connection", func(t *testing.T) {
 		r := createTestWPStatusSync(t)
 		// No connections set up.
 
-		nodesInfo := nodesInfoMap{
-			"node1": nodeInfo{issue: v1alpha1.NodeIssue{Code: v1alpha1.NodeIssueNone}},
+		clients := map[string]grpcexporter.AgentClientAPI{
+			"node1": nil, // Simulate no connection to node1
 		}
 
-		got := r.getViolationsByPolicy(context.Background(), nodesInfo)
+		got := r.getViolationsByPolicy(context.Background(), clients)
 		require.Empty(t, got)
 	})
 
 	t.Run("skips node on scrape error", func(t *testing.T) {
 		r := createTestWPStatusSync(t)
 
-		r.conns = map[string]grpcexporter.AgentClientAPI{
+		clients := map[string]grpcexporter.AgentClientAPI{
 			"node1": &testAgentClient{scrapeErr: errors.New("connection refused")},
 		}
 
-		nodesInfo := nodesInfoMap{
-			"node1": nodeInfo{issue: v1alpha1.NodeIssue{Code: v1alpha1.NodeIssueNone}},
-		}
-
-		got := r.getViolationsByPolicy(context.Background(), nodesInfo)
+		got := r.getViolationsByPolicy(context.Background(), clients)
 		require.Empty(t, got)
 	})
 
 	t.Run("empty nodes returns empty map", func(t *testing.T) {
 		r := createTestWPStatusSync(t)
-		got := r.getViolationsByPolicy(context.Background(), nodesInfoMap{})
+		got := r.getViolationsByPolicy(context.Background(), nil)
 		require.Empty(t, got)
 	})
 }

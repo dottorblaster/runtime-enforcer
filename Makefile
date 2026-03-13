@@ -45,8 +45,10 @@ help: ## Display this help.
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) rbac:roleName=operator-role crd webhook paths="./api/v1alpha1" paths="./internal/controller" output:crd:artifacts:config=charts/runtime-enforcer/templates/crd output:rbac:artifacts:config=charts/runtime-enforcer/templates/operator
 	$(CONTROLLER_GEN) rbac:roleName=agent-role paths="./cmd/agent" paths="./internal/eventhandler" paths="./internal/workloadpolicyhandler" output:rbac:artifacts:config=charts/runtime-enforcer/templates/agent
+	$(CONTROLLER_GEN) rbac:roleName=debugger-role paths="./cmd/debugger" output:rbac:artifacts:config=charts/runtime-enforcer/templates/debugger
 	sed -i 's/operator-role/{{ include "runtime-enforcer.fullname" . }}-operator/' charts/runtime-enforcer/templates/operator/role.yaml
 	sed -i 's/agent-role/{{ include "runtime-enforcer.fullname" . }}-agent/' charts/runtime-enforcer/templates/agent/role.yaml
+	sed -i 's/debugger-role/{{ include "runtime-enforcer.fullname" . }}-debugger/' charts/runtime-enforcer/templates/debugger/role.yaml
 	for f in ./charts/runtime-enforcer/templates/crd/*.yaml; do \
 		sed -i '/^[[:space:]]*annotations:/a\    helm.sh\/resource-policy: keep' "$$f"; \
 	done
@@ -64,7 +66,7 @@ build-$(1)-image:
 E2E_DEPS += build-$(1)-image
 endef
 
-TARGET=operator agent
+TARGET=operator agent debugger
 $(foreach T,$(TARGET),$(eval $(call BUILD_template,$(T))))
 
 .PHONY: generate
@@ -154,6 +156,10 @@ kubectl-plugin-cross: ## Build kubectl plugin for all target platforms.
 			./cmd/kubectl-plugin; \
 	done
 	@echo "Cross-build complete. Artifacts in bin/kubectl-plugin/"
+
+.PHONY: debugger
+debugger: generate-ebpf fmt ## Build debugger binary.
+	CGO_ENABLED=0 GOOS=linux go build -o bin/debugger ./cmd/debugger
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.

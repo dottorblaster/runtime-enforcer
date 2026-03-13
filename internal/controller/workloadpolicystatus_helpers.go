@@ -7,59 +7,7 @@ import (
 
 	"github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
 	pb "github.com/rancher-sandbox/runtime-enforcer/proto/agent/v1"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/sets"
 )
-
-func isPodReady(pod *corev1.Pod) bool {
-	for _, cond := range pod.Status.Conditions {
-		if cond.Type == corev1.PodReady && cond.Status == corev1.ConditionTrue {
-			return true
-		}
-	}
-	return false
-}
-
-// gcStaleConnections cleanup stale connections so that we don't indefinitely grow the connection map in case of failures.
-func (r *WorkloadPolicyStatusSync) gcStaleConnections(podList *corev1.PodList) {
-	activeNodes := sets.New[string]()
-	for _, pod := range podList.Items {
-		activeNodes.Insert(pod.Spec.NodeName)
-	}
-
-	for nodeName, c := range r.conns {
-		if activeNodes.Has(nodeName) {
-			continue
-		}
-		_ = c.Close()
-		delete(r.conns, nodeName)
-	}
-}
-
-func (r *WorkloadPolicyStatusSync) getPodPoliciesStatus(
-	ctx context.Context,
-	pod *corev1.Pod,
-) (map[string]*pb.PolicyStatus, error) {
-	// Check if we need to create a new connection or reuse an existing one
-	agentClient, ok := r.conns[pod.Spec.NodeName]
-	if !ok {
-		c, err := r.agentClientFactory.NewClient(pod.Status.PodIP, pod.Name, pod.Namespace)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create connection to pod %s: %w", pod.Name, err)
-		}
-		r.conns[pod.Spec.NodeName] = c
-		agentClient = c
-	}
-
-	resp, err := agentClient.ListPoliciesStatus(ctx)
-	if err != nil {
-		// in case of error we close the connection and we will open a new one at the next sync
-		_ = agentClient.Close()
-		delete(r.conns, pod.Spec.NodeName)
-		return nil, fmt.Errorf("failed to list policies status for pod %s: %w", pod.Name, err)
-	}
-	return resp, nil
-}
 
 func convertToPolicyMode(mode string) pb.PolicyMode {
 	switch mode {

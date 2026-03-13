@@ -135,6 +135,11 @@ func TestMain(m *testing.M) {
 				"--verbose",
 				"--mode",
 				"direct"),
+			envfuncs.LoadImageToCluster(kindClusterName,
+				"ghcr.io/rancher-sandbox/runtime-enforcer/debugger:latest",
+				"--verbose",
+				"--mode",
+				"direct"),
 		}, commonSetupFuncs...)
 
 		// For the cleanup we need to prepend the log exporter and append the cluster destruction

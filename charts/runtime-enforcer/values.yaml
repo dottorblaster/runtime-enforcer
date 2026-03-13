@@ -136,6 +136,28 @@ kubernetesClusterDomain: cluster.local
 ## Ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
 imagePullSecrets: []
 
+debugger:
+  enabled: true
+  interval: 30s
+  # @schema additionalProperties:true
+  containerSecurityContext:
+    runAsUser: 1000
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+      - ALL
+  image:
+    repository: ghcr.io/rancher-sandbox/runtime-enforcer/debugger
+    tag: latest
+    pullPolicy: IfNotPresent
+  resources:
+    limits:
+      cpu: 500m
+      memory: 128Mi
+    requests:
+      cpu: 500m
+      memory: 128Mi
+
 # Learning mode configuration
 learning:
   # learning.enabled controls whether learning mode is enabled for the entire cluster.

@@ -9,7 +9,7 @@ jobs:
   build:
     strategy:
       matrix:
-        component: [operator, agent]
+        component: [operator, agent, debugger]
         arch: [amd64, arm64]
         include:
           - arch: amd64
@@ -41,7 +41,7 @@ jobs:
       id-token: write # Signing images with cosign
     strategy:
       matrix:
-        component: [operator, agent]
+        component: [operator, agent, debugger]
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -57,7 +57,7 @@ jobs:
     name: Sign attestations and upload as artifacts
     strategy:
       matrix:
-        component: [operator, agent]
+        component: [operator, agent, debugger]
         arch: [amd64, arm64]
         include:
           - arch: amd64
@@ -164,6 +164,10 @@ jobs:
                 'RuntimeEnforcer-operator-attestation-amd64-provenance.intoto.jsonl.bundle.sigstore',
                 'RuntimeEnforcer-operator-attestation-amd64-sbom.json',
                 'RuntimeEnforcer-operator-attestation-amd64-sbom.json.bundle.sigstore',
+                'RuntimeEnforcer-debugger-attestation-amd64-provenance.intoto.jsonl',
+                'RuntimeEnforcer-debugger-attestation-amd64-provenance.intoto.jsonl.bundle.sigstore',
+                'RuntimeEnforcer-debugger-attestation-amd64-sbom.json',
+                'RuntimeEnforcer-debugger-attestation-amd64-sbom.json.bundle.sigstore',
 
                 'RuntimeEnforcer-agent-attestation-arm64-provenance.intoto.jsonl',
                 'RuntimeEnforcer-agent-attestation-arm64-provenance.intoto.jsonl.bundle.sigstore',
@@ -173,6 +177,11 @@ jobs:
                 'RuntimeEnforcer-operator-attestation-arm64-provenance.intoto.jsonl.bundle.sigstore',
                 'RuntimeEnforcer-operator-attestation-arm64-sbom.json',
                 'RuntimeEnforcer-operator-attestation-arm64-sbom.json.bundle.sigstore',
+                'RuntimeEnforcer-debugger-attestation-arm64-provenance.intoto.jsonl',
+                'RuntimeEnforcer-debugger-attestation-arm64-provenance.intoto.jsonl.bundle.sigstore',
+                'RuntimeEnforcer-debugger-attestation-arm64-sbom.json',
+                'RuntimeEnforcer-debugger-attestation-arm64-sbom.json.bundle.sigstore',
+
                 'kubectl-runtime_enforcer-linux-amd64',
                 'kubectl-runtime_enforcer-linux-amd64.sha256',
                 'kubectl-runtime_enforcer-linux-arm64',
