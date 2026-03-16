@@ -32,9 +32,10 @@ func newNRIPlugin(
 ) (*plugin, error) {
 	var err error
 	p := &plugin{
-		logger:   logger.With("component", "nri-plugin"),
-		resolver: resolver,
-		failOpen: os.Getenv("NRI_FAILOPEN") == "true",
+		logger:          logger.With("component", "nri-plugin"),
+		resolver:        resolver,
+		failOpen:        os.Getenv("NRI_FAILOPEN") == "true",
+		resolveCgroupID: cgroupFromContainer,
 	}
 
 	p.stub, err = stub.New(p, opts...)

@@ -14,11 +14,12 @@ import (
 )
 
 type plugin struct {
-	stub     stub.Stub
-	logger   *slog.Logger
-	resolver *resolver.Resolver
-	lastErr  error
-	failOpen bool
+	stub            stub.Stub
+	logger          *slog.Logger
+	resolver        *resolver.Resolver
+	lastErr         error
+	failOpen        bool
+	resolveCgroupID func(container *api.Container) (resolver.CgroupID, error)
 }
 
 // podLogger returns a logger pre-enriched with the pod fields.
@@ -93,7 +94,7 @@ func (p *plugin) Synchronize(
 	// we store the container for now and we associate them later with the pod sandbox
 	tmpSandboxes := make(map[string]map[resolver.ContainerID]resolver.ContainerMeta)
 	for _, container := range containers {
-		cgroupID, err := cgroupFromContainer(container)
+		cgroupID, err := p.resolveCgroupID(container)
 		if err != nil {
 			// When this happens, we can't retrieve the cgroup ID in the target system.
 			// This is a critical error.
@@ -189,7 +190,7 @@ func (p *plugin) StartContainer(
 		return nriErr
 	}
 
-	cgroupID, err := cgroupFromContainer(container)
+	cgroupID, err := p.resolveCgroupID(container)
 	if err != nil {
 		// this should never happen because we've succeeded before in Synchronize() call.
 		// When this happens, it indicates a serious inconsistency in the system.
