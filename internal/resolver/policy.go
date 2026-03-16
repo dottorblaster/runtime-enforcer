@@ -124,7 +124,7 @@ func (r *Resolver) removePolicyFromPod(
 func (r *Resolver) applyPolicyToPodIfPresent(state *podEntry) error {
 	policyName := state.policyName()
 
-	// if the policy doesn't have the label we do nothing
+	// if the pod doesn't have the label we do nothing
 	if policyName == "" {
 		return nil
 	}
@@ -132,19 +132,20 @@ func (r *Resolver) applyPolicyToPodIfPresent(state *podEntry) error {
 	key := fmt.Sprintf("%s/%s", state.podNamespace(), policyName)
 	info := r.wpState[key]
 	if info == nil {
-		// This can happen when the pod runs before the policy is created/reconciled when using GitOps to deploy.
-		// After the policy is reconciled, the policy will be applied, so we can safely ignore it for now.
+		// We couldn't find the policy associated to this pod.
 		//
-		// Another case is that the policy is just not created at all, which is likely an user error.
-		// We log a warning for both cases and return without applying any policy.
-		// This is to avoid the risk of blocking the pod creation unexpectedly.
-		r.logger.Warn(
-			"pod has policy label but policy does not exist. .",
-			"pod-name", state.podName(),
-			"pod-namespace", state.podNamespace(),
-			"policy-name", policyName,
+		// There are two scenarios that this can happen.
+		// - The associated policy is not created at all.
+		// - The associated policy is not reconciled yet.
+		//
+		// Here we only care about the latter, assuming an admission policy or webhook will ensure that the policy always exists.
+		// When this happens, we return the error to NRI, so the container would be prevented from starting, depending on related failopen setting.
+		return fmt.Errorf(
+			"pod '%s/%s' has policy '%s' associated, but the policy does not exist",
+			state.podNamespace(),
+			state.podName(),
+			policyName,
 		)
-		return nil
 	}
 
 	return r.applyPolicyToPod(state, info.polByContainer)

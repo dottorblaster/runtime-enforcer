@@ -174,11 +174,11 @@ func (p *plugin) StartContainer(
 			"error", err,
 		)
 		if p.failOpen {
-			logger.ErrorContext(ctx, "container is starting WITHOUT enforcement due to NRI_FAILOPEN")
+			logger.WarnContext(ctx, "container is starting WITHOUT enforcement due to nriFailopen=true")
 			return nil
 		}
 		nriErr := fmt.Errorf(
-			"%s: %w. Runtime-enforcer has prevented the container '%s/%s' from starting. To change this behavior, set environment variable NRI_FAILOPEN to true",
+			"%s: %w. Runtime-enforcer has prevented the container '%s/%s' from starting. To change this behavior, set agent.nriFailopen=true in the helm chart",
 			reason,
 			err,
 			pod.GetName(),
