@@ -9,9 +9,13 @@ metadata:
 spec:
   group: security.rancher.io
   names:
+    categories:
+    - rancher-security
     kind: WorkloadPolicy
     listKind: WorkloadPolicyList
     plural: workloadpolicies
+    shortNames:
+    - wp
     singular: workloadpolicy
   scope: Namespaced
   versions:
