@@ -41,22 +41,19 @@ func (m *Manager) setupEventConsumer(ctx context.Context, mod mode) error {
 		}
 	}()
 
-	var err error
-
-	prog := m.objs.ExecveSend
 	outChan := m.learningEventChan
 	buf := m.objs.RingbufExecve
 	if mod == monitoring {
-		prog = m.objs.EnforceCgroupPolicy
 		outChan = m.monitoringEventChan
 		buf = m.objs.RingbufMonitoring
-	}
 
-	progLink, err = link.AttachTracing(link.TracingOptions{
-		Program: prog,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to attach %s prog: %w", prog.String(), err)
+		var err error
+		progLink, err = link.AttachTracing(link.TracingOptions{
+			Program: m.objs.EnforceCgroupPolicy,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to attach %s prog: %w", m.objs.EnforceCgroupPolicy.String(), err)
+		}
 	}
 
 	rd, err := ringbuf.NewReader(buf)
