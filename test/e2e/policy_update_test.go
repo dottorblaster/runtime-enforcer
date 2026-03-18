@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/e2e-framework/klient/k8s/resources"
 	"sigs.k8s.io/e2e-framework/klient/wait"
 	"sigs.k8s.io/e2e-framework/klient/wait/conditions"
@@ -127,18 +126,17 @@ func getPolicyUpdateTest() types.Feature {
 				t.Log("updating policy to add /usr/bin/cat")
 
 				var updatedPolicy v1alpha1.WorkloadPolicy
-				err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-					if getErr := r.Get(ctx, policyName, workloadNamespace, &updatedPolicy); getErr != nil {
-						return getErr
-					}
-					updatedPolicy.Spec.RulesByContainer[mainContainer].Executables.Allowed = []string{
-						"/usr/bin/ls",
-						"/usr/bin/bash",
-						"/usr/bin/sleep",
-						"/usr/bin/cat",
-					}
-					return r.Update(ctx, &updatedPolicy)
-				})
+				err = r.Get(ctx, policyName, workloadNamespace, &updatedPolicy)
+				require.NoError(t, err, "failed to get policy for update")
+
+				updatedPolicy.Spec.RulesByContainer[mainContainer].Executables.Allowed = []string{
+					"/usr/bin/ls",
+					"/usr/bin/bash",
+					"/usr/bin/sleep",
+					"/usr/bin/cat",
+				}
+
+				err = r.Update(ctx, &updatedPolicy)
 				require.NoError(t, err, "failed to update policy")
 
 				waitForWorkloadPolicyStatusToBeUpdated(ctx, t, updatedPolicy.DeepCopy())
@@ -220,21 +218,20 @@ func getPolicyUpdateTest() types.Feature {
 				t.Log("updating policy to add sidecar container rules")
 
 				var updatedPolicy v1alpha1.WorkloadPolicy
-				err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-					if getErr := r.Get(ctx, policyName, workloadNamespace, &updatedPolicy); getErr != nil {
-						return getErr
-					}
-					updatedPolicy.Spec.RulesByContainer[sidecarContainer] = &v1alpha1.WorkloadPolicyRules{
-						Executables: v1alpha1.WorkloadPolicyExecutables{
-							Allowed: []string{
-								"/usr/bin/ls",
-								"/usr/bin/bash",
-								"/usr/bin/sleep",
-							},
+				err = r.Get(ctx, policyName, workloadNamespace, &updatedPolicy)
+				require.NoError(t, err, "failed to get policy for add-container update")
+
+				updatedPolicy.Spec.RulesByContainer[sidecarContainer] = &v1alpha1.WorkloadPolicyRules{
+					Executables: v1alpha1.WorkloadPolicyExecutables{
+						Allowed: []string{
+							"/usr/bin/ls",
+							"/usr/bin/bash",
+							"/usr/bin/sleep",
 						},
-					}
-					return r.Update(ctx, &updatedPolicy)
-				})
+					},
+				}
+
+				err = r.Update(ctx, &updatedPolicy)
 				require.NoError(t, err, "failed to update policy to add sidecar rules")
 
 				waitForWorkloadPolicyStatusToBeUpdated(ctx, t, updatedPolicy.DeepCopy())
@@ -287,17 +284,16 @@ func getPolicyUpdateTest() types.Feature {
 				r := ctx.Value(key("client")).(*resources.Resources)
 
 				t.Log("policy already has main and sidecar from previous assessment")
+				var wp v1alpha1.WorkloadPolicy
+				err := r.Get(ctx, policyName, workloadNamespace, &wp)
+				require.NoError(t, err, "failed to get policy")
+
 				// 1. Update the policy to remove the sidecar container from RulesByContainer
 				t.Log("updating policy to remove sidecar container rules")
 				var stdout, stderr bytes.Buffer
-				var wp v1alpha1.WorkloadPolicy
-				err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-					if err := r.Get(ctx, policyName, workloadNamespace, &wp); err != nil {
-						return err
-					}
-					delete(wp.Spec.RulesByContainer, sidecarContainer)
-					return r.Update(ctx, &wp)
-				})
+				delete(wp.Spec.RulesByContainer, sidecarContainer)
+
+				err = r.Update(ctx, &wp)
 				require.NoError(t, err, "failed to update policy to remove sidecar rules")
 				waitForWorkloadPolicyStatusToBeUpdated(ctx, t, wp.DeepCopy())
 
