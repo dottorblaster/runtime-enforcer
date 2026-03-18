@@ -48,26 +48,62 @@ func getOtelCollectorTest() types.Feature {
 			return context.WithValue(ctx, key("namespace"), workloadNamespace)
 		}).
 		Setup(func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
+			t.Log("setup policy")
+			namespace := ctx.Value(key("namespace")).(string)
+
+			policy := &v1alpha1.WorkloadPolicy{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-policy",
+					Namespace: namespace,
+				},
+				Spec: v1alpha1.WorkloadPolicySpec{
+					Mode: "monitor",
+					RulesByContainer: map[string]*v1alpha1.WorkloadPolicyRules{
+						"ubuntu": {
+							Executables: v1alpha1.WorkloadPolicyExecutables{
+								Allowed: []string{
+									"/usr/bin/ls",
+									"/usr/bin/bash",
+									"/usr/bin/sleep",
+								},
+							},
+						},
+					},
+				},
+			}
+
+			t.Log("creating workload policy and waiting for it to become Active")
+			createWorkloadPolicy(ctx, t, policy.DeepCopy())
+			return context.WithValue(ctx, key("policy"), policy.DeepCopy())
+		}).
+		Setup(func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
 			t.Log("installing test Ubuntu deployment")
+
 			r := ctx.Value(key("client")).(*resources.Resources)
 			namespace := ctx.Value(key("namespace")).(string)
 
 			err := decoder.ApplyWithManifestDir(
-				ctx, r,
+				ctx,
+				r,
 				"./testdata",
 				"ubuntu-deployment.yaml",
 				[]resources.CreateOption{},
-				decoder.MutateNamespace(namespace),
+				getDeploymentPolicyMutateOption(namespace, "test-policy"),
 			)
 			require.NoError(t, err, "failed to apply test data")
 
 			err = wait.For(
-				conditions.New(r).DeploymentAvailable("ubuntu-deployment", namespace),
+				conditions.New(r).DeploymentAvailable(
+					"ubuntu-deployment",
+					namespace,
+				),
 				wait.WithTimeout(DefaultOperationTimeout),
 			)
 			require.NoError(t, err)
 
-			ubuntuPodName, err := findPod(ctx, namespace, "ubuntu-deployment")
+			var ubuntuPodName string
+
+			ubuntuPodName, err = findPod(ctx, namespace, "ubuntu-deployment")
 			require.NoError(t, err)
 			require.NotEmpty(t, ubuntuPodName)
 
@@ -95,33 +131,6 @@ func getOtelCollectorTest() types.Feature {
 				namespace := ctx.Value(key("namespace")).(string)
 				expectedPodName := ctx.Value(key("targetPodName")).(string)
 				r := ctx.Value(key("client")).(*resources.Resources)
-
-				// Create a monitor-mode policy so the violation is recorded but
-				// the command is not blocked (we need it to succeed so exec
-				// doesn't error out before the event is emitted).
-				policy := &v1alpha1.WorkloadPolicy{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "test-policy",
-						Namespace: namespace,
-					},
-					Spec: v1alpha1.WorkloadPolicySpec{
-						Mode: "monitor",
-						RulesByContainer: map[string]*v1alpha1.WorkloadPolicyRules{
-							"ubuntu": {
-								Executables: v1alpha1.WorkloadPolicyExecutables{
-									Allowed: []string{
-										"/usr/bin/ls",
-										"/usr/bin/bash",
-										"/usr/bin/sleep",
-									},
-								},
-							},
-						},
-					},
-				}
-
-				t.Log("creating workload policy and waiting for it to become Active")
-				createWorkloadPolicy(ctx, t, policy.DeepCopy())
 
 				t.Log("executing disallowed command to trigger a violation")
 				var stdout, stderr bytes.Buffer
@@ -196,7 +205,9 @@ func getOtelCollectorTest() types.Feature {
 				// node_name is set dynamically; just verify the label is present.
 				assertMetricHasLabelKey(t, metricsBody, "runtime_enforcer_violations", "node_name")
 
-				deleteWorkloadPolicy(ctx, t, policy.DeepCopy())
+				policy := ctx.Value(key("policy")).(*v1alpha1.WorkloadPolicy)
+				t.Log("deleting test policy")
+				deleteWorkloadPolicy(ctx, t, policy)
 
 				return ctx
 			}).

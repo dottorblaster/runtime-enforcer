@@ -35,6 +35,8 @@ func (r *Resolver) AddPodContainerFromNri(pod PodInput) error {
 				// If everything is identical, as expected, we can just continue
 				continue
 			}
+			// If it's different, this is unexpected and we return an error to avoid potential issues
+			// with wrong cgroupID -> pod association in the cache.
 			return fmt.Errorf("containerID %s for pod %s already exists. old (name: %s,cID: %d) new (name: %s,cID: %d)",
 				containerID,
 				pod.Meta.Name,
@@ -51,11 +53,12 @@ func (r *Resolver) AddPodContainerFromNri(pod PodInput) error {
 
 		// update the cgtracker map
 		if err := r.cgTrackerUpdateFunc(container.CgroupID, ""); err != nil {
-			r.logger.Error("failed to update cgroup tracker map",
-				"pod", podID,
-				"containerID", containerID,
-				"error", err)
-			continue
+			return fmt.Errorf(
+				"failed to update cgroup tracker map for pod %s, container %s: %w",
+				pod.Meta.Name,
+				container.Name,
+				err,
+			)
 		}
 	}
 
@@ -63,9 +66,7 @@ func (r *Resolver) AddPodContainerFromNri(pod PodInput) error {
 	r.podCache[podID] = state
 
 	if err := r.applyPolicyToPodIfPresent(state); err != nil {
-		r.logger.Error("failed to apply policy to pod",
-			"error", err,
-		)
+		return fmt.Errorf("failed to apply policy to pod: %w", err)
 	}
 	return nil
 }

@@ -78,6 +78,35 @@ func getMonitoringTest() types.Feature {
 			return context.WithValue(ctx, key("namespace"), workloadNamespace)
 		}).
 		Setup(func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
+			t.Log("setup policy")
+			namespace := ctx.Value(key("namespace")).(string)
+
+			policy := &v1alpha1.WorkloadPolicy{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-policy",
+					Namespace: namespace,
+				},
+				Spec: v1alpha1.WorkloadPolicySpec{
+					Mode: "monitor",
+					RulesByContainer: map[string]*v1alpha1.WorkloadPolicyRules{
+						"ubuntu": {
+							Executables: v1alpha1.WorkloadPolicyExecutables{
+								Allowed: []string{
+									"/usr/bin/ls",
+									"/usr/bin/bash",
+									"/usr/bin/sleep",
+								},
+							},
+						},
+					},
+				},
+			}
+
+			t.Log("creating workload policy and waiting for it to become Active")
+			createWorkloadPolicy(ctx, t, policy.DeepCopy())
+			return context.WithValue(ctx, key("policy"), policy.DeepCopy())
+		}).
+		Setup(func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
 			t.Log("installing test Ubuntu deployment")
 
 			r := ctx.Value(key("client")).(*resources.Resources)
@@ -89,7 +118,7 @@ func getMonitoringTest() types.Feature {
 				"./testdata",
 				"ubuntu-deployment.yaml",
 				[]resources.CreateOption{},
-				decoder.MutateNamespace(namespace),
+				getDeploymentPolicyMutateOption(namespace, "test-policy"),
 			)
 			require.NoError(t, err, "failed to apply test data")
 
@@ -116,30 +145,6 @@ func getMonitoringTest() types.Feature {
 				namespace := ctx.Value(key("namespace")).(string)
 				expectedPodName := ctx.Value(key("targetPodName")).(string)
 				r := ctx.Value(key("client")).(*resources.Resources)
-
-				policy := &v1alpha1.WorkloadPolicy{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "test-policy",
-						Namespace: namespace,
-					},
-					Spec: v1alpha1.WorkloadPolicySpec{
-						Mode: "monitor",
-						RulesByContainer: map[string]*v1alpha1.WorkloadPolicyRules{
-							"ubuntu": {
-								Executables: v1alpha1.WorkloadPolicyExecutables{
-									Allowed: []string{
-										"/usr/bin/ls",
-										"/usr/bin/bash",
-										"/usr/bin/sleep",
-									},
-								},
-							},
-						},
-					},
-				}
-
-				t.Log("creating workload policy and waiting for it to become Active")
-				createWorkloadPolicy(ctx, t, policy.DeepCopy())
 
 				t.Log("executing allowed command (should not produce violations)")
 				var stdout, stderr bytes.Buffer
@@ -195,9 +200,6 @@ func getMonitoringTest() types.Feature {
 					}
 				}
 				assert.True(t, found, "should find violation record for /usr/bin/apt")
-
-				deleteWorkloadPolicy(ctx, t, policy.DeepCopy())
-
 				return ctx
 			}).
 		Teardown(func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
@@ -212,7 +214,11 @@ func getMonitoringTest() types.Feature {
 				[]resources.DeleteOption{},
 				decoder.MutateNamespace(namespace),
 			)
-			assert.NoError(t, err, "failed to delete test data")
+			require.NoError(t, err, "failed to delete test data")
+
+			policy := ctx.Value(key("policy")).(*v1alpha1.WorkloadPolicy)
+			t.Log("deleting test policy")
+			deleteWorkloadPolicy(ctx, t, policy)
 
 			return ctx
 		}).Feature()

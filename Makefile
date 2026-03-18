@@ -95,7 +95,7 @@ ifeq ($(E2E_NO_REBUILD),)
 	TAG=latest make $(E2E_DEPS)
 endif
 endif
-	E2E_USE_EXISTING_CLUSTER=$(E2E_USE_EXISTING_CLUSTER) E2E_SKIP_DEPENDENCIES=$(E2E_SKIP_DEPENDENCIES) go test ./test/e2e/ -v
+	E2E_USE_EXISTING_CLUSTER=$(E2E_USE_EXISTING_CLUSTER) E2E_SKIP_DEPENDENCIES=$(E2E_SKIP_DEPENDENCIES) go test -v -timeout 20m ./test/e2e/ 
 
 .PHONY: lint
 lint: generate-ebpf golangci-lint ## Run golangci-lint linter

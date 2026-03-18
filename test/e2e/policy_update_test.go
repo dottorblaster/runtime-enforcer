@@ -41,6 +41,39 @@ func getPolicyUpdateTest() types.Feature {
 			return ctx
 		}).
 		Setup(func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
+			t.Log("creating policy with limited executables for main container")
+
+			r := ctx.Value(key("client")).(*resources.Resources)
+
+			policy := v1alpha1.WorkloadPolicy{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      policyName,
+					Namespace: workloadNamespace,
+				},
+				Spec: v1alpha1.WorkloadPolicySpec{
+					Mode: "protect",
+					RulesByContainer: map[string]*v1alpha1.WorkloadPolicyRules{
+						mainContainer: {
+							Executables: v1alpha1.WorkloadPolicyExecutables{
+								Allowed: []string{
+									"/usr/bin/ls",
+									"/usr/bin/bash",
+									"/usr/bin/sleep",
+								},
+							},
+						},
+					},
+				},
+			}
+
+			err := r.Create(ctx, &policy)
+			require.NoError(t, err, "failed to create initial policy")
+
+			waitForWorkloadPolicyStatusToBeUpdated(ctx, t, policy.DeepCopy())
+
+			return ctx
+		}).
+		Setup(func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
 			t.Log("creating pod with two containers (main, sidecar)")
 
 			r := ctx.Value(key("client")).(*resources.Resources)
@@ -82,36 +115,9 @@ func getPolicyUpdateTest() types.Feature {
 			func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
 				r := ctx.Value(key("client")).(*resources.Resources)
 
-				t.Log("creating policy with limited executables for main container")
-				policy := v1alpha1.WorkloadPolicy{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      policyName,
-						Namespace: workloadNamespace,
-					},
-					Spec: v1alpha1.WorkloadPolicySpec{
-						Mode: "protect",
-						RulesByContainer: map[string]*v1alpha1.WorkloadPolicyRules{
-							mainContainer: {
-								Executables: v1alpha1.WorkloadPolicyExecutables{
-									Allowed: []string{
-										"/usr/bin/ls",
-										"/usr/bin/bash",
-										"/usr/bin/sleep",
-									},
-								},
-							},
-						},
-					},
-				}
-
-				err := r.Create(ctx, &policy)
-				require.NoError(t, err, "failed to create initial policy")
-
-				waitForWorkloadPolicyStatusToBeUpdated(ctx, t, policy.DeepCopy())
-
 				t.Log("verifying /usr/bin/cat is blocked in main before update")
 				var stdout, stderr bytes.Buffer
-				err = r.ExecInPod(
+				err := r.ExecInPod(
 					ctx,
 					workloadNamespace,
 					podName,

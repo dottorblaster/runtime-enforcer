@@ -84,8 +84,10 @@
         "printk",
         "ringbuf",
         "cgtracker",
-	"runtimeenforcer",
-	"agentv1"
+        "runtimeenforcer",
+        "agentv1",
+        "failopen",
+        "ttrpc"
     ],
     "ignoreWords": [
         "clientgoscheme",
@@ -118,7 +120,9 @@
         "workloadpolicyhandler",
         "rawtime",
         "exepath",
-        "pexepath"
+        "pexepath",
+        "workloadkind",
+        "policymode"
     ],
     "import": []
 }

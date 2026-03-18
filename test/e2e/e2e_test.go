@@ -68,7 +68,6 @@ func TestMainFunctions(t *testing.T) {
 func TestEnforcement(t *testing.T) {
 	t.Log("test enforcement")
 
-	testEnv.Test(t, getEnforcementOnExistingPodsTest())
 	testEnv.Test(t, getEnforcementOnNewPodsTest())
 }
 

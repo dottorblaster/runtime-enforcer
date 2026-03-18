@@ -12,7 +12,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	apimachinerywait "k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/e2e-framework/klient/decoder"
 	"sigs.k8s.io/e2e-framework/klient/k8s"
 	"sigs.k8s.io/e2e-framework/klient/k8s/resources"
@@ -21,19 +20,6 @@ import (
 	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/e2e-framework/pkg/types"
 )
-
-func DaemonSetUpToDate(r *resources.Resources, daemonset *appsv1.DaemonSet) apimachinerywait.ConditionWithContextFunc {
-	return func(ctx context.Context) (bool, error) {
-		if err := r.Get(ctx, daemonset.GetName(), daemonset.GetNamespace(), daemonset); err != nil {
-			return false, err
-		}
-		status := daemonset.Status
-		if status.UpdatedNumberScheduled != status.DesiredNumberScheduled {
-			return false, nil
-		}
-		return true, nil
-	}
-}
 
 // This test verifies the protection is persistent during rolling update of agent.
 func getRollingUpdateTest() types.Feature {
@@ -160,7 +146,7 @@ func getRollingUpdateTest() types.Feature {
 			err = r.Update(ctx, &agentDaemonSet)
 			require.NoError(t, err)
 
-			err = wait.For(DaemonSetUpToDate(r, &appsv1.DaemonSet{
+			err = wait.For(daemonSetUpToDate(r, &appsv1.DaemonSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "runtime-enforcer-agent",
 					Namespace: runtimeEnforcerNamespace,

@@ -14,10 +14,12 @@ import (
 )
 
 type plugin struct {
-	stub     stub.Stub
-	logger   *slog.Logger
-	resolver *resolver.Resolver
-	lastErr  error
+	stub            stub.Stub
+	logger          *slog.Logger
+	resolver        *resolver.Resolver
+	lastErr         error
+	failOpen        bool
+	resolveCgroupID func(container *api.Container) (resolver.CgroupID, error)
 }
 
 // podLogger returns a logger pre-enriched with the pod fields.
@@ -92,7 +94,7 @@ func (p *plugin) Synchronize(
 	// we store the container for now and we associate them later with the pod sandbox
 	tmpSandboxes := make(map[string]map[resolver.ContainerID]resolver.ContainerMeta)
 	for _, container := range containers {
-		cgroupID, err := cgroupFromContainer(container)
+		cgroupID, err := p.resolveCgroupID(container)
 		if err != nil {
 			// When this happens, we can't retrieve the cgroup ID in the target system.
 			// This is a critical error.
@@ -149,8 +151,9 @@ func (p *plugin) Synchronize(
 			"containers", containers,
 		)
 		if err := p.resolver.AddPodContainerFromNri(podData); err != nil {
-			podLogger.ErrorContext(ctx, "failed to add pod container from NRI",
-				"error", err)
+			// This could be recoverable. Returning an error so we can retry.
+			podLogger.ErrorContext(ctx, "failed to add pod container from NRI", "error", err)
+			return nil, fmt.Errorf("failed to add pod container from NRI: %w", err)
 		}
 	}
 	// Mark resolver as synchronized, so old agent can be safely removed.
@@ -166,13 +169,32 @@ func (p *plugin) StartContainer(
 	containerLogger := p.containerLogger(pod, container)
 	containerLogger.InfoContext(ctx, "Starting container")
 
-	cgroupID, err := cgroupFromContainer(container)
+	handleError := func(reason string, err error) error {
+		logger := containerLogger.With(
+			"reason", reason,
+			"error", err,
+		)
+		if p.failOpen {
+			logger.WarnContext(ctx, "container is starting WITHOUT enforcement due to nriFailopen=true")
+			return nil
+		}
+		nriErr := fmt.Errorf(
+			"%s: %w. Runtime-enforcer has prevented the container '%s/%s' from starting. To change this behavior, set agent.nriFailopen=true in the helm chart",
+			reason,
+			err,
+			pod.GetName(),
+			container.GetName(),
+		)
+
+		logger.ErrorContext(ctx, nriErr.Error())
+		return nriErr
+	}
+
+	cgroupID, err := p.resolveCgroupID(container)
 	if err != nil {
-		// this should never happen but if we are not able to obtain the cgroup ID, it's useless to add the container
-		// to the cache, nobody will ever query this entry into the cache.
-		containerLogger.ErrorContext(ctx, "failed to get cgroup ID from container",
-			"error", err)
-		return nil
+		// this should never happen because we've succeeded before in Synchronize() call.
+		// When this happens, it indicates a serious inconsistency in the system.
+		return handleError("failed to get cgroup ID from container", err)
 	}
 
 	workloadName, workloadKind := p.getWorkloadInfoAndLog(ctx, pod)
@@ -188,8 +210,7 @@ func (p *plugin) StartContainer(
 	}
 
 	if err = p.resolver.AddPodContainerFromNri(podData); err != nil {
-		containerLogger.ErrorContext(ctx, "failed to add pod container from NRI",
-			"error", err)
+		return handleError("failed to add pod container from NRI", err)
 	}
 	return nil
 }

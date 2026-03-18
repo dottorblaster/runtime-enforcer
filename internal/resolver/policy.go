@@ -124,7 +124,7 @@ func (r *Resolver) removePolicyFromPod(
 func (r *Resolver) applyPolicyToPodIfPresent(state *podEntry) error {
 	policyName := state.policyName()
 
-	// if the policy doesn't have the label we do nothing
+	// if the pod doesn't have the label we do nothing
 	if policyName == "" {
 		return nil
 	}
@@ -132,10 +132,18 @@ func (r *Resolver) applyPolicyToPodIfPresent(state *podEntry) error {
 	key := fmt.Sprintf("%s/%s", state.podNamespace(), policyName)
 	info := r.wpState[key]
 	if info == nil {
+		// We couldn't find the policy associated to this pod.
+		//
+		// There are two scenarios that this can happen.
+		// - The associated policy is not created at all.
+		// - The associated policy is not reconciled yet.
+		//
+		// Here we only care about the latter, assuming an admission policy or webhook will ensure that the policy always exists.
+		// When this happens, we return the error to NRI, so the container would be prevented from starting, depending on related failopen setting.
 		return fmt.Errorf(
-			"pod has policy label but policy does not exist. pod-name: %s, pod-namespace: %s, policy-name: %s",
-			state.podName(),
+			"pod '%s/%s' has policy '%s' associated, but the policy does not exist",
 			state.podNamespace(),
+			state.podName(),
 			policyName,
 		)
 	}

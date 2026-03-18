@@ -130,6 +130,7 @@ agent:
   # @schema additionalProperties:true
   affinity: {}
   nriSocketPath: /var/run/nri/
+  nriFailopen: false
 kubernetesClusterDomain: cluster.local
 
 ## Optional array of imagePullSecrets containing private registry credentials

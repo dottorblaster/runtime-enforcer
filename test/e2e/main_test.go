@@ -11,6 +11,7 @@ import (
 	"github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/e2e-framework/klient/decoder"
@@ -145,6 +146,44 @@ func getMainTest() types.Feature {
 
 				return context.WithValue(ctx, key("policy"), &policy)
 			}).
+		Assess("update the workload to apply policy",
+			func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
+				t.Log("recreate a workload policy")
+
+				r := ctx.Value(key("client")).(*resources.Resources)
+
+				// Delete the ubuntu deployment
+				err := decoder.DeleteWithManifestDir(
+					ctx,
+					r,
+					"./testdata",
+					"ubuntu-deployment.yaml",
+					[]resources.DeleteOption{},
+					decoder.MutateNamespace(workloadNamespace),
+				)
+				require.NoError(t, err, "failed to delete test data")
+
+				// Create the ubuntu deployment again with policy label assigned.
+				err = decoder.ApplyWithManifestDir(
+					ctx,
+					r,
+					"./testdata",
+					"ubuntu-deployment.yaml",
+					[]resources.CreateOption{},
+					getDeploymentPolicyMutateOption(workloadNamespace, "test-policy"),
+				)
+				require.NoError(t, err, "failed to apply test data")
+
+				err = wait.For(deploymentUpToDate(r, &appsv1.Deployment{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "ubuntu-deployment",
+						Namespace: workloadNamespace,
+					},
+				}), wait.WithTimeout(DefaultOperationTimeout))
+				require.NoError(t, err, "deployment did not become up-to-date")
+
+				return ctx
+			}).
 		Assess("pod exec will be blocked",
 			func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
 				r := ctx.Value(key("client")).(*resources.Resources)
@@ -155,7 +194,8 @@ func getMainTest() types.Feature {
 				require.NoError(t, err)
 
 				for _, v := range pods.Items {
-					if strings.HasPrefix(v.Name, "ubuntu-deployment") {
+					if strings.HasPrefix(v.Name, "ubuntu-deployment") &&
+						v.Labels[v1alpha1.PolicyLabelKey] == "test-policy" {
 						podName = v.Name
 						break
 					}

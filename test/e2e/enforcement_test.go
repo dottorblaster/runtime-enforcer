@@ -55,131 +55,6 @@ func getEnforcementTestCases() []enforcementTestCase {
 	}
 }
 
-func getEnforcementOnExistingPodsTest() types.Feature {
-	workloadNamespace := envconf.RandomName("enforce-namespace", 32)
-
-	return features.New("enforcement on existing pods").
-		Setup(SetupSharedK8sClient).
-		Setup(func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
-			t.Log("creating test namespace")
-			r := ctx.Value(key("client")).(*resources.Resources)
-
-			namespace := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: workloadNamespace}}
-
-			err := r.Create(ctx, &namespace)
-			assert.NoError(t, err, "failed to create test namespace")
-
-			return ctx
-		}).
-		Assess("required resources become available", IfRequiredResourcesAreCreated).
-		Assess("a namespace-scoped policy can be enforced correctly",
-			func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
-				t.Log("create a policy")
-
-				r := ctx.Value(key("client")).(*resources.Resources)
-
-				for _, tc := range getEnforcementTestCases() {
-					policy := v1alpha1.WorkloadPolicy{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      "test-policy",
-							Namespace: workloadNamespace,
-						},
-						Spec: v1alpha1.WorkloadPolicySpec{
-							Mode: "protect",
-							RulesByContainer: map[string]*v1alpha1.WorkloadPolicyRules{
-								"ubuntu": {
-									Executables: tc.AllowedExecutables,
-								},
-							},
-						},
-					}
-
-					// 1. Deploy test pods
-					err := decoder.ApplyWithManifestDir(
-						ctx,
-						r,
-						"./testdata",
-						"ubuntu-deployment.yaml",
-						[]resources.CreateOption{},
-						decoder.MutateNamespace(workloadNamespace),
-					)
-					require.NoError(t, err, "failed to apply test data")
-
-					err = wait.For(
-						conditions.New(r).DeploymentAvailable("ubuntu-deployment", workloadNamespace),
-						wait.WithTimeout(DefaultOperationTimeout),
-					)
-
-					require.NoError(t, err, "failed to wait the target deployment")
-
-					// 2. Create the resource and wait for it to be deployed.
-					err = r.Create(ctx, &policy)
-					require.NoError(t, err, "create policy")
-
-					waitForWorkloadPolicyStatusToBeUpdated(ctx, t, policy.DeepCopy())
-
-					// 3. Run command in the pod and verify the result.
-					var podName string
-					var pods corev1.PodList
-					err = r.WithNamespace(workloadNamespace).List(ctx, &pods)
-					require.NoError(t, err)
-
-					for _, v := range pods.Items {
-						if strings.HasPrefix(v.Name, "ubuntu-deployment") {
-							podName = v.Name
-							break
-						}
-					}
-
-					for _, expectedResult := range tc.expectedResults {
-						var stdout, stderr bytes.Buffer
-
-						t.Log("running:", expectedResult.Commands)
-						err = r.ExecInPod(
-							ctx,
-							workloadNamespace,
-							podName,
-							"ubuntu",
-							expectedResult.Commands,
-							&stdout,
-							&stderr,
-						)
-
-						if expectedResult.Allowed {
-							require.NoError(t, err)
-						} else {
-							require.Error(t, err)
-							require.Empty(t, stdout.String())
-							require.Contains(t, stderr.String(), "operation not permitted\n")
-						}
-					}
-
-					// 4. Delete test Deployment
-					err = decoder.DeleteWithManifestDir(
-						ctx,
-						r,
-						"./testdata",
-						"ubuntu-deployment.yaml",
-						[]resources.DeleteOption{},
-						decoder.MutateNamespace(workloadNamespace),
-					)
-					require.NoError(t, err, "failed to delete test data")
-
-					// 5. Delete WorkloadPolicy and wait for it to be gone so the agent
-					// cleans up cgroup→policy map entries before we might create the same name again.
-					err = r.Delete(ctx, &policy)
-					require.NoError(t, err)
-					err = wait.For(
-						conditions.New(r).ResourceDeleted(&policy),
-						wait.WithTimeout(DefaultOperationTimeout),
-					)
-					require.NoError(t, err, "workloadpolicy should be deleted")
-				}
-
-				return ctx
-			}).Feature()
-}
-
 func getEnforcementOnNewPodsTest() types.Feature {
 	workloadNamespace := envconf.RandomName("enforce-namespace", 32)
 
@@ -232,7 +107,7 @@ func getEnforcementOnNewPodsTest() types.Feature {
 						"./testdata",
 						"ubuntu-deployment.yaml",
 						[]resources.CreateOption{},
-						decoder.MutateNamespace(workloadNamespace),
+						getDeploymentPolicyMutateOption(workloadNamespace, "test-policy"),
 					)
 					require.NoError(t, err, "failed to apply test data")
 
