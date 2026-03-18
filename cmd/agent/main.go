@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -117,6 +118,11 @@ func waitForMutatingAdmissionWebhook(ctx context.Context) error {
 		attempts          = 5
 	)
 
+	mutatingWebhookEP := os.Getenv("RUNTIME_ENFORCER_WEBHOOK_ENDPOINT")
+	if mutatingWebhookEP == "" {
+		return errors.New("RUNTIME_ENFORCER_WEBHOOK_ENDPOINT environment variable is not set")
+	}
+
 	tryConnect := func() error {
 		d := net.Dialer{
 			Timeout: connectionTimeout,
@@ -124,7 +130,7 @@ func waitForMutatingAdmissionWebhook(ctx context.Context) error {
 		conn, err := d.DialContext(
 			ctx,
 			"tcp",
-			"runtime-enforcer-mutating-webhook.runtime-enforcer.svc:443",
+			net.JoinHostPort(mutatingWebhookEP, "443"),
 		)
 		if err != nil {
 			return err
@@ -136,6 +142,7 @@ func waitForMutatingAdmissionWebhook(ctx context.Context) error {
 
 	return retry.Do(
 		tryConnect,
+		retry.Context(ctx),
 		retry.Attempts(attempts),
 		retry.Delay(time.Second),
 		retry.DelayType(retry.BackOffDelay),

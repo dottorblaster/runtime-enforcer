@@ -159,6 +159,7 @@ func (h *Handler) Start(ctx context.Context) error {
 		func() error {
 			return h.startNRIPlugin(ctx)
 		},
+		retry.Context(ctx),
 		retry.Attempts(0), // infinite attempts
 		retry.Delay(time.Second),
 		retry.DelayType(retry.BackOffDelay),

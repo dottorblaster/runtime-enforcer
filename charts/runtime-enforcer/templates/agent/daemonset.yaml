@@ -84,6 +84,8 @@ spec:
         - name: NRI_FAILOPEN
           value: "true"
         {{- end }}
+        - name: RUNTIME_ENFORCER_WEBHOOK_ENDPOINT
+          value: {{ include "runtime-enforcer.fullname" . }}-mutating-webhook.{{ .Release.Namespace }}.svc
         {{- with .Values.agent.env }}
         {{- toYaml . | nindent 8 }}
         {{- end }}

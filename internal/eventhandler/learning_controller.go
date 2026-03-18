@@ -122,11 +122,15 @@ func (r *LearningReconciler) handleAdmissionError(logger logr.Logger, err error)
 		// This happens when the top-level workload is deleted.
 		// We don't need to retry anymore.
 		logger.V(3).Info( //nolint:mnd // 3 is the verbosity level for detailed debug info
-			"Failed to update WorkloadPolicyProposal because the proposal is rejected by the webhook",
+			"Failed to update WorkloadPolicyProposal because the owner workload has been deleted",
 		)
 		return nil
 	case http.StatusForbidden:
 		// This happens when the admission webhook rejects the request normally without specifying a special error code.
+		// This means transient errors that we should retry.
+		return err
+	case http.StatusInternalServerError:
+		// This happens when the admission webhook is down. We should retry.
 		return err
 	default:
 		return fmt.Errorf(
