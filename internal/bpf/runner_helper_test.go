@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/rancher-sandbox/runtime-enforcer/internal/cgroups"
+	"github.com/rancher-sandbox/runtime-enforcer/internal/types/policymode"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -175,6 +176,30 @@ func (r *cgroupRunner) runAndFindCommand(args *runCommandArgs) error {
 		}
 	} else if err == nil {
 		return fmt.Errorf("Did not expect to find (command: %s, cgroup: %d)", args.command, r.cgInfo.id)
+	}
+	return nil
+}
+
+func (r *cgroupRunner) populatePolicyForRunnerCgroup(policyID uint64, mode policymode.Mode, binaries []string) error {
+	err := r.manager.GetPolicyUpdateBinariesFunc()(
+		policyID,
+		binaries,
+		AddValuesToPolicy,
+	)
+	if err != nil {
+		return fmt.Errorf("Failed to add policy values: %w", err)
+	}
+
+	err = r.manager.GetPolicyModeUpdateFunc()(policyID, mode, UpdateMode)
+	if err != nil {
+		return fmt.Errorf("Failed to set policy mode: %w", err)
+	}
+
+	err = r.manager.GetCgroupPolicyUpdateFunc()(
+		policyID, []uint64{r.cgInfo.id}, AddPolicyToCgroups,
+	)
+	if err != nil {
+		return fmt.Errorf("Failed to add policy to cgroup: %w", err)
 	}
 	return nil
 }
