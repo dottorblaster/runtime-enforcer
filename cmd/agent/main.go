@@ -6,10 +6,13 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
+	"github.com/avast/retry-go/v4"
 	"github.com/go-logr/logr"
 
 	securityv1alpha1 "github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
@@ -30,6 +33,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
@@ -107,6 +111,46 @@ func setupWorkloadPolicyHandler(
 	return nil
 }
 
+func waitForMutatingAdmissionWebhook(ctx context.Context) error {
+	const (
+		connectionTimeout = 3 * time.Second
+		attempts          = 5
+	)
+
+	tryConnect := func() error {
+		d := net.Dialer{
+			Timeout: connectionTimeout,
+		}
+		conn, err := d.DialContext(
+			ctx,
+			"tcp",
+			"runtime-enforcer-mutating-webhook.runtime-enforcer.svc:443",
+		)
+		if err != nil {
+			return err
+		}
+		_ = conn.Close()
+
+		return nil
+	}
+
+	return retry.Do(
+		tryConnect,
+		retry.Attempts(attempts),
+		retry.Delay(time.Second),
+		retry.DelayType(retry.BackOffDelay),
+		retry.OnRetry(func(n uint, err error) {
+			// n = 0 for the first retry
+			logger := log.FromContext(ctx)
+			logger.V(3). //nolint:mnd // 3 is the verbosity level for detailed debug info
+					Info("error during mutating webhook socket connection, retrying...",
+					"attempt", n+1,
+					"error", err,
+				)
+		}),
+	)
+}
+
 func setupLearningReconciler(
 	ctx context.Context,
 	logger *slog.Logger,
@@ -129,6 +173,11 @@ func setupLearningReconciler(
 			return nil, fmt.Errorf("invalid learning-namespace-selector %q: %w", config.learningNamespaceSelector, err)
 		}
 		nsSelector = selector
+	}
+
+	// Wait until mutating admission webhook is ready.
+	if err := waitForMutatingAdmissionWebhook(ctx); err != nil {
+		return nil, err
 	}
 
 	learningReconciler := eventhandler.NewLearningReconciler(ctrlMgr.GetClient(), nsSelector)
