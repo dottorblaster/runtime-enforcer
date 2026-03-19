@@ -6,6 +6,7 @@ import (
 	"time"
 
 	securityv1alpha1 "github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
+	"github.com/rancher-sandbox/runtime-enforcer/internal/eventhandler/utils"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/eventscraper"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -16,7 +17,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -32,36 +32,6 @@ import (
 // This is a arbitrary number right now and can be fine-tuned or made configurable in the future.
 // On a simple kind cluster we saw more than 4200 process exec during the initial process cache dump, so this seems a reasonable default for now.
 const DefaultEventChannelBufferSize = 4096
-
-// GetWorkloadPolicyProposalName returns the name of WorkloadPolicyProposal
-// based on a high level resource and its name.
-func GetWorkloadPolicyProposalName(kind string, resourceName string) (string, error) {
-	var shortname string
-	switch kind {
-	case "Deployment":
-		shortname = "deploy"
-	case "ReplicaSet":
-		shortname = "rs"
-	case "DaemonSet":
-		shortname = "ds"
-	case "CronJob":
-		shortname = "cronjob"
-	case "Job":
-		shortname = "job"
-	case "StatefulSet":
-		shortname = "sts"
-	default:
-		return "", fmt.Errorf("unknown kind: %s", kind)
-	}
-	ret := shortname + "-" + resourceName
-
-	// The max name length in k8s
-	if len(ret) > validation.DNS1123SubdomainMaxLength {
-		return "", fmt.Errorf("the name %s exceeds the maximum name length", ret)
-	}
-
-	return shortname + "-" + resourceName, nil
-}
 
 type LearningReconciler struct {
 	client.Client
@@ -147,7 +117,7 @@ func (r *LearningReconciler) Reconcile(
 		}
 	}
 
-	proposalName, err = GetWorkloadPolicyProposalName(req.WorkloadKind, req.Workload)
+	proposalName, err = utils.GetWorkloadPolicyProposalName(req.WorkloadKind, req.Workload)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to get proposal name: %w", err)
 	}

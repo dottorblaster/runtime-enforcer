@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
-	"github.com/rancher-sandbox/runtime-enforcer/internal/eventhandler"
+	"github.com/rancher-sandbox/runtime-enforcer/internal/eventhandler/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
@@ -113,7 +113,7 @@ func getLearningModeTest() types.Feature {
 					obj := tc.ParseFunc()
 					t.Log("verifying if a proposal resource can be created: ", kind)
 
-					proposalName, err := eventhandler.GetWorkloadPolicyProposalName(kind, obj.GetName())
+					proposalName, err := utils.GetWorkloadPolicyProposalName(kind, obj.GetName())
 					require.NoError(t, err)
 
 					proposal := v1alpha1.WorkloadPolicyProposal{
@@ -243,7 +243,7 @@ func getLearningModeNamespaceSelectorTest() types.Feature {
 		Assess("learning creates WorkloadPolicyProposal only in the labeled namespace", func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
 			r := ctx.Value(key("client")).(*resources.Resources)
 
-			proposalName, err := eventhandler.GetWorkloadPolicyProposalName("Deployment", deploymentName)
+			proposalName, err := utils.GetWorkloadPolicyProposalName("Deployment", deploymentName)
 			require.NoError(t, err)
 
 			t.Log("verifying proposal is created and learns in the learning-enabled namespace")

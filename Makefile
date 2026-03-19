@@ -49,7 +49,7 @@ TAG ?= latest
 
 define BUILD_template =
 .PHONY: build-$(1)-image
-build-$(1)-image:
+build-$(1)-image: generate-ebpf vet
 	docker buildx build -f package/Dockerfile.$(1) \
 	-t "$(REPO)/$(1):$(TAG)" --load .
 	@echo "Built $(REPO)/$(1):$(TAG)"
@@ -89,7 +89,7 @@ helm-unittest:
 	helm unittest charts/runtime-enforcer/ --file "tests/**/*_test.yaml"
 
 .PHONY: test-e2e
-test-e2e: generate-ebpf vet
+test-e2e:
 ifneq ($(E2E_USE_EXISTING_CLUSTER),true)
 ifeq ($(E2E_NO_REBUILD),)
 	TAG=latest make $(E2E_DEPS)
