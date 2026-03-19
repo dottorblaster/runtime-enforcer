@@ -421,54 +421,6 @@ static __always_inline struct process_evt *get_process_evt() {
 	return evt;
 }
 
-SEC("tp_btf/sched_process_exec")
-int BPF_PROG(execve_send, struct task_struct *p, pid_t old_pid, struct linux_binprm *bprm) {
-	struct process_evt *evt = get_process_evt();
-	if(!evt) {
-		return 0;
-	}
-
-	evt->cgid = tg_get_current_cgroup_id();
-	evt->cg_tracker_id = cgrp_get_tracker_id(evt->cgid);
-	evt->mode = 0;  // default it to 0 for now
-
-	if(!evt->cg_tracker_id) {
-		// not a container being tracked.
-		return 0;
-	}
-
-	u32 current_offset = populate_evt_with_path(evt, bprm);
-	if(current_offset == 0) {
-		return 0;
-	}
-	// here we are copying the resolved path into the first segment of the buffer.
-	// please note: in the first segment of the path we will already have the path written by
-	// the previous program execution, what we are doing here is to overwrite the path with the new
-	// content. Example:
-	// - previous: `/usr/bin/nginx-controller\0`
-	// - new one:  `/usr/bin/cat\0x-controller\0`
-	// we need the +1 because we want to copy also the `\0` terminator
-	long err = bpf_probe_read_kernel(evt->path,
-	                                 SAFE_PATH_LEN(evt->path_len + 1),
-	                                 &evt->path[SAFE_PATH_ACCESS(current_offset)]);
-	if(err != 0) {
-		emit_log_event(LOG_FAIL_TO_COPY_EXEC_PATH);
-		return 0;
-	}
-
-	// this is used for debug during development is never used in production
-	bpf_printk("sent execve event, path: %s, cgid: %d, cg_tracker_id: %d",
-	           evt->path,
-	           evt->cgid,
-	           evt->cg_tracker_id);
-
-	err = bpf_ringbuf_output(&ringbuf_execve, evt, 19 + SAFE_PATH_LEN(evt->path_len), 0);
-	if(err != 0) {
-		emit_log_event(LOG_DROP_EXEC_EVENT);
-	}
-	return 0;
-}
-
 /////////////////////////
 // Monitoring/Enforcing
 /////////////////////////
@@ -555,9 +507,45 @@ int BPF_PROG(enforce_cgroup_policy, struct linux_binprm *bprm) {
 	}
 
 	__u64 *policy_id = bpf_map_lookup_elem(&cg_to_policy_map, &cg_tracker_id);
-	if(!policy_id) {
-		// no policy associated with this cgroup.
-		// This is not an error, it means that the cgroup is not being monitored or enforced.
+	if(!policy_id && load_time_config.learning_enabled) {
+		// No policy associated with this cgroup.
+		// Emit the event to the learning ringbuf so that the userspace can learn from it.
+		// This is critical because the LSM hook `security_bprm_creds_for_exec` is called
+		// for each binary in the binfmt chain (e.g., script AND interpreter), while the
+		// `sched_process_exec` tracepoint only fires once for the final binary. Without
+		// this, shebang scripts (e.g., docker-entrypoint.sh) would never be learned and
+		// would be blocked when the policy is enforced.
+		struct process_evt *levt = get_process_evt();
+		if(!levt) {
+			return 0;
+		}
+		levt->cgid = tg_get_current_cgroup_id();
+		levt->cg_tracker_id = cg_tracker_id;
+		levt->mode = 0;
+
+		u32 loffset = populate_evt_with_path(levt, bprm);
+		if(loffset == 0) {
+			return 0;
+		}
+
+		long lerr = bpf_probe_read_kernel(levt->path,
+		                                  SAFE_PATH_LEN(levt->path_len + 1),
+		                                  &levt->path[SAFE_PATH_ACCESS(loffset)]);
+		if(lerr != 0) {
+			emit_log_event(LOG_FAIL_TO_COPY_EXEC_PATH);
+			return 0;
+		}
+
+		// this is used for debug during development is never used in production
+		bpf_printk("sent execve event, path: %s, cgid: %d, cg_tracker_id: %d",
+		           levt->path,
+		           levt->cgid,
+		           levt->cg_tracker_id);
+
+		lerr = bpf_ringbuf_output(&ringbuf_execve, levt, 19 + SAFE_PATH_LEN(levt->path_len), 0);
+		if(lerr != 0) {
+			emit_log_event(LOG_DROP_EXEC_EVENT);
+		}
 		return 0;
 	}
 
@@ -616,7 +604,13 @@ int BPF_PROG(enforce_cgroup_policy, struct linux_binprm *bprm) {
 	// We send the event
 	///////////////////////////////
 
-	// we move the data at the beginning of the buffer so that we can send them
+	// here we are copying the resolved path into the first segment of the buffer.
+	// please note: in the first segment of the path we will already have the path written by
+	// the previous program execution, what we are doing here is to overwrite the path with the new
+	// content. Example:
+	// - previous: `/usr/bin/nginx-controller\0`
+	// - new one:  `/usr/bin/cat\0x-controller\0`
+	// we need the +1 because we want to copy also the `\0` terminator
 	long err = bpf_probe_read_kernel(evt->path,
 	                                 SAFE_PATH_LEN(evt->path_len + 1),
 	                                 &evt->path[SAFE_PATH_ACCESS(current_offset)]);

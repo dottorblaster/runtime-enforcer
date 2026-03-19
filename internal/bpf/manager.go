@@ -147,7 +147,7 @@ func NewManager(logger *slog.Logger, enableLearning bool) (*Manager, error) {
 		return nil, fmt.Errorf("failed to load BPF spec: %w", err)
 	}
 
-	conf, err := getLoadTimeConfig(logger)
+	conf, err := getLoadTimeConfig(logger, enableLearning)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get load time config: %w", err)
 	}
