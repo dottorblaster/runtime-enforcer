@@ -90,6 +90,7 @@ func runProposalPromote(
 		return nil
 	}
 
+	updateOptions := metav1.UpdateOptions{}
 	if opts.DryRun {
 		fmt.Fprintf(
 			out,
@@ -99,16 +100,20 @@ func runProposalPromote(
 			apiv1alpha1.ApprovalLabelKey,
 			"true",
 		)
-		fmt.Fprintf(out, "This will trigger the creation of a WorkloadPolicy %q in namespace %q.\n",
-			proposal.Name, proposal.Namespace)
-		return nil
+		fmt.Fprintf(
+			out,
+			"This will trigger the creation of a WorkloadPolicy %q in namespace %q.\n",
+			proposal.Name,
+			proposal.Namespace,
+		)
+		updateOptions.DryRun = []string{metav1.DryRunAll}
 	}
 
 	labels[apiv1alpha1.ApprovalLabelKey] = "true"
 	proposal.SetLabels(labels)
 
 	if _, err = client.WorkloadPolicyProposals(opts.Namespace).
-		Update(ctx, proposal, metav1.UpdateOptions{}); err != nil {
+		Update(ctx, proposal, updateOptions); err != nil {
 		if apierrors.IsConflict(err) {
 			return fmt.Errorf(
 				"WorkloadPolicyProposal %q in namespace %q was modified concurrently",

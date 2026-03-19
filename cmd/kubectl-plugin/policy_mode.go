@@ -99,6 +99,7 @@ func runPolicyModeSet(
 		return nil
 	}
 
+	updateOptions := metav1.UpdateOptions{}
 	if opts.DryRun {
 		fmt.Fprintf(
 			out,
@@ -107,13 +108,13 @@ func runPolicyModeSet(
 			policy.Namespace,
 			targetMode,
 		)
-		return nil
+		updateOptions.DryRun = []string{metav1.DryRunAll}
 	}
 
 	policy.Spec.Mode = targetMode
 
 	if _, err = client.WorkloadPolicies(opts.Namespace).
-		Update(ctx, policy, metav1.UpdateOptions{}); err != nil {
+		Update(ctx, policy, updateOptions); err != nil {
 		if apierrors.IsConflict(err) {
 			return fmt.Errorf(
 				"WorkloadPolicy %q in namespace %q was modified concurrently",

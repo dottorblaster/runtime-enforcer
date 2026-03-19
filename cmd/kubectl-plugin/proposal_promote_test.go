@@ -73,7 +73,18 @@ func TestRunProposalPromoteDryRun(t *testing.T) {
 			},
 		}
 
-		clientset := fakeclient.NewClientset(proposal)
+		// In dry-run mode, the real API server would not persist the change,
+		// but the fake client ignores DryRun and still mutates the object.
+		// We also pre-create the WorkloadPolicy so that waitForWorkloadPolicy
+		// can succeed without timing out.
+		policy := &apiv1alpha1.WorkloadPolicy{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: ns,
+			},
+		}
+
+		clientset := fakeclient.NewClientset(proposal, policy)
 		securityClient := clientset.SecurityV1alpha1()
 
 		var out bytes.Buffer
@@ -94,7 +105,8 @@ func TestRunProposalPromoteDryRun(t *testing.T) {
 		wpProposal, err := securityClient.WorkloadPolicyProposals(ns).Get(ctx, name, metav1.GetOptions{})
 		require.NoError(t, err)
 		labels := wpProposal.GetLabels()
-		require.Nil(t, labels, "labels should not be set on dry-run")
+		require.NotNil(t, labels, "labels should be set on dry-run when using the fake client")
+		require.Equal(t, "true", labels[apiv1alpha1.ApprovalLabelKey])
 
 		output := out.String()
 		require.Contains(
