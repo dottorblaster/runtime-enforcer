@@ -3,7 +3,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -19,10 +18,6 @@ import (
 
 	"github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-)
-
-const (
-	PolicyDeletionRequeueDelay = 90 * time.Second
 )
 
 // WorkloadPolicyReconciler reconciles a WorkloadPolicy object.
@@ -85,11 +80,11 @@ func (r *WorkloadPolicyReconciler) handleDeletion(
 		}
 
 		if len(podList.Items) > 0 {
-			logger.Info("Cannot remove finalizer: policy still in use by pods",
+			logger.V(1).Info("Cannot remove finalizer: policy still in use by pods",
 				"policy", policy.Name,
 				"podCount", len(podList.Items))
-			// Requeue to check again later
-			return ctrl.Result{RequeueAfter: PolicyDeletionRequeueDelay}, nil
+			// Pod deletion will trigger a reconcile, and we'll retry finalizer removal then.
+			return ctrl.Result{}, nil
 		}
 
 		// No pods using this policy, safe to remove finalizer
