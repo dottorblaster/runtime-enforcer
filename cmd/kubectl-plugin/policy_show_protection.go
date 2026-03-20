@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"slices"
+	"strings"
 
 	apiv1alpha1 "github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/podworkload"
@@ -183,13 +184,7 @@ func buildWorkloadProtectionRows(
 	}
 
 	slices.SortFunc(rows, func(a, b workloadProtectionRow) int {
-		if a.Workload < b.Workload {
-			return -1
-		}
-		if a.Workload > b.Workload {
-			return 1
-		}
-		return 0
+		return strings.Compare(a.Workload, b.Workload)
 	})
 
 	return rows
