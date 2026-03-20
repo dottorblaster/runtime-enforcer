@@ -2,9 +2,12 @@ package eventhandler
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
+	"github.com/go-logr/logr"
 	securityv1alpha1 "github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/eventhandler/proposalutils"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/eventscraper"
@@ -24,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
@@ -31,7 +35,14 @@ import (
 // deliver events to learning_controller.
 // This is a arbitrary number right now and can be fine-tuned or made configurable in the future.
 // On a simple kind cluster we saw more than 4200 process exec during the initial process cache dump, so this seems a reasonable default for now.
-const DefaultEventChannelBufferSize = 4096
+const (
+	DefaultEventChannelBufferSize = 4096
+	maxConflictRetries            = 15 // 5ms * (2^0 + 2^1 + ... + 2^15) ~= 328s (~5.5 mins). This would be the maximum time for a process to be learned.
+
+	// The default ratelimiter setting from controller-runtime.
+	baseDelay = 5 * time.Millisecond
+	maxDelay  = 1000 * time.Second
+)
 
 type LearningReconciler struct {
 	client.Client
@@ -42,6 +53,7 @@ type LearningReconciler struct {
 	namespaceSelector labels.Selector
 	// OwnerRefEnricher can be overridden during testing
 	OwnerRefEnricher func(wp *securityv1alpha1.WorkloadPolicyProposal, workloadKind string, workload string)
+	ratelimiter      workqueue.TypedRateLimiter[eventscraper.KubeProcessInfo]
 }
 
 func NewLearningReconciler(
@@ -66,6 +78,54 @@ func NewLearningReconciler(
 				},
 			}
 		},
+		ratelimiter: workqueue.NewTypedItemExponentialFailureRateLimiter[eventscraper.KubeProcessInfo](
+			baseDelay,
+			maxDelay,
+		),
+	}
+}
+
+// handleAdmissionError deals with the errors returned by our mutating webhook.
+func (r *LearningReconciler) handleAdmissionError(logger logr.Logger, err error) error {
+	var apistatus apierrors.APIStatus
+	if !errors.As(err, &apistatus) {
+		return err
+	}
+
+	switch apistatus.Status().Code {
+	case http.StatusUnprocessableEntity:
+		// The item is rejected by the webhook.
+		// This means something seriously wrong with the request and we should stop retrying.
+		logger.Error(
+			err,
+			"Failed to update WorkloadPolicyProposal because the proposal is rejected by the webhook",
+		)
+		return nil
+	case http.StatusGone:
+		// This happens when the top-level workload is deleted.
+		// We don't need to retry anymore.
+		logger.V(3).Info( //nolint:mnd // 3 is the verbosity level for detailed debug info
+			"Failed to update WorkloadPolicyProposal because the owner workload has been deleted",
+		)
+		return nil
+	case http.StatusConflict:
+		// This happens when there are multiple agents trying to update the same WorkloadPolicyProposal at the same time.
+		// This is by design, but we should return the error as it is for our rate limiter to retry.
+		// Both conflict and already exists errors fall in this category.
+		return err
+	case http.StatusForbidden:
+		// This happens when the admission webhook rejects the request normally without specifying a special error code.
+		// This means transient errors that we should retry.
+		return err
+	case http.StatusInternalServerError:
+		// This happens when the admission webhook is down. We should retry.
+		return err
+	default:
+		return fmt.Errorf(
+			"error code %d received when running CreateOrUpdate: %w",
+			apistatus.Status().Code,
+			err,
+		)
 	}
 }
 
@@ -73,14 +133,55 @@ func NewLearningReconciler(
 // +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
 // +kubebuilder:rbac:groups=security.rancher.io,resources=workloadpolicyproposals,verbs=create;get;list;watch;update;patch
 
-// Reconcile receives learning events and creates/updates WorkloadPolicyProposal resources accordingly.
+// Reconcile maintains a retry mechanism with exponential backoff when processing learning events.
 func (r *LearningReconciler) Reconcile(
 	ctx context.Context,
 	req eventscraper.KubeProcessInfo,
 ) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 
-	log.V(3).Info("Reconciling", "req", req) //nolint:mnd // 3 is the verbosity level for detailed debug info
+	ret, err := r.reconcile(ctx, req)
+	if err != nil {
+		// We use our own ratelimiter to deal with by-design conflict errors.
+		// We're totally fine with controller-runtime's ratelimiter by returning `Requeue: true`,
+		// but this field is deprecated, and we'd like to make sure that it won't retry forever.
+		// See also: https://github.com/kubernetes-sigs/controller-runtime/pull/3107
+		if !apierrors.IsConflict(err) && !apierrors.IsAlreadyExists(err) {
+			return ret, err
+		}
+
+		if r.ratelimiter.NumRequeues(req) > maxConflictRetries {
+			// we remove the item from ratelimiter and make sure controller-runtime won't retry it anymore.
+			r.ratelimiter.Forget(req)
+			return ctrl.Result{}, reconcile.TerminalError(err)
+		}
+
+		requeueAfter := r.ratelimiter.When(req)
+
+		//nolint:mnd // 3 is the verbosity level for detailed debug info
+		log.V(3).
+			Info("Reconciliation failed due to conflict. Retry with backoff", "req", req, "delay", requeueAfter, "error", err)
+
+		return ctrl.Result{RequeueAfter: requeueAfter}, nil
+	}
+
+	r.ratelimiter.Forget(req)
+	return ret, nil
+}
+
+// reconcile receives learning events and creates/updates WorkloadPolicyProposal resources accordingly.
+func (r *LearningReconciler) reconcile(
+	ctx context.Context,
+	req eventscraper.KubeProcessInfo,
+) (ctrl.Result, error) { //nolint:unparam // we want to keep it compatible with controller-runtime.
+	logger := log.FromContext(ctx).WithValues(
+		"namespace", req.Namespace,
+		"workload", req.Workload,
+		"workload_kind", req.WorkloadKind,
+		"exe", req.ExecutablePath,
+	)
+
+	logger.V(3).Info("Reconciling", "req", req) //nolint:mnd // 3 is the verbosity level for detailed debug info
 
 	var err error
 	var proposalName string
@@ -88,11 +189,8 @@ func (r *LearningReconciler) Reconcile(
 	if req.WorkloadKind == "Pod" {
 		// We don't support learning on standalone pods
 
-		log.V(3).Info( //nolint:mnd // 3 is the verbosity level for detailed debug info
+		logger.V(3).Info( //nolint:mnd // 3 is the verbosity level for detailed debug info
 			"Ignoring learning event",
-			"workload", req.Workload,
-			"workload_kind", req.WorkloadKind,
-			"exe", req.ExecutablePath,
 		)
 
 		return ctrl.Result{}, nil
@@ -102,16 +200,15 @@ func (r *LearningReconciler) Reconcile(
 		var ns corev1.Namespace
 		if err = r.Client.Get(ctx, types.NamespacedName{Name: req.Namespace}, &ns); err != nil {
 			if apierrors.IsNotFound(err) {
-				log.V(3).Info( //nolint:mnd // 3 is the verbosity level for detailed debug info
+				logger.V(3).Info( //nolint:mnd // 3 is the verbosity level for detailed debug info
 					"Namespace not found while evaluating learning namespace selector",
-					"namespace", req.Namespace,
 				)
 				return ctrl.Result{}, nil
 			}
 			return ctrl.Result{}, fmt.Errorf("failed to get namespace %s: %w", req.Namespace, err)
 		}
 		if !r.namespaceSelector.Matches(labels.Set(ns.GetLabels())) {
-			log.V(1).
+			logger.V(1).
 				Info("Namespace does not match learning namespace selector; skipping event", "namespace", req.Namespace)
 			return ctrl.Result{}, nil
 		}
@@ -119,7 +216,7 @@ func (r *LearningReconciler) Reconcile(
 
 	proposalName, err = proposalutils.GetWorkloadPolicyProposalName(req.WorkloadKind, req.Workload)
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to get proposal name: %w", err)
+		return ctrl.Result{}, reconcile.TerminalError(fmt.Errorf("failed to get proposal name: %w", err))
 	}
 
 	policyProposal := &securityv1alpha1.WorkloadPolicyProposal{
@@ -140,7 +237,8 @@ func (r *LearningReconciler) Reconcile(
 		}
 
 		if err = policyProposal.AddProcess(req.ContainerName, req.ExecutablePath); err != nil {
-			return fmt.Errorf("failed to add process to policy proposal: %w", err)
+			// unable to add a process to a policy proposal.  The policy proposal is likely full.
+			return reconcile.TerminalError(fmt.Errorf("failed to add process to policy proposal: %w", err))
 		}
 
 		// If the owner reference is already there we do nothing.
@@ -153,7 +251,7 @@ func (r *LearningReconciler) Reconcile(
 		r.OwnerRefEnricher(policyProposal, req.WorkloadKind, req.Workload)
 		return nil
 	}); err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to run CreateOrUpdate: %w", err)
+		return ctrl.Result{}, r.handleAdmissionError(logger, err)
 	}
 
 	// Emit trace when a new process is learned.

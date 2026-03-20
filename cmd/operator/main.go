@@ -29,6 +29,7 @@ import (
 
 	securityv1alpha1 "github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/controller"
+	"github.com/rancher-sandbox/runtime-enforcer/internal/customloggers/httpserverlogger"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/grpcexporter"
 	// +kubebuilder:scaffold:imports
 )
@@ -196,7 +197,9 @@ func parseWebhookOptions(logger *slog.Logger, config *Config) (*certwatcher.Cert
 }
 
 func main() {
-	slogHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})
+	slogHandler := httpserverlogger.NewServerErrorLogHandler(
+		slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}),
+	)
 	slogger := slog.New(slogHandler).With("component", "operator")
 	slog.SetDefault(slogger)
 	ctrlLogger := logr.FromSlogHandler(slogger.Handler())

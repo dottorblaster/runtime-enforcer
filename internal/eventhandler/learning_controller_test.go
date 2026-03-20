@@ -8,7 +8,6 @@ import (
 	"github.com/rancher-sandbox/runtime-enforcer/internal/eventhandler"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/eventscraper"
 	"golang.org/x/sync/errgroup"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -125,6 +124,7 @@ var _ = Describe("Learning", func() {
 					index := i
 					g.Go(func() error {
 						var err error
+						var ret ctrl.Result
 						var perWorkerClient client.Client
 						name := fmt.Sprintf("worker%d", index)
 						logf.Log.Info("worker started", "name", name)
@@ -145,11 +145,13 @@ var _ = Describe("Learning", func() {
 						reconciler := newTestLearningReconciler(perWorkerClient, nil)
 						for _, learningEvent := range eventsToProcess {
 							for {
-								_, err = reconciler.Reconcile(groupCtx, learningEvent)
-								if err == nil {
+								// with the internal ratelimiter, the learning controller would return RequeueAfter instead of a conflict error.
+								ret, err = reconciler.Reconcile(groupCtx, learningEvent)
+								if err == nil && ret.RequeueAfter == 0 {
+									// This means the item is correctly written.
 									break
 								}
-								if !errors.IsConflict(err) {
+								if err != nil {
 									return err
 								}
 							}

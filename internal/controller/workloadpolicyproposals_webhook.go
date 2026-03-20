@@ -2,10 +2,11 @@ package controller
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"net/http"
 
 	securityv1alpha1 "github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -16,6 +17,20 @@ import (
 
 type ProposalWebhook struct {
 	Client client.Client
+}
+
+var _ apierrors.APIStatus = (*ProposalValidatorError)(nil)
+
+type ProposalValidatorError struct {
+	status metav1.Status
+}
+
+func (e *ProposalValidatorError) Error() string {
+	return fmt.Sprintf("failed to validate proposal: %s", e.status.Message)
+}
+
+func (e *ProposalValidatorError) Status() metav1.Status {
+	return e.status
 }
 
 // +kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=get
@@ -47,7 +62,13 @@ func (p *ProposalWebhook) updateResource(
 	case "CronJob":
 		res = schema.GroupVersionKind{Group: "batch", Version: "v1", Kind: ownerRef.Kind}
 	default:
-		return fmt.Errorf("not supported resource type: %s", ownerRef.Kind)
+		return &ProposalValidatorError{
+			status: metav1.Status{
+				Message: fmt.Sprintf("invalid proposal: not supported resource type: %s", ownerRef.Kind),
+				Code:    http.StatusUnprocessableEntity,
+				Reason:  metav1.StatusReasonInvalid,
+			},
+		}
 	}
 
 	// unstructured does not trigger cache mechanism in controller-runtime's client.
@@ -59,6 +80,21 @@ func (p *ProposalWebhook) updateResource(
 	}, obj)
 
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return &ProposalValidatorError{
+				status: metav1.Status{
+					Message: fmt.Sprintf(
+						"the owner reference %s %s/%s is not found",
+						ownerRef.Kind,
+						proposal.Namespace,
+						ownerRef.Name,
+					),
+					Code:   http.StatusGone,
+					Reason: metav1.StatusReasonGone,
+				},
+			}
+		}
+
 		return fmt.Errorf("failed to get %s %s %s: %w", ownerRef.Kind, proposal.Namespace, ownerRef.Name, err)
 	}
 
@@ -83,15 +119,33 @@ func (p *ProposalWebhook) Default(ctx context.Context, proposal *securityv1alpha
 	logger.Info("mutating resource")
 
 	if len(proposal.OwnerReferences) != 1 {
-		return errors.New("only one owner reference is expected")
+		return &ProposalValidatorError{
+			status: metav1.Status{
+				Message: "invalid proposal: only one owner reference is expected",
+				Code:    http.StatusUnprocessableEntity,
+				Reason:  metav1.StatusReasonInvalid,
+			},
+		}
 	}
 
 	if proposal.OwnerReferences[0].Kind == "" {
-		return errors.New("kind is not specified in the owner reference")
+		return &ProposalValidatorError{
+			status: metav1.Status{
+				Message: "invalid proposal: kind is not specified in the owner reference",
+				Code:    http.StatusUnprocessableEntity,
+				Reason:  metav1.StatusReasonInvalid,
+			},
+		}
 	}
 
 	if proposal.OwnerReferences[0].Name == "" {
-		return errors.New("name is not specified in the owner reference")
+		return &ProposalValidatorError{
+			status: metav1.Status{
+				Message: "invalid proposal: name is not specified in the owner reference",
+				Code:    http.StatusUnprocessableEntity,
+				Reason:  metav1.StatusReasonInvalid,
+			},
+		}
 	}
 
 	if proposal.OwnerReferences[0].UID != "" {
