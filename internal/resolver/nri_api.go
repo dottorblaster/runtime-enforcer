@@ -46,13 +46,13 @@ func (r *Resolver) AddPodContainerFromNri(pod PodInput) error {
 				container.CgroupID)
 		}
 
-		state.containers[containerID] = &container
+		state.containers[containerID] = &container.ContainerMeta
 
 		// populate the cgroup cache
 		r.cgroupIDToPodID[container.CgroupID] = podID
 
 		// update the cgtracker map
-		if err := r.cgTrackerUpdateFunc(container.CgroupID, ""); err != nil {
+		if err := r.cgTrackerUpdateFunc(container.CgroupID, container.CgroupPath); err != nil {
 			return fmt.Errorf(
 				"failed to update cgroup tracker map for pod %s, container %s: %w",
 				pod.Meta.Name,

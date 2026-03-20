@@ -26,8 +26,8 @@ func (m *Manager) updateCgTrackerMap(cgID uint64, cgroupPath string) error {
 		return fmt.Errorf("failed to update cgroup tracker map for id %d: %w", cgID, err)
 	}
 
-	// when we use NRI we don't need to walk the cgroup path because the container is not yet running so it's impossible to have nested cgroup.
-	// NRI will provide an empty cgroupPath
+	// according to the the NRI api we are using, we don't need to walk the cgroup path
+	// because the container is not yet running so it's impossible to have nested cgroup.
 	if cgroupPath == "" {
 		return nil
 	}

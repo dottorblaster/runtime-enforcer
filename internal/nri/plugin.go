@@ -19,7 +19,7 @@ type plugin struct {
 	resolver        *resolver.Resolver
 	lastErr         error
 	failOpen        bool
-	resolveCgroupID func(container *api.Container) (resolver.CgroupID, error)
+	resolveCgroupID func(container *api.Container) (resolver.CgroupID, string, error)
 }
 
 // podLogger returns a logger pre-enriched with the pod fields.
@@ -92,9 +92,10 @@ func (p *plugin) Synchronize(
 	)
 
 	// we store the container for now and we associate them later with the pod sandbox
-	tmpSandboxes := make(map[string]map[resolver.ContainerID]resolver.ContainerMeta)
+	tmpSandboxes := make(map[string]map[resolver.ContainerID]resolver.ContainerInput)
 	for _, container := range containers {
-		cgroupID, err := p.resolveCgroupID(container)
+		// We need to take also the cgroupPath in synchronize because it is possible that we already have nested containers and we need to iterate over them inside the resolver.
+		cgroupID, cgroupPath, err := p.resolveCgroupID(container)
 		if err != nil {
 			// When this happens, we can't retrieve the cgroup ID in the target system.
 			// This is a critical error.
@@ -111,12 +112,15 @@ func (p *plugin) Synchronize(
 
 		// Populate the sandbox map
 		if _, exists := tmpSandboxes[container.GetPodSandboxId()]; !exists {
-			tmpSandboxes[container.GetPodSandboxId()] = make(map[resolver.ContainerID]resolver.ContainerMeta)
+			tmpSandboxes[container.GetPodSandboxId()] = make(map[resolver.ContainerID]resolver.ContainerInput)
 		}
-		tmpSandboxes[container.GetPodSandboxId()][container.GetId()] = resolver.ContainerMeta{
-			CgroupID: cgroupID,
-			Name:     container.GetName(),
-			ID:       container.GetId(),
+		tmpSandboxes[container.GetPodSandboxId()][container.GetId()] = resolver.ContainerInput{
+			ContainerMeta: resolver.ContainerMeta{
+				CgroupID: cgroupID,
+				Name:     container.GetName(),
+				ID:       container.GetId(),
+			},
+			CgroupPath: cgroupPath,
 		}
 	}
 
@@ -190,7 +194,8 @@ func (p *plugin) StartContainer(
 		return nriErr
 	}
 
-	cgroupID, err := p.resolveCgroupID(container)
+	// Here we can ignore the cgroupPath because the container is not yet running so we cannot have nested cgroups.
+	cgroupID, _, err := p.resolveCgroupID(container)
 	if err != nil {
 		// this should never happen because we've succeeded before in Synchronize() call.
 		// When this happens, it indicates a serious inconsistency in the system.
@@ -200,11 +205,14 @@ func (p *plugin) StartContainer(
 	workloadName, workloadKind := p.getWorkloadInfoAndLog(ctx, pod)
 	podData := resolver.PodInput{
 		Meta: podSandboxToPodMeta(pod, workloadName, workloadKind),
-		Containers: map[resolver.ContainerID]resolver.ContainerMeta{
+		Containers: map[resolver.ContainerID]resolver.ContainerInput{
 			container.GetId(): {
-				CgroupID: cgroupID,
-				Name:     container.GetName(),
-				ID:       container.GetId(),
+				ContainerMeta: resolver.ContainerMeta{
+					CgroupID: cgroupID,
+					Name:     container.GetName(),
+					ID:       container.GetId(),
+				},
+				CgroupPath: "",
 			},
 		},
 	}

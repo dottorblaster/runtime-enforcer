@@ -10,14 +10,14 @@ import (
 	"github.com/rancher-sandbox/runtime-enforcer/internal/resolver"
 )
 
-func cgroupFromContainer(container *api.Container) (resolver.CgroupID, error) {
+func cgroupFromContainer(container *api.Container) (resolver.CgroupID, string, error) {
 	if container == nil {
 		// safety check, this should never happen
-		return 0, errors.New("received empty container")
+		return 0, "", errors.New("received empty container")
 	}
 
 	if container.GetLinux() == nil {
-		return 0, fmt.Errorf("received container '%s(%s)' without Linux info",
+		return 0, "", fmt.Errorf("received container '%s(%s)' without Linux info",
 			container.GetName(),
 			container.GetId(),
 		)
@@ -26,7 +26,7 @@ func cgroupFromContainer(container *api.Container) (resolver.CgroupID, error) {
 	// Parse the cgroup path
 	parsedPath, err := cgroups.ParseCgroupsPath(container.GetLinux().GetCgroupsPath())
 	if err != nil {
-		return 0, fmt.Errorf("failed to parse cgroup path '%s' for container '%s(%s)': %w",
+		return 0, "", fmt.Errorf("failed to parse cgroup path '%s' for container '%s(%s)': %w",
 			container.GetLinux().GetCgroupsPath(),
 			container.GetName(),
 			container.GetId(),
@@ -40,12 +40,12 @@ func cgroupFromContainer(container *api.Container) (resolver.CgroupID, error) {
 	// Get the cgroup ID
 	cgroupID, err := cgroups.GetCgroupIDFromPath(path)
 	if err != nil {
-		return 0, fmt.Errorf("failed to get cgroup ID from path '%s' for container '%s(%s)': %w",
+		return 0, "", fmt.Errorf("failed to get cgroup ID from path '%s' for container '%s(%s)': %w",
 			path,
 			container.GetName(),
 			container.GetId(),
 			err,
 		)
 	}
-	return cgroupID, nil
+	return cgroupID, path, nil
 }

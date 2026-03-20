@@ -21,7 +21,18 @@ type ContainerMeta struct {
 	CgroupID CgroupID
 }
 
+type ContainerInput struct {
+	ContainerMeta
+
+	CgroupPath string
+}
+
 type PodInput struct {
+	Meta       PodMeta
+	Containers map[ContainerID]ContainerInput
+}
+
+type PodView struct {
 	Meta       PodMeta
 	Containers map[ContainerID]ContainerMeta
 }
@@ -30,6 +41,3 @@ type ContainerView struct {
 	Meta    ContainerMeta
 	PodMeta PodMeta
 }
-
-// PodView at the moment is just an alias of PodInput.
-type PodView PodInput

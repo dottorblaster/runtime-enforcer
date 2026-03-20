@@ -15,15 +15,20 @@ import (
 func newTestPlugin(
 	t *testing.T,
 	failOpen bool,
-	resolveCgroupFunc func(*api.Container) (resolver.CgroupID, error),
+	cgroupToReturn resolver.CgroupID,
 ) *plugin {
 	t.Helper()
 
 	return &plugin{
-		logger:          slog.New(slog.NewTextHandler(io.Discard, nil)),
-		resolver:        resolver.NewTestResolver(t),
-		failOpen:        failOpen,
-		resolveCgroupID: resolveCgroupFunc,
+		logger:   slog.New(slog.NewTextHandler(io.Discard, nil)),
+		resolver: resolver.NewTestResolver(t),
+		failOpen: failOpen,
+		resolveCgroupID: func(*api.Container) (resolver.CgroupID, string, error) {
+			if cgroupToReturn != 0 {
+				return cgroupToReturn, "", nil
+			}
+			return 0, "", errors.New("lookup failed")
+		},
 	}
 }
 
@@ -53,9 +58,7 @@ func TestPluginStartContainer(t *testing.T) {
 		pod := testPodSandbox()
 		container := testContainer()
 
-		p := newTestPlugin(t, false, func(*api.Container) (resolver.CgroupID, error) {
-			return 100, nil
-		})
+		p := newTestPlugin(t, false, 100)
 
 		err := p.StartContainer(t.Context(), pod, container)
 		require.NoError(t, err)
@@ -80,9 +83,7 @@ func TestPluginStartContainer(t *testing.T) {
 	})
 
 	t.Run("returns nil in fail-open mode when cgroup lookup fails", func(t *testing.T) {
-		p := newTestPlugin(t, true, func(*api.Container) (resolver.CgroupID, error) {
-			return 0, errors.New("lookup failed")
-		})
+		p := newTestPlugin(t, true, 0)
 		pod := testPodSandbox()
 		container := testContainer()
 
@@ -92,9 +93,7 @@ func TestPluginStartContainer(t *testing.T) {
 	})
 
 	t.Run("returns wrapped error in fail-closed mode when cgroup lookup fails", func(t *testing.T) {
-		p := newTestPlugin(t, false, func(*api.Container) (resolver.CgroupID, error) {
-			return 0, errors.New("lookup failed")
-		})
+		p := newTestPlugin(t, false, 0)
 
 		pod := testPodSandbox()
 		container := testContainer()
