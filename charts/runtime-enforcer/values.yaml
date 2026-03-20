@@ -138,7 +138,7 @@ kubernetesClusterDomain: cluster.local
 imagePullSecrets: []
 
 debugger:
-  enabled: true
+  enabled: false
   interval: 30s
   # @schema additionalProperties:true
   containerSecurityContext:

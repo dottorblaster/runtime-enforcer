@@ -1,0 +1,62 @@
+= Troubleshooting
+
+This document provides guidance for diagnosing issues with runtime-enforcer.
+
+== Debugger
+
+The debugger is an optional Kubernetes Deployment that helps diagnose issues between the runtime-enforcer agents and the actual state of the Kubernetes cluster.
+
+At the moment, it supports only a few basic operations listed below.
+
+=== Features
+
+==== Cache comparison
+
+Each agent maintains an in-memory cache of the pods and containers it is aware of on its node.
+This cache is populated via the https://github.com/containerd/nri[NRI (Node Resource Interface)] plugin and is used to resolve container identities during policy enforcement.
+
+If the agent cache drifts from the real cluster state, enforcement decisions could be applied incorrectly so it's important to validate if the cache is in sync.
+
+The debugger periodically:
+
+1. Queries every agent (via mTLS-secured gRPC) for its current pod/container cache.
+2. Lists all pods from the Kubernetes API.
+3. Compares the two views node-by-node and prints a diff to stdout.
+
+If the caches are aligned you will see:
+
+----
+caches are aligned
+----
+
+If there is a discrepancy you will see a diff with the affected node and pods, followed by a full dump of the agent cache for that node.
+
+=== Enabling the debugger
+
+The debugger is disabled by default. Enable it via Helm values:
+
+[source,bash]
+----
+helm upgrade --install runtime-enforcer runtime-enforcer/runtime-enforcer \
+  --namespace runtime-enforcer \
+  --set debugger.enabled=true \
+  --reuse-values
+----
+
+NOTE: `--reuse-values` is important because allows you to enable/disable the debugger without restarting the agent.
+
+If you want to customize how often the debugger compares the agent cache against the cluster state, you can set the `debugger.interval` value in your Helm command:
+
+[source,bash]
+----
+  --set debugger.interval=<interval> # e.g. 1m, 30s
+----
+
+=== Viewing debugger output
+
+Once the debugger pod is running, inspect its logs:
+
+[source,bash]
+----
+kubectl logs -n runtime-enforcer -l app.kubernetes.io/component=debugger -f
+----

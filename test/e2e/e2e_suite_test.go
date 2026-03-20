@@ -65,6 +65,8 @@ func getCharts() []helmChart {
 			helmOptions: []helm.Option{
 				helm.WithArgs("--set", "operator.image.tag=latest"),
 				helm.WithArgs("--set", "agent.image.tag=latest"),
+				helm.WithArgs("--set", "debugger.image.tag=latest"),
+				helm.WithArgs("--set", "debugger.enabled=true"),
 				// we need to reduce the timeout to see the wp status controller working properly in e2e tests
 				helm.WithArgs("--set", "operator.wpStatusUpdateInterval=2s"),
 			},
