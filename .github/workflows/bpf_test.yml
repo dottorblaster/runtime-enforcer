@@ -36,6 +36,9 @@ jobs:
         run: |
           make generate-ebpf
           go test -c ./internal/bpf/... -o tester
+      - name: Run eBPF test
+        run: |
+          make test-bpf
       - name: Validate bpf tests using bpfvalidator
         uses: ./.github/actions/bpfvalidator
         with:
