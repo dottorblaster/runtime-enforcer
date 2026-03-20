@@ -24,7 +24,6 @@ const (
 	cpuLogKey             = "cpu"
 	tidLogKey             = "tid"
 	pidLogKey             = "pid"
-	cgroupIDLogKey        = "cgroup_id"
 	cgroupTrackerIDLogKey = "cgroup_tracker_id"
 	commLogKey            = "comm"
 	policyIDLogKey        = "policy_id"
@@ -94,7 +93,6 @@ func logEvent(
 		tidLogKey, evt.Pid,
 		pidLogKey, evt.Tgid,
 		commLogKey, getComm(evt),
-		cgroupIDLogKey, evt.Cgid,
 		cgroupTrackerIDLogKey, evt.CgTrackerId,
 	}
 	attrs = append(attrs, additionalArgs...)

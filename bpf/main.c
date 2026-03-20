@@ -258,8 +258,7 @@ static __always_inline void emit_log_event_args(log_code code, u64 arg1, u64 arg
 		// we don't fail we just print the error
 		bpf_printk("Failed to get comm for log event\n");
 	}
-	evt->cgid = tg_get_current_cgroup_id();
-	evt->cg_tracker_id = cgrp_get_tracker_id(evt->cgid);
+	evt->cg_tracker_id = get_tracker_id_from_curr_task();
 	u64 pid_tgid = bpf_get_current_pid_tgid();
 	evt->pid = pid_tgid & 0xFFFFFFFF;
 	evt->tgid = pid_tgid >> 32;
@@ -365,7 +364,6 @@ struct {
 } ringbuf_execve SEC(".maps");
 
 struct process_evt {
-	u64 cgid;
 	u64 cg_tracker_id;
 	u16 path_len;
 	u8 mode;  // enforce or protect, todo!: this information is not needed by the learning event so
@@ -519,7 +517,6 @@ int BPF_PROG(enforce_cgroup_policy, struct linux_binprm *bprm) {
 		if(!levt) {
 			return 0;
 		}
-		levt->cgid = tg_get_current_cgroup_id();
 		levt->cg_tracker_id = cg_tracker_id;
 		levt->mode = 0;
 
@@ -537,9 +534,8 @@ int BPF_PROG(enforce_cgroup_policy, struct linux_binprm *bprm) {
 		}
 
 		// this is used for debug during development is never used in production
-		bpf_printk("sent execve event, path: %s, cgid: %d, cg_tracker_id: %d",
+		bpf_printk("sent execve event, path: %s, cg_tracker_id: %d",
 		           levt->path,
-		           levt->cgid,
 		           levt->cg_tracker_id);
 
 		lerr = bpf_ringbuf_output(&ringbuf_execve, levt, 19 + SAFE_PATH_LEN(levt->path_len), 0);
@@ -554,8 +550,7 @@ int BPF_PROG(enforce_cgroup_policy, struct linux_binprm *bprm) {
 		return 0;
 	}
 
-	evt->cgid = tg_get_current_cgroup_id();
-	evt->cg_tracker_id = cgrp_get_tracker_id(evt->cgid);
+	evt->cg_tracker_id = cg_tracker_id;
 
 	u32 current_offset = populate_evt_with_path(evt, bprm);
 	if(current_offset == 0) {
@@ -634,10 +629,7 @@ int BPF_PROG(enforce_cgroup_policy, struct linux_binprm *bprm) {
 		emit_log_event_2(LOG_DROP_VIOLATION, *policy_id, evt->mode);
 	}
 
-	bpf_printk("sent enforce event, path: %s, cgid: %d, cg_tracker_id: %d",
-	           evt->path,
-	           evt->cgid,
-	           evt->cg_tracker_id);
+	bpf_printk("sent enforce event, path: %s, cg_tracker_id: %d", evt->path, evt->cg_tracker_id);
 	bpf_printk("mode: %d", evt->mode);
 
 	if(*mode == POLICY_MODE_MONITOR) {

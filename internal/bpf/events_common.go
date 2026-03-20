@@ -112,7 +112,6 @@ func (m *Manager) processRingbufEvents(ctx context.Context, rd *ringbuf.Reader, 
 			modeString = policymode.FromUint8(header.Mode).String()
 		}
 		out <- ProcessEvent{
-			CgroupID:    header.Cgid,
 			CgTrackerID: header.CgTrackerID,
 			Mode:        modeString,
 			ExePath:     string(pathBytes),

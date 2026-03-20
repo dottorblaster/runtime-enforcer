@@ -130,7 +130,6 @@ func TestLogMissingPolicyMode(t *testing.T) {
 	// we expect our policy missing log
 	memoryWriter.assertHasLogWithFields(t, map[string]string{
 		msgLogKey:             policyModeMissingMessage,
-		cgroupIDLogKey:        strconv.FormatUint(runner.cgInfo.id, 10),
 		policyIDLogKey:        strconv.FormatUint(mockPolicyID, 10),
 		cgroupTrackerIDLogKey: strconv.FormatUint(runner.cgInfo.id, 10),
 	})

@@ -40,7 +40,6 @@ struct log_evt {
 	log_code code;
 	// args shared by all the logs
 	char comm[TASK_COMM_LEN];
-	u64 cgid;
 	u64 cg_tracker_id;
 	u32 pid;
 	u32 tgid;

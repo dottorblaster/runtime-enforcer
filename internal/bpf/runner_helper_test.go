@@ -121,8 +121,7 @@ func (m *Manager) findEventInChannel(ty ChannelType, cgID uint64, expectedPath s
 		select {
 		case event := <-channel:
 			m.logger.Info("Received event", "event", event)
-			if event.CgroupID == cgID &&
-				event.CgTrackerID == cgID &&
+			if event.CgTrackerID == cgID &&
 				event.ExePath == expectedPath {
 				m.logger.Info("Found event", "event", event)
 				return nil

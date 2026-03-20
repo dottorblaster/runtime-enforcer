@@ -36,14 +36,12 @@ const (
 
 // ProcessEvent represents an event coming from BPF programs, for now used for learning and monitoring.
 type ProcessEvent struct {
-	CgroupID    uint64
 	CgTrackerID uint64
 	ExePath     string
 	Mode        string
 }
 
 type bpfEventHeader struct {
-	Cgid        uint64
 	CgTrackerID uint64
 	PathLen     uint16
 	Mode        uint8
