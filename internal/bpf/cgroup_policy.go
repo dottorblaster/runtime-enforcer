@@ -41,7 +41,13 @@ func addPolicyToCgroups(cgToPol *ebpf.Map, targetPolID uint64, cgroupIDs []uint6
 	}
 
 	for _, cgID := range cgroupIDs {
-		// todo!: check if we can use batch operations and when they are supported
+		// Here we cannot use `BatchUpdate` because we want to detect overlapping policies.
+		// https://github.com/torvalds/linux/blob/1b237f190eb3d36f52dffe07a40b5eb210280e00/kernel/bpf/syscall.c#L1955
+		// - `ElemFlag` can only be `BPF_F_LOCK` if the map is behind a spinLock. Otherwise we use 0.
+		//    so we call `bpf_map_update_value` https://github.com/torvalds/linux/blob/1b237f190eb3d36f52dffe07a40b5eb210280e00/kernel/bpf/syscall.c#L1989
+		//    with 0 that is equivalent to `BPF_ANY`.
+		// - `Flag` is not used in batch operations.
+		// Since we can only use `BPF_ANY`, we cannot check for overlapping policies.
 		err := cgToPol.Update(&cgID, &targetPolID, ebpf.UpdateNoExist)
 		if err == nil {
 			continue
@@ -73,7 +79,7 @@ func removePolicyFromCgroups(cgToPol *ebpf.Map, targetPolID uint64) error {
 	var polID uint64
 	cgIDList := []uint64{}
 
-	// Fiest we iterate to find all the cgroup ids associated with the target policy
+	// First we iterate to find all the cgroup ids associated with the target policy
 	iter := cgToPol.Iterate()
 	for iter.Next(&cgID, &polID) {
 		if targetPolID == polID {
@@ -85,18 +91,20 @@ func removePolicyFromCgroups(cgToPol *ebpf.Map, targetPolID uint64) error {
 		return fmt.Errorf("failed to iterate cgroup to policy map: %w", err)
 	}
 
-	// Now we remove all the cgroup ids associated with the target policy
-	var multiErr error
-	for _, cgID := range cgIDList {
-		// Here all the keys should exist, so we report any error
-		if err := cgToPol.Delete(&cgID); err != nil {
-			multiErr = errors.Join(
-				multiErr,
-				fmt.Errorf("failed to remove cgroup %d from policy map: %w", cgID, err),
-			)
-		}
+	if len(cgIDList) == 0 {
+		// Nothing to remove
+		return nil
 	}
-	return multiErr
+
+	// Now we remove all the cgroup ids associated with the target policy
+	// In this case it's fine to use a batch operation since we already checked for existence
+	// and nobody will touch the cgroup map while we are working on it.
+	// The userspace is the only one that modify the map and here we are under lock.
+	count, err := cgToPol.BatchDelete(cgIDList, nil)
+	if err != nil || count != len(cgIDList) {
+		return fmt.Errorf("failed to remove cgroups %v from policy map: %w", cgIDList, err)
+	}
+	return nil
 }
 
 func removeCgroups(cgToPol *ebpf.Map, targetPolID uint64, cgroupIDs []uint64) error {
@@ -106,8 +114,8 @@ func removeCgroups(cgToPol *ebpf.Map, targetPolID uint64, cgroupIDs []uint64) er
 
 	var multiErr error
 	for _, cgID := range cgroupIDs {
-		// todo!: check if we can use batch operations
-		// it is possible that we call the remove just to cleanup so we ignore the ErrKeyNotExist error.
+		// We cannot use `BatchDelete` because it will fail if at least one key doesn't exist.
+		// This method is always called on containers deletion even if they were not associated with a policy so it's likely we will face some ErrKeyNotExist.
 		if err := cgToPol.Delete(&cgID); err != nil && !errors.Is(err, ebpf.ErrKeyNotExist) {
 			multiErr = errors.Join(
 				multiErr,

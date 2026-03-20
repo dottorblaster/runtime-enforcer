@@ -78,6 +78,7 @@
         "kubelet",
         "kubepods",
         "besteffort",
+        "userspace",
         "gosec",
         "eventscraper",
         "libbpf",
