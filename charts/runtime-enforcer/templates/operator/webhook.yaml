@@ -29,8 +29,6 @@ webhooks:
     - workloadpolicyproposals
   sideEffects: None
   matchConditions:
-  - name: no-selector
-    expression: '!has(object.spec.selector) || object.spec.selector.size() == 0'
   - name: no-owner-reference-uid
     expression: '!has(object.metadata.ownerReferences) || object.metadata.ownerReferences.size() == 0 || object.metadata.ownerReferences[0].uid.size() == 0'
 - admissionReviewVersions:
