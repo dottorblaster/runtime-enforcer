@@ -8,6 +8,8 @@ import (
 	"github.com/rancher-sandbox/runtime-enforcer/internal/bpf"
 )
 
+const nriSyncInProgressMsg = "waiting for NRI synchronization to complete"
+
 func convertPodData(pod PodInput) *podEntry {
 	return &podEntry{
 		meta:       &pod.Meta,
@@ -113,10 +115,14 @@ func (r *Resolver) NRISynchronized() {
 	r.nriSynchronized.Store(true)
 }
 
+func (r *Resolver) IsNRISynchronized() bool {
+	return r.nriSynchronized.Load()
+}
+
 func (r *Resolver) Ping(req *http.Request) error {
 	if !r.nriSynchronized.Load() {
-		r.logger.WarnContext(req.Context(), "NRI handler has not yet synchronized")
-		return errors.New("NRI handler has not yet synchronized")
+		r.logger.InfoContext(req.Context(), nriSyncInProgressMsg)
+		return errors.New(nriSyncInProgressMsg)
 	}
 	return nil
 }

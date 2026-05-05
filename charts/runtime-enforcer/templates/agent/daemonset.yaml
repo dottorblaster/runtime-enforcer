@@ -92,8 +92,8 @@ spec:
           httpGet:
             path: /readyz
             port: 8081
-          # we give 45s (5s delay + 8 attempts every 5s) for the startup probe to succeed
-          initialDelaySeconds: 5
+          # we give 50s (10s delay + 8 attempts every 5s) for the startup probe to succeed
+          initialDelaySeconds: 10
           periodSeconds: 5
           failureThreshold: 8
         resources: {{- toYaml .Values.agent.resources | nindent 10 }}

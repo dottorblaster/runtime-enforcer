@@ -39,6 +39,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
+const wpSyncInProgressMsg = "waiting for WorkloadPolicy synchronization to complete"
+
 type Config struct {
 	learningNamespaceSelector string
 	nriSocketPath             string
@@ -95,25 +97,30 @@ func setupWorkloadPolicyHandler(
 	ctrlMgr manager.Manager,
 	logger *slog.Logger,
 	resolver *resolver.Resolver,
-) error {
+) (*workloadpolicyhandler.WorkloadPolicyHandler, error) {
 	wpHandler := workloadpolicyhandler.NewWorkloadPolicyHandler(ctrlMgr.GetClient(), logger, resolver)
 	err := wpHandler.SetupWithManager(ctrlMgr)
 	if err != nil {
-		return fmt.Errorf("unable to set up WorkloadPolicy handler: %w", err)
+		return nil, fmt.Errorf("unable to set up WorkloadPolicy handler: %w", err)
 	}
 	// controller-runtime doesn't support a separate startup probe, so we use the readiness probe instead.
 	// See https://github.com/kubernetes-sigs/controller-runtime/issues/2644 for more details.
 	if err = ctrlMgr.AddReadyzCheck("policy readyz", func(req *http.Request) error {
 		if syncErr := wpHandler.HasSynced(req.Context()); syncErr != nil {
-			logger.ErrorContext(req.Context(), "WorkloadPolicy handler is not synced", "error", syncErr)
-			return fmt.Errorf("WorkloadPolicy handler is not synced: %w", syncErr)
+			logger.InfoContext(
+				req.Context(),
+				wpSyncInProgressMsg,
+				"error",
+				syncErr,
+			)
+			return fmt.Errorf("%s: %w", wpSyncInProgressMsg, syncErr)
 		}
 		return nil
 	}); err != nil {
-		return fmt.Errorf("failed to add policy readiness probe: %w", err)
+		return nil, fmt.Errorf("failed to add policy readiness probe: %w", err)
 	}
 
-	return nil
+	return wpHandler, nil
 }
 
 func waitForMutatingAdmissionWebhook(ctx context.Context) error {
@@ -239,7 +246,8 @@ func startAgent(ctx context.Context, logger *slog.Logger, config Config) error {
 		return fmt.Errorf("failed to create resolver: %w", err)
 	}
 
-	if err = setupWorkloadPolicyHandler(ctrlMgr, logger, resolver); err != nil {
+	wpHandler, err := setupWorkloadPolicyHandler(ctrlMgr, logger, resolver)
+	if err != nil {
 		return err
 	}
 
@@ -298,6 +306,12 @@ func startAgent(ctx context.Context, logger *slog.Logger, config Config) error {
 
 	logger.InfoContext(ctx, "starting manager")
 	if err = ctrlMgr.Start(ctx); err != nil {
+		if !resolver.IsNRISynchronized() || !wpHandler.IsSynchronized() {
+			logger.ErrorContext(ctx, "agent terminated before startup synchronization completed",
+				"nriSynchronized", resolver.IsNRISynchronized(),
+				"workloadPoliciesSynchronized", wpHandler.IsSynchronized(),
+			)
+		}
 		return fmt.Errorf("failed to start manager: %w", err)
 	}
 

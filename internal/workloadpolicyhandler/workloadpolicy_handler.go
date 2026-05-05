@@ -111,6 +111,10 @@ func (r *WorkloadPolicyHandler) HasSynced(ctx context.Context) error {
 	return nil
 }
 
+func (r *WorkloadPolicyHandler) IsSynchronized() bool {
+	return r.hasSynced.Load()
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *WorkloadPolicyHandler) SetupWithManager(mgr ctrl.Manager) error {
 	err := ctrl.NewControllerManagedBy(mgr).

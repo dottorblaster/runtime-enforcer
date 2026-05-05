@@ -14,6 +14,8 @@ import (
 	"github.com/rancher-sandbox/runtime-enforcer/internal/types/workloadkind"
 )
 
+const nriSyncRetryMsg = "NRI pod/container sync not ready yet, will retry"
+
 type plugin struct {
 	stub            stub.Stub
 	logger          *slog.Logger
@@ -163,8 +165,8 @@ func (p *plugin) Synchronize(
 		)
 		if err := p.resolver.AddPodContainerFromNri(podData); err != nil {
 			// This could be recoverable. Returning an error so we can retry.
-			podLogger.ErrorContext(ctx, "failed to add pod container from NRI", "error", err)
-			return nil, fmt.Errorf("failed to add pod container from NRI: %w", err)
+			podLogger.InfoContext(ctx, nriSyncRetryMsg, "error", err)
+			return nil, fmt.Errorf("%s: %w", nriSyncRetryMsg, err)
 		}
 	}
 	// Mark resolver as synchronized, so old agent can be safely removed.
