@@ -8,7 +8,7 @@ require (
 	github.com/containerd/nri v0.12.0
 	github.com/go-logr/logr v1.4.3
 	github.com/onsi/ginkgo/v2 v2.28.2
-	github.com/onsi/gomega v1.39.1
+	github.com/onsi/gomega v1.40.0
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
 	go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc v0.19.0
