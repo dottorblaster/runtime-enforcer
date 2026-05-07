@@ -69,12 +69,12 @@ func getPolicyUpdateTest() types.Feature {
 					Containers: []corev1.Container{
 						{
 							Name:    mainContainer,
-							Image:   "ubuntu",
+							Image:   "ubuntu:24.04",
 							Command: []string{"sleep", "3600"},
 						},
 						{
 							Name:    sidecarContainer,
-							Image:   "ubuntu",
+							Image:   "ubuntu:24.04",
 							Command: []string{"sleep", "3600"},
 						},
 					},

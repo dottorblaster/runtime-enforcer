@@ -137,7 +137,7 @@ spec:
     spec:
       containers:
       - name: ubuntu
-        image: ubuntu
+        image: ubuntu:24.04
         stdin: true
         tty: true
 ----

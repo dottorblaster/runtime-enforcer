@@ -20,7 +20,7 @@ spec:
       terminationGracePeriodSeconds: 1
       containers:
       - name: ubuntu
-        image: ubuntu
+        image: ubuntu:24.04
         # We create a while loop to continually run sleep and ls.
         # This way we can detect two groups of processes in our test:
         # - process snapshot (bash)

@@ -19,5 +19,5 @@ spec:
       terminationGracePeriodSeconds: 1
       containers:
       - name: ubuntu
-        image: ubuntu
+        image: ubuntu:24.04
         command: ["bash", "-c", "while true; do sleep 5; ls; done"]
