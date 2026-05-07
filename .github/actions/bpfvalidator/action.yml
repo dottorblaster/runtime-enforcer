@@ -65,8 +65,11 @@ runs:
       working-directory: ${{ github.action_path }}
       run: |
         export PATH="$HOME/.local/bin:$PATH"
-        wget https://github.com/Andreagit97/bpfvalidator/releases/download/v0.4.0/bpfvalidator_0.4.0_linux_${INPUTS_ARCH}.tar.gz
-        tar -xvf bpfvalidator_0.4.0_linux_${INPUTS_ARCH}.tar.gz
+        wget https://github.com/Andreagit97/bpfvalidator/releases/download/v0.5.0/bpfvalidator_0.5.0_linux_${INPUTS_ARCH}.tar.gz
+        echo "cac941141ba3a54f2ae90ce226bf30101dd01b61aa03d24cc5220228283111d4  bpfvalidator_0.5.0_linux_amd64.tar.gz" >> checksums.txt
+        echo "f8ff927815aec18f3265d9d7d12b93c85d6fe143a91706a42cfc2ec16d7ae44d  bpfvalidator_0.5.0_linux_arm64.tar.gz" >> checksums.txt
+        
+        sha256sum --ignore-missing -c checksums.txt && tar -xvf bpfvalidator_0.5.0_linux_${INPUTS_ARCH}.tar.gz
         ./bpfvalidator --out_path=/tmp/report.txt ${INPUTS_ARGS}
         outcome=$?
         echo "outcome=$outcome" >> $GITHUB_OUTPUT
