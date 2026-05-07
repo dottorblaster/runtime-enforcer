@@ -101,18 +101,6 @@ endif
 endif
 	E2E_USE_EXISTING_CLUSTER=$(E2E_USE_EXISTING_CLUSTER) E2E_SKIP_DEPENDENCIES=$(E2E_SKIP_DEPENDENCIES) go test -v -timeout 20m ./test/e2e/ 
 
-.PHONY: lint
-lint: generate-ebpf golangci-lint ## Run golangci-lint linter
-	$(GOLANGCI_LINT) run
-
-.PHONY: lint-fix
-lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
-	$(GOLANGCI_LINT) run --fix
-
-.PHONY: lint-config
-lint-config: golangci-lint ## Verify golangci-lint linter configuration
-	$(GOLANGCI_LINT) config verify
-
 ##@ Build
 
 .PHONY: controller
@@ -170,9 +158,8 @@ $(LOCALBIN):
 ## Tool Binaries
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
-GOLANGCI_LINT = $(LOCALBIN)/golangci-lint
-PROTOC_GEN_GO=$(LOCALBIN)/protoc-gen-go
-PROTOC_GEN_GO_GRPC=$(LOCALBIN)/protoc-gen-go-grpc
+PROTOC_GEN_GO ?= $(LOCALBIN)/protoc-gen-go
+PROTOC_GEN_GO_GRPC ?= $(LOCALBIN)/protoc-gen-go-grpc
 HELM_VALUES_SCHEMA_JSON ?= $(LOCALBIN)/helm-values-schema-json
 
 ## Tool Versions
@@ -181,8 +168,12 @@ CONTROLLER_TOOLS_VERSION ?= v0.17.1
 ENVTEST_VERSION ?= release-0.23
 #ENVTEST_K8S_VERSION is the version of Kubernetes to use for setting up ENVTEST binaries (i.e. 1.31)
 ENVTEST_K8S_VERSION ?= $(shell go list -m -f "{{ .Version }}" k8s.io/api | awk -F'[v.]' '{printf "1.%d", $$3}')
-GOLANGCI_LINT_VERSION ?= v1.63.4
 HELM_VALUES_SCHEMA_JSON_VERSION ?= v2.3.1
+PROTOC_GEN_GO_VERSION ?= v1.36.11
+PROTOC_GEN_GO_GRPC_VERSION ?= v1.6.1
+
+.PHONY: tools
+tools: controller-gen envtest protoc-gen-go protoc-gen-go-grpc helm-values-schema-json
 
 .PHONY: controller-gen
 controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.
@@ -202,16 +193,15 @@ envtest: $(ENVTEST) ## Download setup-envtest locally if necessary.
 $(ENVTEST): $(LOCALBIN)
 	$(call go-install-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest,$(ENVTEST_VERSION))
 
-.PHONY: golangci-lint
-golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary.
-$(GOLANGCI_LINT): $(LOCALBIN)
-	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint,$(GOLANGCI_LINT_VERSION))
-
+.PHONY: protoc-gen-go
+protoc-gen-go: $(PROTOC_GEN_GO)
 $(PROTOC_GEN_GO): | $(LOCALBIN)
-	GOBIN=$(LOCALBIN) go install google.golang.org/protobuf/cmd/protoc-gen-go
+	$(call go-install-tool,$(PROTOC_GEN_GO),google.golang.org/protobuf/cmd/protoc-gen-go,$(PROTOC_GEN_GO_VERSION))
 
+.PHONY: protoc-gen-go-grpc
+protoc-gen-go-grpc: $(PROTOC_GEN_GO_GRPC)
 $(PROTOC_GEN_GO_GRPC): | $(LOCALBIN)
-	GOBIN=$(LOCALBIN) go install google.golang.org/grpc/cmd/protoc-gen-go-grpc
+	$(call go-install-tool,$(PROTOC_GEN_GO_GRPC),google.golang.org/grpc/cmd/protoc-gen-go-grpc,$(PROTOC_GEN_GO_GRPC_VERSION))
 
 .PHONY: generate-proto
 generate-proto: $(PROTOC_GEN_GO) $(PROTOC_GEN_GO_GRPC)
@@ -222,6 +212,8 @@ generate-api:
 	go install ./hack/tools.go
 	API_KNOWN_VIOLATIONS_DIR=. UPDATE_API_KNOWN_VIOLATIONS=true ./hack/update-codegen.sh
 
+.PHONY: helm-values-schema-json
+helm-values-schema-json: $(HELM_VALUES_SCHEMA_JSON)
 $(HELM_VALUES_SCHEMA_JSON): | $(LOCALBIN)
 	$(call go-install-tool,$(HELM_VALUES_SCHEMA_JSON),github.com/losisin/helm-values-schema-json/v2,$(HELM_VALUES_SCHEMA_JSON_VERSION))
 
