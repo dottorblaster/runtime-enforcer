@@ -9,7 +9,7 @@ repos:
         language_version: 1.26.3
         stages: [pre-commit]
       - id: golangci-lint-fmt
-        language_version: 1.26.0
+        language_version: 1.26.3
         stages: [pre-commit]
   - repo: https://github.com/cpp-linter/cpp-linter-hooks
     rev: dedddc3dab021fee0392f43eda027abbc273cf22 # v1.4.0
