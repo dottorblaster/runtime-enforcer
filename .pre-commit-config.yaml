@@ -6,7 +6,7 @@ repos:
     rev: 9aa24e94ceb7d1a8ccbde81e7424629467299a7e # v2.12.1
     hooks:
       - id: golangci-lint-full
-        language_version: 1.26.2
+        language_version: 1.26.3
         stages: [pre-commit]
       - id: golangci-lint-fmt
         language_version: 1.26.0
