@@ -71,13 +71,6 @@ jobs:
             llvm \
             libbpf-dev
           pip install pre-commit
-      - name: Cache precommit linters
-        id: cache-precommit-linters
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        with:
-          path: |
-            ~/.cache/pre-commit/
-          key: ${{ runner.os }}-precommit-${{ hashFiles('.pre-commit-config.yaml') }}
       - name: Generate eBPF code
         run: make generate-ebpf
       - name: Run linters
