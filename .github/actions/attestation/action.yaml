@@ -100,7 +100,7 @@ runs:
         run: |
           set -e
           DIGEST=$(${CRANE_PATH}/crane manifest ghcr.io/${INPUTS_REPO}/${INPUTS_IMAGE}@${ATTESTATION_MANIFEST_DIGEST} |  \
-            jq '.layers | map(select(.annotations["in-toto.io/predicate-type"] == "https://spdx.dev/Document")) | map(.digest) | join(" ")')
+            jq -r '.layers | map(select(.annotations["in-toto.io/predicate-type"] == "https://spdx.dev/Document")) | map(.digest) | join(" ")')
           echo "SBOM_DIGEST=${DIGEST}" >> "$GITHUB_OUTPUT"
         env:
           CRANE_PATH: ${{ steps.install-crane.outputs.CRANE_PATH }}
