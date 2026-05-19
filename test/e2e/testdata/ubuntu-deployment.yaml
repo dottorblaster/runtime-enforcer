@@ -20,7 +20,7 @@ spec:
       terminationGracePeriodSeconds: 1
       containers:
       - name: ubuntu
-        image: registry.opensuse.org/opensuse/bci/bci-base:latest
+        image: registry.opensuse.org/opensuse/bci/bci-ci:latest
         # We create a while loop to continually run sleep and ls.
         # This way we can detect two groups of processes in our test:
         # - process snapshot (bash)

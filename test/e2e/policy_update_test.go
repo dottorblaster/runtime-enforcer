@@ -69,12 +69,12 @@ func getPolicyUpdateTest() types.Feature {
 					Containers: []corev1.Container{
 						{
 							Name:    mainContainer,
-							Image:   "registry.opensuse.org/opensuse/bci/bci-base:latest",
+							Image:   "registry.opensuse.org/opensuse/bci/bci-ci:latest",
 							Command: []string{"sleep", "3600"},
 						},
 						{
 							Name:    sidecarContainer,
-							Image:   "registry.opensuse.org/opensuse/bci/bci-base:latest",
+							Image:   "registry.opensuse.org/opensuse/bci/bci-ci:latest",
 							Command: []string{"sleep", "3600"},
 						},
 					},
