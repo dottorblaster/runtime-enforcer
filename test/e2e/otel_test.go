@@ -41,7 +41,7 @@ func getOtelCollectorTest() types.Feature {
 				Spec: v1alpha1.WorkloadPolicySpec{
 					Mode: policymode.MonitorString,
 					RulesByContainer: map[string]*v1alpha1.WorkloadPolicyRules{
-						"ubuntu": {
+						"opensuse": {
 							Executables: v1alpha1.WorkloadPolicyExecutables{
 								Allowed: []string{
 									"/usr/bin/ls",
@@ -58,11 +58,11 @@ func getOtelCollectorTest() types.Feature {
 			return context.WithValue(ctx, key("policy"), policy.DeepCopy())
 		}).
 		Setup(func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
-			createAndWaitUbuntuDeployment(ctx, t, withPolicy("test-policy"))
-			ubuntuPodName, err := findUbuntuDeploymentPod(ctx)
+			createAndWaitOpensuseDeployment(ctx, t, withPolicy("test-policy"))
+			opensusePodName, err := findOpensuseDeploymentPod(ctx)
 			require.NoError(t, err)
-			require.NotEmpty(t, ubuntuPodName)
-			return context.WithValue(ctx, key("targetPodName"), ubuntuPodName)
+			require.NotEmpty(t, opensusePodName)
+			return context.WithValue(ctx, key("targetPodName"), opensusePodName)
 		}).
 		Assess("required resources become available", IfRequiredResourcesAreCreated).
 		Assess("OTEL collector deployment is ready",
@@ -91,7 +91,7 @@ func getOtelCollectorTest() types.Feature {
 					ctx,
 					t,
 					expectedPodName,
-					"ubuntu",
+					"opensuse",
 					[]string{disallowedBinary},
 				)
 
@@ -166,7 +166,7 @@ func getOtelCollectorTest() types.Feature {
 				return ctx
 			}).
 		Teardown(func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
-			deleteUbuntuDeployment(ctx, t)
+			deleteOpensuseDeployment(ctx, t)
 			policy := ctx.Value(key("policy")).(*v1alpha1.WorkloadPolicy)
 			deleteAndWaitWP(ctx, t, policy)
 			return ctx

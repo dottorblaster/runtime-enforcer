@@ -24,12 +24,12 @@ import (
 )
 
 const (
-	defaultHelmTimeout       = time.Minute * 5
-	defaultOperationTimeout  = time.Minute
-	testFolder               = "./testdata"
-	ubuntuDeploymentManifest = "ubuntu-deployment.yaml"
-	ubuntuDeploymentName     = "ubuntu-deployment"
-	operationNotPermittedMsg = "operation not permitted"
+	defaultHelmTimeout         = time.Minute * 5
+	defaultOperationTimeout    = time.Minute
+	testFolder                 = "./testdata"
+	opensuseDeploymentManifest = "opensuse-deployment.yaml"
+	opensuseDeploymentName     = "opensuse-deployment"
+	operationNotPermittedMsg   = "operation not permitted"
 )
 
 type key string
@@ -150,7 +150,7 @@ func waitForWorkloadPolicyStatusToBeUpdated(
 }
 
 ////////////////////
-// Ubuntu deployment helpers
+// Opensuse deployment helpers
 ////////////////////
 
 //nolint:unparam // we want to keep the flexibility to support different policy name.
@@ -162,43 +162,43 @@ func withPolicy(policyName string) decoder.DecodeOption {
 	})
 }
 
-func createAndWaitUbuntuDeployment(
+func createAndWaitOpensuseDeployment(
 	ctx context.Context,
 	t *testing.T,
 	options ...decoder.DecodeOption,
 ) {
 	t.Helper()
-	t.Log("installing test Ubuntu deployment")
+	t.Log("installing test Opensuse deployment")
 	namespace := getNamespace(ctx)
 	decodeOptions := append([]decoder.DecodeOption{decoder.MutateNamespace(namespace)}, options...)
 	err := decoder.ApplyWithManifestDir(
 		ctx,
 		getClient(ctx),
 		testFolder,
-		ubuntuDeploymentManifest,
+		opensuseDeploymentManifest,
 		[]resources.CreateOption{},
 		decodeOptions...,
 	)
-	require.NoError(t, err, "failed to create ubuntu deployment")
+	require.NoError(t, err, "failed to create opensuse deployment")
 
-	// Wait for ubuntu deployment to become available
+	// Wait for opensuse deployment to become available
 	err = wait.For(
-		conditions.New(getClient(ctx)).DeploymentAvailable(ubuntuDeploymentName, namespace),
+		conditions.New(getClient(ctx)).DeploymentAvailable(opensuseDeploymentName, namespace),
 		wait.WithTimeout(defaultOperationTimeout),
 	)
-	require.NoError(t, err, "ubuntu deployment should become available")
+	require.NoError(t, err, "opensuse deployment should become available")
 }
 
-func deleteUbuntuDeployment(ctx context.Context, t *testing.T) {
+func deleteOpensuseDeployment(ctx context.Context, t *testing.T) {
 	t.Helper()
-	t.Log("deleting test Ubuntu deployment")
+	t.Log("deleting test Opensuse deployment")
 	// With foreground cascading deletion the Deployment resource is only removed
 	// once all its owned pods have been terminated, so a single wait on the deployment is enough.
 	err := decoder.DeleteWithManifestDir(
 		ctx,
 		getClient(ctx),
 		testFolder,
-		ubuntuDeploymentManifest,
+		opensuseDeploymentManifest,
 		[]resources.DeleteOption{
 			resources.WithDeletePropagation("Foreground"),
 		},
@@ -206,15 +206,15 @@ func deleteUbuntuDeployment(ctx context.Context, t *testing.T) {
 	)
 	require.NoError(t, err, "failed to delete test data")
 
-	waitForUbuntuDeploymentDeleted(ctx, t)
+	waitForOpensuseDeploymentDeleted(ctx, t)
 }
 
-func waitForUbuntuDeploymentDeleted(ctx context.Context, t *testing.T) {
+func waitForOpensuseDeploymentDeleted(ctx context.Context, t *testing.T) {
 	t.Helper()
-	t.Log("waiting for Ubuntu deployment to be deleted")
+	t.Log("waiting for Opensuse deployment to be deleted")
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      ubuntuDeploymentName,
+			Name:      opensuseDeploymentName,
 			Namespace: getNamespace(ctx),
 		},
 	}
@@ -222,7 +222,7 @@ func waitForUbuntuDeploymentDeleted(ctx context.Context, t *testing.T) {
 		conditions.New(getClient(ctx)).ResourceDeleted(deployment),
 		wait.WithTimeout(defaultOperationTimeout),
 	)
-	require.NoError(t, err, "ubuntu deployment should be deleted")
+	require.NoError(t, err, "opensuse deployment should be deleted")
 }
 
 func findPodByPrefix(ctx context.Context, namespace string, prefix string) (string, error) {
@@ -242,8 +242,8 @@ func findPodByPrefix(ctx context.Context, namespace string, prefix string) (stri
 	return "", fmt.Errorf("pod with prefix %q not found in namespace %q", prefix, namespace)
 }
 
-func findUbuntuDeploymentPod(ctx context.Context) (string, error) {
-	return findPodByPrefix(ctx, getNamespace(ctx), ubuntuDeploymentName)
+func findOpensuseDeploymentPod(ctx context.Context) (string, error) {
+	return findPodByPrefix(ctx, getNamespace(ctx), opensuseDeploymentName)
 }
 
 func execInCurrentNamespace(
@@ -293,7 +293,7 @@ func requireExecBlockedInCurrentNamespace(
 	require.Contains(t, stderr, operationNotPermittedMsg)
 }
 
-func verifyUbuntuLearnedProcesses(values []string) bool {
+func verifyOpensuseLearnedProcesses(values []string) bool {
 	return slices.Contains(values, "/usr/bin/bash") &&
 		slices.Contains(values, "/usr/bin/ls") &&
 		slices.Contains(values, "/usr/bin/sleep")

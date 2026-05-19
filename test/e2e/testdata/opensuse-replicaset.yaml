@@ -1,24 +1,24 @@
 apiVersion: apps/v1
 kind: ReplicaSet
 metadata:
-  name: ubuntu-replicaset
+  name: opensuse-replicaset
   namespace: default
   labels:
-    app: ubuntu-replicaset
+    app: opensuse-replicaset
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: ubuntu
+      app: opensuse
       type: replicaset
   template:
     metadata:
       labels:
-        app: ubuntu
+        app: opensuse
         type: replicaset
     spec:
       terminationGracePeriodSeconds: 1
       containers:
-      - name: ubuntu
+      - name: opensuse
         image: registry.opensuse.org/opensuse/bci/bci-ci:latest
         command: ["bash", "-c", "while true; do sleep 5; ls; done"]

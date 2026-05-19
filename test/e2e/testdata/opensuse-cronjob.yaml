@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: ubuntu-cronjob
+  name: opensuse-cronjob
   namespace: default
 spec:
   schedule: "* * * * *"
@@ -11,7 +11,7 @@ spec:
         spec:
           terminationGracePeriodSeconds: 1
           containers:
-          - name: ubuntu
+          - name: opensuse
             image: registry.opensuse.org/opensuse/bci/bci-ci:latest
             command: ["bash", "-c", "sleep 5; ls"]
           restartPolicy: Never

@@ -30,7 +30,7 @@ func getMonitoringTest() types.Feature {
 				Spec: v1alpha1.WorkloadPolicySpec{
 					Mode: policymode.MonitorString,
 					RulesByContainer: map[string]*v1alpha1.WorkloadPolicyRules{
-						"ubuntu": {
+						"opensuse": {
 							Executables: v1alpha1.WorkloadPolicyExecutables{
 								Allowed: []string{
 									"/usr/bin/ls",
@@ -47,11 +47,11 @@ func getMonitoringTest() types.Feature {
 			return context.WithValue(ctx, key("policy"), policy.DeepCopy())
 		}).
 		Setup(func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
-			createAndWaitUbuntuDeployment(ctx, t, withPolicy("test-policy"))
-			ubuntuPodName, err := findUbuntuDeploymentPod(ctx)
+			createAndWaitOpensuseDeployment(ctx, t, withPolicy("test-policy"))
+			opensusePodName, err := findOpensuseDeploymentPod(ctx)
 			require.NoError(t, err)
-			require.NotEmpty(t, ubuntuPodName)
-			return context.WithValue(ctx, key("targetPodName"), ubuntuPodName)
+			require.NotEmpty(t, opensusePodName)
+			return context.WithValue(ctx, key("targetPodName"), opensusePodName)
 		}).
 		Assess("required resources become available", IfRequiredResourcesAreCreated).
 		Assess("a namespace-scoped policy can monitor behaviors correctly",
@@ -61,14 +61,14 @@ func getMonitoringTest() types.Feature {
 				var err error
 
 				t.Log("executing allowed command (should not produce violations)")
-				requireExecAllowedInCurrentNamespace(ctx, t, expectedPodName, "ubuntu", []string{"/usr/bin/ls"})
+				requireExecAllowedInCurrentNamespace(ctx, t, expectedPodName, "opensuse", []string{"/usr/bin/ls"})
 
 				t.Log("executing disallowed command to trigger violation")
 				requireExecAllowedInCurrentNamespace(
 					ctx,
 					t,
 					expectedPodName,
-					"ubuntu",
+					"opensuse",
 					[]string{"/usr/bin/sh", "-c", "/usr/bin/zypper refresh"},
 				)
 
@@ -116,7 +116,7 @@ func getMonitoringTest() types.Feature {
 				return ctx
 			}).
 		Teardown(func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
-			deleteUbuntuDeployment(ctx, t)
+			deleteOpensuseDeployment(ctx, t)
 			policy := ctx.Value(key("policy")).(*v1alpha1.WorkloadPolicy)
 			deleteAndWaitWP(ctx, t, policy)
 			return ctx

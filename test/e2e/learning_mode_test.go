@@ -60,7 +60,7 @@ func getLearningModeTest() types.Feature {
 					"DaemonSet": {
 						ParseFunc: func() k8s.Object {
 							var daemonset appsv1.DaemonSet
-							err := decoder.DecodeFile(testdata, "ubuntu-daemonset.yaml", &daemonset)
+							err := decoder.DecodeFile(testdata, "opensuse-daemonset.yaml", &daemonset)
 							require.NoError(t, err)
 							return &daemonset
 						},
@@ -68,7 +68,7 @@ func getLearningModeTest() types.Feature {
 					"Deployment": {
 						ParseFunc: func() k8s.Object {
 							var deployment appsv1.Deployment
-							err := decoder.DecodeFile(testdata, "ubuntu-deployment.yaml", &deployment)
+							err := decoder.DecodeFile(testdata, "opensuse-deployment.yaml", &deployment)
 							require.NoError(t, err)
 							return &deployment
 						},
@@ -76,7 +76,7 @@ func getLearningModeTest() types.Feature {
 					"StatefulSet": {
 						ParseFunc: func() k8s.Object {
 							var statefulset appsv1.StatefulSet
-							err := decoder.DecodeFile(testdata, "ubuntu-statefulset.yaml", &statefulset)
+							err := decoder.DecodeFile(testdata, "opensuse-statefulset.yaml", &statefulset)
 							require.NoError(t, err)
 							return &statefulset
 						},
@@ -84,7 +84,7 @@ func getLearningModeTest() types.Feature {
 					"Job": {
 						ParseFunc: func() k8s.Object {
 							var job batchv1.Job
-							err := decoder.DecodeFile(testdata, "ubuntu-job.yaml", &job)
+							err := decoder.DecodeFile(testdata, "opensuse-job.yaml", &job)
 							require.NoError(t, err)
 							return &job
 						},
@@ -92,7 +92,7 @@ func getLearningModeTest() types.Feature {
 					"CronJob": {
 						ParseFunc: func() k8s.Object {
 							var cronjob batchv1.CronJob
-							err := decoder.DecodeFile(testdata, "ubuntu-cronjob.yaml", &cronjob)
+							err := decoder.DecodeFile(testdata, "opensuse-cronjob.yaml", &cronjob)
 							require.NoError(t, err)
 							return &cronjob
 						},
@@ -134,12 +134,12 @@ func getLearningModeTest() types.Feature {
 
 							t.Log("proposal: ", proposal)
 
-							rules, ok := proposal.Spec.RulesByContainer["ubuntu"]
+							rules, ok := proposal.Spec.RulesByContainer["opensuse"]
 							if !ok {
 								return false
 							}
 
-							return verifyUbuntuLearnedProcesses(rules.Executables.Allowed)
+							return verifyOpensuseLearnedProcesses(rules.Executables.Allowed)
 						}),
 						wait.WithTimeout(defaultOperationTimeout),
 					)
@@ -185,12 +185,12 @@ func getNoLearningModeTest() types.Feature {
 				return context.WithValue(ctx, key("namespace"), disabledNS)
 			}).
 		Assess("required resources become available", IfRequiredResourcesAreCreated).
-		Assess("install ubuntu deployment in disabled namespace", func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
-			createAndWaitUbuntuDeployment(ctx, t)
+		Assess("install opensuse deployment in disabled namespace", func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
+			createAndWaitOpensuseDeployment(ctx, t)
 			return ctx
 		}).
-		Assess("no proposal for ubuntu deployment", func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
-			proposalName, err := proposalutils.GetWorkloadPolicyProposalName("Deployment", ubuntuDeploymentName)
+		Assess("no proposal for opensuse deployment", func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
+			proposalName, err := proposalutils.GetWorkloadPolicyProposalName("Deployment", opensuseDeploymentName)
 			require.NoError(t, err)
 
 			proposal := v1alpha1.WorkloadPolicyProposal{
@@ -222,7 +222,7 @@ func getNoLearningModeTest() types.Feature {
 			return ctx
 		}).
 		Teardown(func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
-			deleteUbuntuDeployment(ctx, t)
+			deleteOpensuseDeployment(ctx, t)
 			return ctx
 		}).Feature()
 }

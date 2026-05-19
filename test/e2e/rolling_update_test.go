@@ -31,7 +31,7 @@ func getRollingUpdateTest() types.Feature {
 				Spec: v1alpha1.WorkloadPolicySpec{
 					Mode: policymode.ProtectString,
 					RulesByContainer: map[string]*v1alpha1.WorkloadPolicyRules{
-						"ubuntu": {
+						"opensuse": {
 							Executables: v1alpha1.WorkloadPolicyExecutables{
 								Allowed: []string{
 									"/usr/bin/bash",
@@ -47,7 +47,7 @@ func getRollingUpdateTest() types.Feature {
 		}).
 		Assess("required resources become available", IfRequiredResourcesAreCreated).
 		Setup(func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
-			createAndWaitUbuntuDeployment(ctx, t, withPolicy("test-policy"),
+			createAndWaitOpensuseDeployment(ctx, t, withPolicy("test-policy"),
 				decoder.MutateOption(func(obj k8s.Object) error {
 					deployment := obj.(*appsv1.Deployment)
 					// This will cause a lot of violations so it is possible to see some `violation buffer full` logs.
@@ -62,18 +62,18 @@ func getRollingUpdateTest() types.Feature {
 		}).
 		Assess("verify that the test directory doesn't exist and mkdir will be blocked",
 			func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
-				podName, err := findUbuntuDeploymentPod(ctx)
+				podName, err := findOpensuseDeploymentPod(ctx)
 				require.NoError(t, err)
 
 				// Run mkdir to verify that it is blocked.
-				requireExecBlockedInCurrentNamespace(ctx, t, podName, "ubuntu", []string{"mkdir"})
+				requireExecBlockedInCurrentNamespace(ctx, t, podName, "opensuse", []string{"mkdir"})
 
 				// Verify that the test directory doesn't exist.
 				_, _ = requireExecAllowedInCurrentNamespace(
 					ctx,
 					t,
 					podName,
-					"ubuntu",
+					"opensuse",
 					[]string{"bash", "-c", "[ ! -d /tmp/testdir ]"},
 				)
 				return ctx
@@ -105,20 +105,20 @@ func getRollingUpdateTest() types.Feature {
 			return ctx
 		}).
 		Assess("/tmp/testdir should never be created", func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
-			podName, err := findUbuntuDeploymentPod(ctx)
+			podName, err := findOpensuseDeploymentPod(ctx)
 			require.NoError(t, err)
 
 			_, _ = requireExecAllowedInCurrentNamespace(
 				ctx,
 				t,
 				podName,
-				"ubuntu",
+				"opensuse",
 				[]string{"bash", "-c", "[ ! -d /tmp/testdir ]"},
 			)
 			return ctx
 		}).
 		Teardown(func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
-			deleteUbuntuDeployment(ctx, t)
+			deleteOpensuseDeployment(ctx, t)
 			return ctx
 		}).Feature()
 }

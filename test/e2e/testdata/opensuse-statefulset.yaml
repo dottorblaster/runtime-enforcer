@@ -1,23 +1,24 @@
 apiVersion: apps/v1
-kind: DaemonSet
+kind: StatefulSet
 metadata:
-  name: ubuntu-daemonset
+  name: opensuse-statefulset
   namespace: default
   labels:
-    app: ubuntu
+    app: opensuse
 spec:
+  replicas: 1
   selector:
     matchLabels:
-      app: ubuntu
-      type: daemonset
+      app: opensuse
+      type: statefulset
   template:
     metadata:
       labels:
-        app: ubuntu
-        type: daemonset
+        app: opensuse
+        type: statefulset
     spec:
       terminationGracePeriodSeconds: 1
       containers:
-      - name: ubuntu
+      - name: opensuse
         image: registry.opensuse.org/opensuse/bci/bci-ci:latest
         command: ["bash", "-c", "while true; do sleep 5; ls; done"]

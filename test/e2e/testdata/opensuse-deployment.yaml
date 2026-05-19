@@ -1,21 +1,25 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: ubuntu-deployment
+  name: opensuse-deployment
+  namespace: default
   labels:
-    app: ubuntu-deployment
+    app: opensuse-deployment
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: ubuntu-deployment
+      app: opensuse
+      type: deployment
   template:
     metadata:
       labels:
-        app: ubuntu-deployment
+        app: opensuse
+        type: deployment
     spec:
+      terminationGracePeriodSeconds: 1
       containers:
-      - name: ubuntu
+      - name: opensuse
         image: registry.opensuse.org/opensuse/bci/bci-ci:latest
         # We create a while loop to continually run sleep and ls.
         # This way we can detect two groups of processes in our test:

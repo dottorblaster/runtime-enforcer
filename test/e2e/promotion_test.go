@@ -21,17 +21,17 @@ func getPromotionTest() types.Feature {
 		Setup(SetupSharedK8sClient).
 		Setup(SetupTestNamespace).
 		Setup(func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
-			createAndWaitUbuntuDeployment(ctx, t)
+			createAndWaitOpensuseDeployment(ctx, t)
 			return ctx
 		}).
 		Assess("required resources become available", IfRequiredResourcesAreCreated).
-		Assess("the workload proposal is created successfully for the ubuntu pod",
+		Assess("the workload proposal is created successfully for the opensuse pod",
 			func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
 				r := getClient(ctx)
 
 				proposal := v1alpha1.WorkloadPolicyProposal{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "deploy-ubuntu-deployment",
+						Name:      "deploy-opensuse-deployment",
 						Namespace: getNamespace(ctx),
 					},
 				}
@@ -42,7 +42,7 @@ func getPromotionTest() types.Feature {
 						if len(obj.OwnerReferences) == 0 {
 							return false
 						}
-						if obj.OwnerReferences[0].Name == ubuntuDeploymentName &&
+						if obj.OwnerReferences[0].Name == opensuseDeploymentName &&
 							obj.OwnerReferences[0].Kind == "Deployment" {
 							return true
 						}
@@ -76,13 +76,13 @@ func getPromotionTest() types.Feature {
 				err := wait.For(conditions.New(r).ResourceMatch(
 					&proposal,
 					func(_ k8s.Object) bool {
-						rules, ok := proposal.Spec.RulesByContainer["ubuntu"]
+						rules, ok := proposal.Spec.RulesByContainer["opensuse"]
 
 						if !ok {
 							return false
 						}
 
-						return verifyUbuntuLearnedProcesses(rules.Executables.Allowed)
+						return verifyOpensuseLearnedProcesses(rules.Executables.Allowed)
 					}),
 					wait.WithTimeout(defaultOperationTimeout),
 				)
@@ -120,9 +120,9 @@ func getPromotionTest() types.Feature {
 					Spec: v1alpha1.WorkloadPolicySpec{
 						Mode: policymode.MonitorString,
 						RulesByContainer: map[string]*v1alpha1.WorkloadPolicyRules{
-							"ubuntu": {
+							"opensuse": {
 								Executables: v1alpha1.WorkloadPolicyExecutables{
-									Allowed: proposal.Spec.RulesByContainer["ubuntu"].Executables.Allowed,
+									Allowed: proposal.Spec.RulesByContainer["opensuse"].Executables.Allowed,
 								},
 							},
 						},
@@ -145,10 +145,10 @@ func getPromotionTest() types.Feature {
 			}).
 		Assess("pod exec will not be blocked since the policy is in monitoring mode",
 			func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
-				podName, err := findUbuntuDeploymentPod(ctx)
+				podName, err := findOpensuseDeploymentPod(ctx)
 				require.NoError(t, err)
 				// /usr/bin/true is not allowed but we are in monitor mode.
-				_, _ = requireExecAllowedInCurrentNamespace(ctx, t, podName, "ubuntu", []string{"/usr/bin/true"})
+				_, _ = requireExecAllowedInCurrentNamespace(ctx, t, podName, "opensuse", []string{"/usr/bin/true"})
 				return ctx
 			}).
 		Assess("delete policy", func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
@@ -161,7 +161,7 @@ func getPromotionTest() types.Feature {
 			return ctx
 		}).
 		Teardown(func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
-			deleteUbuntuDeployment(ctx, t)
+			deleteOpensuseDeployment(ctx, t)
 			return ctx
 		}).Feature()
 }
