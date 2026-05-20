@@ -28,7 +28,7 @@ func getEnforcementOnNewPodsTest() types.Feature {
 					Spec: v1alpha1.WorkloadPolicySpec{
 						Mode: policymode.ProtectString,
 						RulesByContainer: map[string]*v1alpha1.WorkloadPolicyRules{
-							"ubuntu": {
+							"opensuse": {
 								Executables: v1alpha1.WorkloadPolicyExecutables{
 									Allowed: []string{
 										"/usr/bin/ls",
@@ -44,10 +44,10 @@ func getEnforcementOnNewPodsTest() types.Feature {
 				// 1. Create the resource and wait for it to be deployed.
 				createAndWaitWP(ctx, t, policy.DeepCopy())
 				// 2. Deploy test pods
-				createAndWaitUbuntuDeployment(ctx, t, withPolicy("test-policy"))
+				createAndWaitOpensuseDeployment(ctx, t, withPolicy("test-policy"))
 
 				// 3. Run command in the pod and verify the result.
-				podName, err := findUbuntuDeploymentPod(ctx)
+				podName, err := findOpensuseDeploymentPod(ctx)
 				require.NoError(t, err)
 
 				expectedResults := []struct {
@@ -59,7 +59,7 @@ func getEnforcementOnNewPodsTest() types.Feature {
 						Allowed:  true,
 					},
 					{
-						Commands: []string{"/usr/bin/apt", "update"},
+						Commands: []string{"/usr/bin/zypper", "refresh"},
 						Allowed:  false,
 					},
 				}
@@ -68,14 +68,14 @@ func getEnforcementOnNewPodsTest() types.Feature {
 					t.Log("running:", expectedResult.Commands)
 
 					if expectedResult.Allowed {
-						requireExecAllowedInCurrentNamespace(ctx, t, podName, "ubuntu", expectedResult.Commands)
+						requireExecAllowedInCurrentNamespace(ctx, t, podName, "opensuse", expectedResult.Commands)
 					} else {
-						requireExecBlockedInCurrentNamespace(ctx, t, podName, "ubuntu", expectedResult.Commands)
+						requireExecBlockedInCurrentNamespace(ctx, t, podName, "opensuse", expectedResult.Commands)
 					}
 				}
 
 				// 4. Delete test Deployment
-				deleteUbuntuDeployment(ctx, t)
+				deleteOpensuseDeployment(ctx, t)
 
 				// 5. Delete WorkloadPolicy and wait for it to be gone.
 				deleteAndWaitWP(ctx, t, &policy)

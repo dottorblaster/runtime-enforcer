@@ -69,12 +69,12 @@ func getPolicyUpdateTest() types.Feature {
 					Containers: []corev1.Container{
 						{
 							Name:    mainContainer,
-							Image:   "ubuntu:24.04",
+							Image:   "registry.opensuse.org/opensuse/bci/bci-ci:latest",
 							Command: []string{"sleep", "3600"},
 						},
 						{
 							Name:    sidecarContainer,
-							Image:   "ubuntu:24.04",
+							Image:   "registry.opensuse.org/opensuse/bci/bci-ci:latest",
 							Command: []string{"sleep", "3600"},
 						},
 					},
@@ -133,13 +133,13 @@ func getPolicyUpdateTest() types.Feature {
 				)
 				require.NotEmpty(t, stdout, "cat should have produced output")
 
-				t.Log("verifying /usr/bin/apt is still blocked in main")
+				t.Log("verifying /usr/bin/zypper is still blocked in main")
 				requireExecBlockedInCurrentNamespace(
 					ctx,
 					t,
 					podName,
 					mainContainer,
-					[]string{"/usr/bin/apt", "update"},
+					[]string{"/usr/bin/zypper", "refresh"},
 				)
 
 				return ctx

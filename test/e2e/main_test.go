@@ -24,17 +24,17 @@ func getMainTest() types.Feature {
 		Setup(SetupSharedK8sClient).
 		Setup(SetupTestNamespace).
 		Setup(func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
-			createAndWaitUbuntuDeployment(ctx, t)
+			createAndWaitOpensuseDeployment(ctx, t)
 			return ctx
 		}).
 		Assess("required resources become available", IfRequiredResourcesAreCreated).
-		Assess("the workload policy proposal is created successfully for the ubuntu pod",
+		Assess("the workload policy proposal is created successfully for the opensuse pod",
 			func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
 				r := getClient(ctx)
 
 				proposal := v1alpha1.WorkloadPolicyProposal{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "deploy-ubuntu-deployment",
+						Name:      "deploy-opensuse-deployment",
 						Namespace: getNamespace(ctx),
 					},
 				}
@@ -42,7 +42,7 @@ func getMainTest() types.Feature {
 					&proposal,
 					func(object k8s.Object) bool {
 						obj := object.(*v1alpha1.WorkloadPolicyProposal)
-						if obj.OwnerReferences[0].Name == ubuntuDeploymentName &&
+						if obj.OwnerReferences[0].Name == opensuseDeploymentName &&
 							obj.OwnerReferences[0].Kind == "Deployment" {
 							return true
 						}
@@ -76,9 +76,9 @@ func getMainTest() types.Feature {
 				err := wait.For(conditions.New(r).ResourceMatch(
 					&proposal,
 					func(_ k8s.Object) bool {
-						rules := proposal.Spec.RulesByContainer["ubuntu"]
+						rules := proposal.Spec.RulesByContainer["opensuse"]
 
-						return verifyUbuntuLearnedProcesses(rules.Executables.Allowed)
+						return verifyOpensuseLearnedProcesses(rules.Executables.Allowed)
 					}),
 					wait.WithTimeout(defaultOperationTimeout),
 				)
@@ -97,9 +97,9 @@ func getMainTest() types.Feature {
 					Spec: v1alpha1.WorkloadPolicySpec{
 						Mode: policymode.ProtectString,
 						RulesByContainer: map[string]*v1alpha1.WorkloadPolicyRules{
-							"ubuntu": {
+							"opensuse": {
 								Executables: v1alpha1.WorkloadPolicyExecutables{
-									Allowed: proposal.Spec.RulesByContainer["ubuntu"].Executables.Allowed,
+									Allowed: proposal.Spec.RulesByContainer["opensuse"].Executables.Allowed,
 								},
 							},
 						},
@@ -110,18 +110,18 @@ func getMainTest() types.Feature {
 			}).
 		Assess("update the workload to apply policy",
 			func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
-				// Delete the ubuntu deployment
-				deleteUbuntuDeployment(ctx, t)
+				// Delete the opensuse deployment
+				deleteOpensuseDeployment(ctx, t)
 
-				// Create the ubuntu deployment again with policy label assigned.
-				createAndWaitUbuntuDeployment(ctx, t, withPolicy("test-policy"))
+				// Create the opensuse deployment again with policy label assigned.
+				createAndWaitOpensuseDeployment(ctx, t, withPolicy("test-policy"))
 				return ctx
 			}).
 		Assess("pod exec will be blocked",
 			func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
-				podName, err := findUbuntuDeploymentPod(ctx)
+				podName, err := findOpensuseDeploymentPod(ctx)
 				require.NoError(t, err)
-				requireExecBlockedInCurrentNamespace(ctx, t, podName, "ubuntu", []string{"mkdir"})
+				requireExecBlockedInCurrentNamespace(ctx, t, podName, "opensuse", []string{"mkdir"})
 				return ctx
 			}).
 		Assess("Verify a non-referenced WorkloadPolicy can be deleted",
@@ -139,7 +139,7 @@ func getMainTest() types.Feature {
 					Spec: v1alpha1.WorkloadPolicySpec{
 						Mode: policymode.MonitorString,
 						RulesByContainer: map[string]*v1alpha1.WorkloadPolicyRules{
-							"ubuntu": {
+							"opensuse": {
 								Executables: v1alpha1.WorkloadPolicyExecutables{
 									Allowed: []string{"/bin/true"},
 								},
@@ -186,7 +186,7 @@ func getMainTest() types.Feature {
 					Spec: v1alpha1.WorkloadPolicySpec{
 						Mode: policymode.MonitorString,
 						RulesByContainer: map[string]*v1alpha1.WorkloadPolicyRules{
-							"ubuntu": {
+							"opensuse": {
 								Executables: v1alpha1.WorkloadPolicyExecutables{
 									Allowed: []string{"/bin/true"},
 								},
@@ -272,7 +272,7 @@ func getMainTest() types.Feature {
 				return ctx
 			}).
 		Teardown(func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
-			deleteUbuntuDeployment(ctx, t)
+			deleteOpensuseDeployment(ctx, t)
 			return ctx
 		}).Feature()
 }

@@ -30,7 +30,7 @@ func getMonitoringTest() types.Feature {
 				Spec: v1alpha1.WorkloadPolicySpec{
 					Mode: policymode.MonitorString,
 					RulesByContainer: map[string]*v1alpha1.WorkloadPolicyRules{
-						"ubuntu": {
+						"opensuse": {
 							Executables: v1alpha1.WorkloadPolicyExecutables{
 								Allowed: []string{
 									"/usr/bin/ls",
@@ -47,11 +47,11 @@ func getMonitoringTest() types.Feature {
 			return context.WithValue(ctx, key("policy"), policy.DeepCopy())
 		}).
 		Setup(func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
-			createAndWaitUbuntuDeployment(ctx, t, withPolicy("test-policy"))
-			ubuntuPodName, err := findUbuntuDeploymentPod(ctx)
+			createAndWaitOpensuseDeployment(ctx, t, withPolicy("test-policy"))
+			opensusePodName, err := findOpensuseDeploymentPod(ctx)
 			require.NoError(t, err)
-			require.NotEmpty(t, ubuntuPodName)
-			return context.WithValue(ctx, key("targetPodName"), ubuntuPodName)
+			require.NotEmpty(t, opensusePodName)
+			return context.WithValue(ctx, key("targetPodName"), opensusePodName)
 		}).
 		Assess("required resources become available", IfRequiredResourcesAreCreated).
 		Assess("a namespace-scoped policy can monitor behaviors correctly",
@@ -61,15 +61,15 @@ func getMonitoringTest() types.Feature {
 				var err error
 
 				t.Log("executing allowed command (should not produce violations)")
-				requireExecAllowedInCurrentNamespace(ctx, t, expectedPodName, "ubuntu", []string{"/usr/bin/ls"})
+				requireExecAllowedInCurrentNamespace(ctx, t, expectedPodName, "opensuse", []string{"/usr/bin/ls"})
 
 				t.Log("executing disallowed command to trigger violation")
 				requireExecAllowedInCurrentNamespace(
 					ctx,
 					t,
 					expectedPodName,
-					"ubuntu",
-					[]string{"/usr/bin/sh", "-c", "/usr/bin/apt update"},
+					"opensuse",
+					[]string{"/usr/bin/sh", "-c", "/usr/bin/zypper refresh"},
 				)
 
 				t.Log("waiting for violations to appear in WorkloadPolicy status")
@@ -88,7 +88,7 @@ func getMonitoringTest() types.Feature {
 						return false
 					}
 					for _, v := range wp.Status.Violations {
-						if v.ExecutablePath == "/usr/bin/apt" &&
+						if v.ExecutablePath == "/usr/bin/zypper" &&
 							v.Action == policymode.MonitorString &&
 							v.PodName == expectedPodName {
 							return true
@@ -96,7 +96,7 @@ func getMonitoringTest() types.Feature {
 					}
 					return false
 				}), wait.WithTimeout(defaultOperationTimeout))
-				require.NoError(t, err, "violation for /usr/bin/apt should appear in WorkloadPolicy status")
+				require.NoError(t, err, "violation for /usr/bin/zypper should appear in WorkloadPolicy status")
 
 				t.Log("verifying violation record details")
 				err = r.Get(ctx, "test-policy", getNamespace(ctx), policyToCheck)
@@ -105,18 +105,18 @@ func getMonitoringTest() types.Feature {
 
 				var found bool
 				for _, v := range policyToCheck.Status.Violations {
-					if v.ExecutablePath == "/usr/bin/apt" {
+					if v.ExecutablePath == "/usr/bin/zypper" {
 						assert.Equal(t, policymode.MonitorString, v.Action)
 						assert.Equal(t, expectedPodName, v.PodName)
 						found = true
 						break
 					}
 				}
-				assert.True(t, found, "should find violation record for /usr/bin/apt")
+				assert.True(t, found, "should find violation record for /usr/bin/zypper")
 				return ctx
 			}).
 		Teardown(func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
-			deleteUbuntuDeployment(ctx, t)
+			deleteOpensuseDeployment(ctx, t)
 			policy := ctx.Value(key("policy")).(*v1alpha1.WorkloadPolicy)
 			deleteAndWaitWP(ctx, t, policy)
 			return ctx

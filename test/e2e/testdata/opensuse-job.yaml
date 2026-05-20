@@ -1,14 +1,14 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: ubuntu-job
+  name: opensuse-job
   namespace: default
 spec:
   template:
     spec:
       terminationGracePeriodSeconds: 1
       containers:
-      - name: ubuntu
-        image: ubuntu:24.04
+      - name: opensuse
+        image: registry.opensuse.org/opensuse/bci/bci-ci:latest
         command: ["bash", "-c", "while true; do sleep 5; ls; done"]
       restartPolicy: OnFailure
