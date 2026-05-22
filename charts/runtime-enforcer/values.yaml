@@ -209,7 +209,7 @@ telemetry:
   defaultCollector:
     image:
       repository: otel/opentelemetry-collector-contrib
-      tag: 0.152.0
+      tag: 0.152.1
       pullPolicy: IfNotPresent
     resources:
       limits:
