@@ -75,14 +75,14 @@ func getPolicyPerContainerTest() types.Feature {
 						InitContainers: []corev1.Container{
 							{
 								Name:    "init-container",
-								Image:   "registry.opensuse.org/opensuse/bci/bci-ci:latest",
+								Image:   "registry.opensuse.org/opensuse/bci/bci-ci:3",
 								Command: []string{"echo", "init completed"},
 							},
 						},
 						Containers: []corev1.Container{
 							{
 								Name:    "main-container",
-								Image:   "registry.opensuse.org/opensuse/bci/bci-ci:latest",
+								Image:   "registry.opensuse.org/opensuse/bci/bci-ci:3",
 								Command: []string{"sleep", "3600"},
 							},
 						},
@@ -137,14 +137,14 @@ func getPolicyPerContainerTest() types.Feature {
 						InitContainers: []corev1.Container{
 							{
 								Name:    "init-container",
-								Image:   "registry.opensuse.org/opensuse/bci/bci-ci:latest",
+								Image:   "registry.opensuse.org/opensuse/bci/bci-ci:3",
 								Command: []string{"date"},
 							},
 						},
 						Containers: []corev1.Container{
 							{
 								Name:    "main-container",
-								Image:   "registry.opensuse.org/opensuse/bci/bci-ci:latest",
+								Image:   "registry.opensuse.org/opensuse/bci/bci-ci:3",
 								Command: []string{"sleep", "3600"},
 							},
 						},

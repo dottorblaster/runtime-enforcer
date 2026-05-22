@@ -25,6 +25,7 @@ import (
 
 const (
 	defaultHelmTimeout         = time.Minute * 5
+	defaultImagePullTimeout    = time.Minute * 3
 	defaultOperationTimeout    = time.Minute
 	testFolder                 = "./testdata"
 	opensuseDeploymentManifest = "opensuse-deployment.yaml"
@@ -184,7 +185,7 @@ func createAndWaitOpensuseDeployment(
 	// Wait for opensuse deployment to become available
 	err = wait.For(
 		conditions.New(getClient(ctx)).DeploymentAvailable(opensuseDeploymentName, namespace),
-		wait.WithTimeout(defaultOperationTimeout),
+		wait.WithTimeout(defaultImagePullTimeout),
 	)
 	require.NoError(t, err, "opensuse deployment should become available")
 }

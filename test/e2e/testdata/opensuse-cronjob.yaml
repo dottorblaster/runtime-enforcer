@@ -12,6 +12,6 @@ spec:
           terminationGracePeriodSeconds: 1
           containers:
           - name: opensuse
-            image: registry.opensuse.org/opensuse/bci/bci-ci:latest
+            image: registry.opensuse.org/opensuse/bci/bci-ci:3
             command: ["bash", "-c", "sleep 5; ls"]
           restartPolicy: Never
