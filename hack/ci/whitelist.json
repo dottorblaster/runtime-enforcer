@@ -1,0 +1,27 @@
+[
+  {
+    "level": "ERROR",
+    "msg": "policy deletion denied: policy is still used by pods",
+    "component": "controller"
+  },
+  {
+    "level": "ERROR",
+    "msg": "failed to get policies status",
+    "component": "controller"
+  },
+  {
+    "level": "WARN",
+    "msg": "error during NRI plugin execution, retrying...",
+    "component": "nri-handler"
+  },
+  {
+    "level": "WARN",
+    "msg": "violation buffer full, oldest entry dropped",
+    "component": "agent"
+  },
+  {
+    "level": "WARN",
+    "msg": "logs suppressed by rate limiting",
+    "component": "agent"
+  }
+]
