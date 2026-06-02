@@ -3,7 +3,13 @@ package v1alpha1
 import (
 	"slices"
 
+	"github.com/rancher-sandbox/runtime-enforcer/internal/types/policymode"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+const (
+	PolicyModeMonitor = policymode.MonitorString
+	PolicyModeProtect = policymode.ProtectString
 )
 
 const (
