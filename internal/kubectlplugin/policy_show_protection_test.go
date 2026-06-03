@@ -44,7 +44,7 @@ func TestBuildWorkloadProtectionRows(t *testing.T) {
 			pods: []corev1.Pod{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "ubuntu-deployment-6469c647b5-2ftx7",
+						Name:      "opensuse-deployment-6469c647b5-2ftx7",
 						Namespace: namespaceA,
 						Labels: map[string]string{
 							apiv1alpha1.PolicyLabelKey: policyName,
@@ -54,7 +54,7 @@ func TestBuildWorkloadProtectionRows(t *testing.T) {
 				},
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "ubuntu-deployment-6469c647b5-tjssz",
+						Name:      "opensuse-deployment-6469c647b5-tjssz",
 						Namespace: namespaceA,
 						Labels: map[string]string{
 							apiv1alpha1.PolicyLabelKey: policyName,
@@ -72,7 +72,7 @@ func TestBuildWorkloadProtectionRows(t *testing.T) {
 			},
 			expected: []workloadProtectionRow{
 				{
-					Workload: types.NamespacedName{Namespace: namespaceA, Name: "ubuntu-deployment"}.String(),
+					Workload: types.NamespacedName{Namespace: namespaceA, Name: "opensuse-deployment"}.String(),
 					Kind:     workloadkind.Deployment.String(),
 					Policy:   policyName,
 					Mode:     modeToUpper(policymode.ProtectString),
@@ -85,7 +85,7 @@ func TestBuildWorkloadProtectionRows(t *testing.T) {
 			pods: []corev1.Pod{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "ubuntu-deployment-6469c647b5-2ftx7",
+						Name:      "opensuse-deployment-6469c647b5-2ftx7",
 						Namespace: namespaceA,
 						Labels: map[string]string{
 							apiv1alpha1.PolicyLabelKey: policyName,
@@ -97,7 +97,7 @@ func TestBuildWorkloadProtectionRows(t *testing.T) {
 			policies: nil,
 			expected: []workloadProtectionRow{
 				{
-					Workload: types.NamespacedName{Namespace: namespaceA, Name: "ubuntu-deployment"}.String(),
+					Workload: types.NamespacedName{Namespace: namespaceA, Name: "opensuse-deployment"}.String(),
 					Kind:     workloadkind.Deployment.String(),
 					Policy:   policyName,
 					Mode:     unknownMode,
@@ -170,7 +170,7 @@ func TestBuildWorkloadProtectionRows(t *testing.T) {
 func TestRenderPolicyProtection(t *testing.T) {
 	t.Parallel()
 
-	workloadName := "ns-a/ubuntu-deployment"
+	workloadName := "ns-a/opensuse-deployment"
 	rows := []workloadProtectionRow{{
 		Workload: workloadName,
 		Kind:     workloadkind.Deployment.String(),

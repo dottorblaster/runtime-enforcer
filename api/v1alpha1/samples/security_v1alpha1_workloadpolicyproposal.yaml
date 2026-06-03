@@ -4,7 +4,7 @@ metadata:
   name: workloadpolicyproposal-sample
 spec:
   rulesByContainer:
-    ubuntu:
+    opensuse:
       executables:
         allowed:
           - /nginx-ingress-controller

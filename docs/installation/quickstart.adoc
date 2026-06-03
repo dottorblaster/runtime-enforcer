@@ -106,7 +106,7 @@ curl localhost:9090/metrics | grep runtime_enforcer_violations
 Once violations occur, you will see a counter like:
 
 ```
-runtime_enforcer_violations_total{action="monitor",k8s_namespace_name="default",node_name="node-1",policy_name="deploy-ubuntu-deployment"} 1
+runtime_enforcer_violations_total{action="monitor",k8s_namespace_name="default",node_name="node-1",policy_name="deploy-opensuse-deployment"} 1
 ```
 
 === Summary
@@ -121,52 +121,52 @@ Executables that ran before the agent started won't be visible in the proposal.
 
 === Deploy a simple application
 
-Let's create a fresh new Ubuntu Deployment.
+Let's create a fresh new openSUSE Deployment.
 
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/rancher-sandbox/runtime-enforcer/main/docs/yaml/ubuntu-deployment.yaml
+kubectl apply -f https://raw.githubusercontent.com/rancher-sandbox/runtime-enforcer/main/docs/yaml/opensuse-deployment.yaml
 
 # wait for the pod to be ready
-kubectl wait --for=condition=Ready pod -l app=ubuntu-deployment --timeout=300s
+kubectl wait --for=condition=Ready pod -l app=opensuse-deployment --timeout=300s
 ```
 
 === Proposal generation
 
-After a few seconds, you should see a new `WorkloadPolicyProposal` resource created for the Ubuntu deployment.
+After a few seconds, you should see a new `WorkloadPolicyProposal` resource created for the openSUSE deployment.
 
 ```bash
-kubectl get workloadpolicyproposals.security.rancher.io deploy-ubuntu-deployment -o yaml
+kubectl get workloadpolicyproposals.security.rancher.io deploy-opensuse-deployment -o yaml
 ```
 
 ```yaml
 apiVersion: security.rancher.io/v1alpha1
 kind: WorkloadPolicyProposal
 metadata:
-  name: deploy-ubuntu-deployment
+  name: deploy-opensuse-deployment
   namespace: default
   ownerReferences:
   - apiVersion: apps/v1
     blockOwnerDeletion: true
     controller: true
     kind: Deployment
-    name: ubuntu-deployment
+    name: opensuse-deployment
     uid: f5e1a25e-8a80-4c2a-b21a-b70f28a0651c
   uid: 6aeac998-d4b6-4e17-9ce1-4d76bc4def61
 spec:
   rulesByContainer:
-    ubuntu:
+    opensuse:
       executables:
         allowed:
         - /usr/bin/ls
         - /usr/bin/sleep
   selector:
     matchLabels:
-      app: ubuntu
+      app: opensuse
       type: deployment
 ```
 
 Some notes on this proposal:
-* The proposal includes a list of observed executables for the `ubuntu` container. As expected, it captured the `ls` and `sleep` commands.
+* The proposal includes a list of observed executables for the `opensuse` container. As expected, it captured the `ls` and `sleep` commands.
 * As the name suggests, this is only a proposal and not a definitive policy yet, so nothing is enforced at this stage. To enforce it, we will create a `WorkloadPolicy`.
 * This proposal is tied to a specific workload. Its name is always in the form of `<workload-type>-<workload-name>`. There is also an owner reference to the Deployment so that when the workload is deleted, the proposal can be cleaned up automatically.
 
@@ -176,46 +176,46 @@ This proposal looks reasonable for our Deployment, so the next step is convertin
 To do that, we label the `WorkloadPolicyProposal` with the `security.rancher.io/policy-ready` label set to `true`.
 
 ```bash
-kubectl label workloadpolicyproposals.security.rancher.io deploy-ubuntu-deployment security.rancher.io/policy-ready=true
+kubectl label workloadpolicyproposals.security.rancher.io deploy-opensuse-deployment security.rancher.io/policy-ready=true
 ```
 
 You can also use the kubectl plugin to perform the same step:
 
 ```bash
-kubectl runtime-enforcer proposal promote deploy-ubuntu-deployment
+kubectl runtime-enforcer proposal promote deploy-opensuse-deployment
 ```
 
 After a few seconds, you should see a new Custom Resource called `WorkloadPolicy`.
 
 ```bash
-kubectl get workloadpolicy.security.rancher.io deploy-ubuntu-deployment -o yaml
+kubectl get workloadpolicy.security.rancher.io deploy-opensuse-deployment -o yaml
 ```
 
 ```yaml
 apiVersion: security.rancher.io/v1alpha1
 kind: WorkloadPolicy
 metadata:
-  name: deploy-ubuntu-deployment
+  name: deploy-opensuse-deployment
   namespace: default
   ownerReferences:
   - apiVersion: security.rancher.io/v1alpha1
     blockOwnerDeletion: true
     controller: true
     kind: WorkloadPolicyProposal
-    name: deploy-ubuntu-deployment
+    name: deploy-opensuse-deployment
     uid: 3dcb1758-cbde-4523-bbbf-4170758aa1dd
   uid: 394449cb-db06-4a15-aec0-6274d1f34d8e
 spec:
   mode: monitor
   rulesByContainer:
-    ubuntu:
+    opensuse:
       executables:
         allowed:
         - /usr/bin/ls
         - /usr/bin/sleep
   selector:
     matchLabels:
-      app: ubuntu-deployment
+      app: opensuse-deployment
 ```
 
 The syntax is very similar to the proposal, but there is one important difference: the `spec.mode: monitor` field.
@@ -238,9 +238,9 @@ WARNING: The `security.rancher.io/policy` label must be set at Pod creation time
 WARNING: By default in the runtime-enforcer Helm chart, pods with a non-existing policy will be prevented from running. This ensures that when a pod starts, it has all protection ready. To enable fail-open behavior, set `agent.nriFailopen=true`.
 
 ```bash
-kubectl patch deployment ubuntu-deployment --type=merge -p '{"spec":{"template":{"metadata":{"labels":{"security.rancher.io/policy":"deploy-ubuntu-deployment"}}}}}'
+kubectl patch deployment opensuse-deployment --type=merge -p '{"spec":{"template":{"metadata":{"labels":{"security.rancher.io/policy":"deploy-opensuse-deployment"}}}}}'
 # wait for the new pods to be ready
-kubectl wait --for=condition=Ready pod -l security.rancher.io/policy=deploy-ubuntu-deployment --timeout=300s
+kubectl wait --for=condition=Ready pod -l security.rancher.io/policy=deploy-opensuse-deployment --timeout=300s
 ```
 
 [WARNING]
@@ -259,7 +259,7 @@ kubectl logs -n runtime-enforcer deployment/runtime-enforcer-otel-collector -f
 In another terminal, run an allowed command:
 
 ```bash
-kubectl exec -n default deployment/ubuntu-deployment -- ls
+kubectl exec -n default deployment/opensuse-deployment -- ls
 ```
 
 Nothing should be reported.
@@ -267,19 +267,19 @@ Nothing should be reported.
 Now, run a command that is not in the allowlist:
 
 ```bash
-kubectl exec -n default deployment/ubuntu-deployment -- ps
+kubectl exec -n default deployment/opensuse-deployment -- ps
 ```
 
 In the OTEL collector logs you should see an event for the `ps` command being executed.
 
 ```txt
-monitor 3f3235e0e92e6143965d46b967691cc1 9a6b46fa3165e86d evt.time=2026-01-14T10:39:01Z evt.rawtime=1768387141935180372 policy.name=deploy-ubuntu-deployment k8s.ns.name=default k8s.workload.name=ubuntu-deployment k8s.workload.kind=Deployment k8s.pod.name=ubuntu-deployment-f69df6b94-7s7f4 container.full_id=2f6eb089830e2c281551274e8d0e94bdb182a5444fc1a4ab7316f33dff8a5017 container.name=ubuntu proc.exepath=/usr/bin/ps action=monitor
+monitor 3f3235e0e92e6143965d46b967691cc1 9a6b46fa3165e86d evt.time=2026-01-14T10:39:01Z evt.rawtime=1768387141935180372 policy.name=deploy-opensuse-deployment k8s.ns.name=default k8s.workload.name=opensuse-deployment k8s.workload.kind=Deployment k8s.pod.name=opensuse-deployment-f69df6b94-7s7f4 container.full_id=2f6eb089830e2c281551274e8d0e94bdb182a5444fc1a4ab7316f33dff8a5017 container.name=opensuse proc.exepath=/usr/bin/ps action=monitor
 ```
 
 Violations are also visible directly on the WorkloadPolicy status. After the controller's next sync tick (up to 30 seconds), you can inspect them with `kubectl`:
 
 ```bash
-kubectl describe workloadpolicy.security.rancher.io deploy-ubuntu-deployment -n default
+kubectl describe workloadpolicy.security.rancher.io deploy-opensuse-deployment -n default
 ```
 
 In the output, look for the `Violations` section under `Status`:
@@ -288,8 +288,8 @@ In the output, look for the `Violations` section under `Status`:
 Status:
   Violations:
   - timestamp: "2026-01-14T10:39:01Z"
-    podName: ubuntu-deployment-f69df6b94-7s7f4
-    containerName: ubuntu
+    podName: opensuse-deployment-f69df6b94-7s7f4
+    containerName: opensuse
     executablePath: /usr/bin/ps
     nodeName: node-1
     action: monitor
@@ -306,25 +306,25 @@ Once we are confident in our policy and we want to enforce it, we can change the
 From now on, every violation of the executable list will be blocked.
 
 ```bash
-kubectl patch workloadpolicy deploy-ubuntu-deployment -n default --type='json' -p='[{"op": "replace", "path": "/spec/mode", "value": "protect"}]'
+kubectl patch workloadpolicy deploy-opensuse-deployment -n default --type='json' -p='[{"op": "replace", "path": "/spec/mode", "value": "protect"}]'
 ```
 
 You can also use the kubectl plugin to perform the same step:
 
 ```bash
-kubectl runtime-enforcer policy protect deploy-ubuntu-deployment -n default
+kubectl runtime-enforcer policy protect deploy-opensuse-deployment -n default
 ```
 
 Now we can try again an allowed binary, nothing should be reported.
 
 ```bash
-kubectl exec -n default deployment/ubuntu-deployment -- ls
+kubectl exec -n default deployment/opensuse-deployment -- ls
 ```
 
 This time, if we run a not allowed binary, we should see not only a report but also the process being blocked.
 
 ```bash
-kubectl exec -n default deployment/ubuntu-deployment -- ps
+kubectl exec -n default deployment/opensuse-deployment -- ps
 ```
 
 The terminal tells us the process is blocked with `EPERM`.
@@ -337,7 +337,7 @@ command terminated with exit code 255
 And we have a log entry for it:
 
 ```txt
-protect 37298bcde8726ade2516b5d3c63aa663 cb28aa0b03259160 evt.time=2026-01-14T10:49:11Z evt.rawtime=1768387751471907924 policy.name=deploy-ubuntu-deployment k8s.ns.name=default k8s.workload.name=ubuntu-deployment k8s.workload.kind=Deployment k8s.pod.name=ubuntu-deployment-f69df6b94-7s7f4 container.full_id=2f6eb089830e2c281551274e8d0e94bdb182a5444fc1a4ab7316f33dff8a5017 container.name=ubuntu proc.exepath=/usr/bin/ps action=protect
+protect 37298bcde8726ade2516b5d3c63aa663 cb28aa0b03259160 evt.time=2026-01-14T10:49:11Z evt.rawtime=1768387751471907924 policy.name=deploy-opensuse-deployment k8s.ns.name=default k8s.workload.name=opensuse-deployment k8s.workload.kind=Deployment k8s.pod.name=opensuse-deployment-f69df6b94-7s7f4 container.full_id=2f6eb089830e2c281551274e8d0e94bdb182a5444fc1a4ab7316f33dff8a5017 container.name=opensuse proc.exepath=/usr/bin/ps action=protect
 ```
 
 == Advanced Configuration

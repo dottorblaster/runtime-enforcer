@@ -118,26 +118,26 @@ For workloads that you want to ensure have runtime-enforcer protection present, 
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: ubuntu-deployment
+  name: opensuse-deployment
   labels:
-    app: ubuntu
+    app: opensuse
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: ubuntu
+      app: opensuse
   template:
     metadata:
       labels:
-        app: ubuntu
+        app: opensuse
         security.rancher.io/policy: workloadpolicy-sample
       annotations:
         # This specifies "runtime-enforcer-agent" plugin to be required.
         required-plugins.noderesource.dev: '["runtime-enforcer-agent"]'
     spec:
       containers:
-      - name: ubuntu
-        image: ubuntu:24.04
+      - name: opensuse
+        image: registry.opensuse.org/opensuse/bci/bci-ci:3
         stdin: true
         tty: true
 ----
@@ -145,7 +145,7 @@ spec:
 When the required plugin is not available for any reason, the workload will fail to start with errors in Kubernetes events:
 
 ----
-4s          Warning   Failed                    pod/ubuntu-deployment-6655f5c7ff-xghnd    Error: failed to create containerd container: failed to get NRI adjustment for container: validator "00-default-validator" rejected container adjustment, reason: validation error: required plugin "runtime-enforcer-agent" not present
+4s          Warning   Failed                    pod/opensuse-deployment-6655f5c7ff-xghnd    Error: failed to create containerd container: failed to get NRI adjustment for container: validator "00-default-validator" rejected container adjustment, reason: validation error: required plugin "runtime-enforcer-agent" not present
 ----
 
 ==== containerd: required_plugins

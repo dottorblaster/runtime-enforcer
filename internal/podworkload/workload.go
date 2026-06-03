@@ -36,23 +36,23 @@ func parseDeployment(podName, templateHash string) (string, workloadkind.Kind) {
 	//
 	// Concrete examples:
 	// 1. Regular case
-	//    deployment-name: ubuntu-deployment-674bcc58f4-pwvps
-	//    pod-name: ubuntu-deployment
+	//    deployment-name: opensuse-deployment-674bcc58f4-pwvps
+	//    pod-name: opensuse-deployment
 	//
 	// 2. 63 characters
-	//    deployment-name: ubuntu-deploymentttttttttttttttttttttttttttttttttttttttttttttt
-	//    pod-name: ubuntu-deploymenttttttttttttttttttttttttttttttttttttttttttq8fcg
+	//    deployment-name: opensuse-deploymentttttttttttttttttttttttttttttttttttttttttttt
+	//    pod-name: opensuse-deploymenttttttttttttttttttttttttttttttttttttttttq8fcg
 	//    In this case we have just the final [random(q8fcg)] without the `-`. The name of the deployment is truncated.
 	//
 	// 3. 56 characters
-	//    deployment-name: ubuntu-deploymentttttttttttttttttttttttttttttttttttttt-t
-	//    pod-name: ubuntu-deploymentttttttttttttttttttttttttttttttttttttt-t-65fb8c
+	//    deployment-name: opensuse-deploymentttttttttttttttttttttttttttttttttttt-t
+	//    pod-name: opensuse-deploymentttttttttttttttttttttttttttttttttttt-t-65fb8c
 	//    In this case `-[hash]-[random]` are just collapsed into `-65fb8c` but the name is not truncated
 
 	// first we trim the random suffix, we always have it.
 	// Example:
-	// from: ubuntu-deployment-674bcc58f4-pwvps
-	// to: ubuntu-deployment-674bcc58f4-
+	// from: opensuse-deployment-674bcc58f4-pwvps
+	// to: opensuse-deployment-674bcc58f4-
 	podPrefixWithPartialHash := podName[:len(podName)-randomSuffixLen]
 
 	// we first try a match with the exactPattern, if we don't find it we will look for a partial match
@@ -77,12 +77,12 @@ func parseDaemonSet(podName string) (string, workloadkind.Kind) {
 	//
 	// Concrete examples:
 	// 1. Regular case
-	//    daemonset-name: ubuntu-daemonset
-	//    pod-name: ubuntu-daemonset-6qq8v
+	//    daemonset-name: opensuse-daemonset
+	//    pod-name: opensuse-daemonset-6qq8v
 	//
 	// 2. Long case
-	//    daemonset-name: ubuntu-daemonsetttttttttttttttttttttttttttttttttttttttttttttttttttt
-	//    pod-name: ubuntu-daemonsettttttttttttttttttttttttttttttttttttttttttt6qq8v
+	//    daemonset-name: opensuse-daemonsetttttttttttttttttttttttttttttttttttttttttttttttttt
+	//    pod-name: opensuse-daemonsettttttttttttttttttttttttttttttttttttttttt6qq8v
 	//    So the name of the daemonset is truncated and the `-` will be omitted.
 
 	// we remove the suffix that is always present

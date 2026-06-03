@@ -74,7 +74,7 @@ func TestGetWorkloadPolicyProposalName(t *testing.T) {
 func TestHasProposalBeenPromoted(t *testing.T) {
 	const (
 		defaultNamespace = "default"
-		proposalName     = "ubuntu-deployment"
+		proposalName     = "opensuse-deployment"
 	)
 
 	tests := []struct {
