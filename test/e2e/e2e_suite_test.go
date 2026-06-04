@@ -115,7 +115,10 @@ func getCharts() []helmChart {
 }
 
 func TestMain(m *testing.M) {
+	// we build kubectl_runtime-enforcer binary to run plugin e2e tests
+
 	charts := getCharts()
+
 	commonSetupFuncs := []env.Func{
 		// we uninstall here as a defensive check but nothing should be left behind
 		uninstallHelmRepos(charts),
@@ -226,11 +229,19 @@ func installHelmRepos(charts []helmChart) env.Func {
 			if strings.HasPrefix(chartPath, "/") {
 				// First we try to add the repo.
 				if err = manager.RunRepo(helm.WithArgs("add", chart.repoLocalName, chart.repoURL)); err != nil {
-					return ctx, fmt.Errorf("failed to add local repo '%s': %w", chart.repoLocalName, err)
+					return ctx, fmt.Errorf(
+						"failed to add local repo '%s': %w",
+						chart.repoLocalName,
+						err,
+					)
 				}
 				// Update the repo.
 				if err = manager.RunRepo(helm.WithArgs("update")); err != nil {
-					return ctx, fmt.Errorf("failed to update local repo '%s': %w", chart.repoLocalName, err)
+					return ctx, fmt.Errorf(
+						"failed to update local repo '%s': %w",
+						chart.repoLocalName,
+						err,
+					)
 				}
 				// The final chart path will be the name of repoLocalName + chartPath
 				chartPath = chart.repoLocalName + chartPath
