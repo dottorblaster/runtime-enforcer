@@ -23,12 +23,12 @@ func TestGetWorkloadInfo(t *testing.T) {
 		{
 			name: "deployment",
 			pod: podInfo{
-				name: "opensuse-deployment-674bcc58f4-pwvps",
+				name: "ubuntu-deployment-674bcc58f4-pwvps",
 				labels: map[string]string{
 					podTemplateHashLabel: "674bcc58f4",
 				},
 			},
-			wantName: "opensuse-deployment",
+			wantName: "ubuntu-deployment",
 			wantType: workloadkind.Deployment,
 		},
 		{
@@ -79,26 +79,26 @@ func TestGetWorkloadInfo(t *testing.T) {
 		{
 			name: "statefulset",
 			pod: podInfo{
-				name: "opensuse-statefulset-0",
+				name: "ubuntu-statefulset-0",
 				labels: map[string]string{
 					"apps.kubernetes.io/pod-index": "0",
-					"controller-revision-hash":     "opensuse-statefulset-7b5845dd9c",
-					statefulsetLabel:               "opensuse-statefulset-0",
+					"controller-revision-hash":     "ubuntu-statefulset-7b5845dd9c",
+					statefulsetLabel:               "ubuntu-statefulset-0",
 				},
 			},
-			wantName: "opensuse-statefulset",
+			wantName: "ubuntu-statefulset",
 			wantType: workloadkind.StatefulSet,
 		},
 		{
 			name: "daemonset",
 			pod: podInfo{
-				name: "opensuse-daemonset-6qq8v",
+				name: "ubuntu-daemonset-6qq8v",
 				labels: map[string]string{
 					daemonsetLabel:            "568bcd7685",
 					"pod-template-generation": "1",
 				},
 			},
-			wantName: "opensuse-daemonset",
+			wantName: "ubuntu-daemonset",
 			wantType: workloadkind.DaemonSet,
 		},
 		{
@@ -128,73 +128,73 @@ func TestGetWorkloadInfo(t *testing.T) {
 		{
 			name: "cronjob both label",
 			pod: podInfo{
-				name: "opensuse-cronjob-29483273-vthf9",
+				name: "ubuntu-cronjob-29483273-vthf9",
 				labels: map[string]string{
 					"batch.kubernetes.io/controller-uid": "0bebfe37-e018-4ff3-86fa-74cdd8dc2c67",
-					newJobNameLabel:                      "opensuse-cronjob-29483273",
+					newJobNameLabel:                      "ubuntu-cronjob-29483273",
 					"controller-uid":                     "0bebfe37-e018-4ff3-86fa-74cdd8dc2c67",
-					oldJobNameLabel:                      "opensuse-cronjob-29483273",
+					oldJobNameLabel:                      "ubuntu-cronjob-29483273",
 				},
 			},
-			wantName: "opensuse-cronjob",
+			wantName: "ubuntu-cronjob",
 			wantType: workloadkind.CronJob,
 		},
 		{
 			name: "cronjob new label only",
 			pod: podInfo{
-				name: "opensuse-cronjob-29483273-vthf9",
+				name: "ubuntu-cronjob-29483273-vthf9",
 				labels: map[string]string{
 					"batch.kubernetes.io/controller-uid": "0bebfe37-e018-4ff3-86fa-74cdd8dc2c67",
 					"controller-uid":                     "0bebfe37-e018-4ff3-86fa-74cdd8dc2c67",
-					newJobNameLabel:                      "opensuse-cronjob-29483273",
+					newJobNameLabel:                      "ubuntu-cronjob-29483273",
 				},
 			},
-			wantName: "opensuse-cronjob",
+			wantName: "ubuntu-cronjob",
 			wantType: workloadkind.CronJob,
 		},
 		{
 			name: "cronjob old label only",
 			pod: podInfo{
-				name: "opensuse-cronjob-29483273-vthf9",
+				name: "ubuntu-cronjob-29483273-vthf9",
 				labels: map[string]string{
 					"batch.kubernetes.io/controller-uid": "0bebfe37-e018-4ff3-86fa-74cdd8dc2c67",
 					"controller-uid":                     "0bebfe37-e018-4ff3-86fa-74cdd8dc2c67",
-					oldJobNameLabel:                      "opensuse-cronjob-29483273",
+					oldJobNameLabel:                      "ubuntu-cronjob-29483273",
 				},
 			},
-			wantName: "opensuse-cronjob",
+			wantName: "ubuntu-cronjob",
 			wantType: workloadkind.CronJob,
 		},
 		{
 			name: "job",
 			pod: podInfo{
-				name: "opensuse-job-9bq97",
+				name: "ubuntu-job-9bq97",
 				labels: map[string]string{
 					"batch.kubernetes.io/controller-uid": "bdd392e0-262c-4fdf-8825-6e7d7351fec9",
-					newJobNameLabel:                      "opensuse-job",
+					newJobNameLabel:                      "ubuntu-job",
 					"controller-uid":                     "bdd392e0-262c-4fdf-8825-6e7d7351fec9",
-					oldJobNameLabel:                      "opensuse-job",
+					oldJobNameLabel:                      "ubuntu-job",
 				},
 			},
-			wantName: "opensuse-job",
+			wantName: "ubuntu-job",
 			wantType: workloadkind.Job,
 		},
 		{
 			name: "simple pod",
 			pod: podInfo{
-				name:   "opensuse-pod",
+				name:   "ubuntu-pod",
 				labels: map[string]string{},
 			},
-			wantName: "opensuse-pod",
+			wantName: "ubuntu-pod",
 			wantType: workloadkind.Pod,
 		},
 		{
 			name: "replicaset ignored",
 			pod: podInfo{
-				name:   "opensuse-replicaset-rnswg",
+				name:   "ubuntu-replicaset-rnswg",
 				labels: map[string]string{},
 			},
-			wantName: "opensuse-replicaset-rnswg",
+			wantName: "ubuntu-replicaset-rnswg",
 			wantType: workloadkind.Pod,
 		},
 	}
