@@ -35,13 +35,13 @@ var _ = Describe("Learning", func() {
 		ctx = context.Background()
 
 		typeNamespacedName := types.NamespacedName{
-			Name:      "ubuntu-deployment",
+			Name:      "opensuse-deployment",
 			Namespace: "default",
 		}
 
 		proposal := &securityv1alpha1.WorkloadPolicyProposal{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "deploy-ubuntu-deployment",
+				Name:      "deploy-opensuse-deployment",
 				Namespace: "default",
 			},
 			Spec: securityv1alpha1.WorkloadPolicyProposalSpec{},
@@ -59,21 +59,21 @@ var _ = Describe("Learning", func() {
 			Spec: appsv1.DeploymentSpec{
 				Selector: &metav1.LabelSelector{
 					MatchLabels: map[string]string{
-						"app": "ubuntu",
+						"app": "opensuse",
 					},
 				},
 				Template: corev1.PodTemplateSpec{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "ubuntu",
+						Name: "opensuse",
 						Labels: map[string]string{
-							"app": "ubuntu",
+							"app": "opensuse",
 						},
 					},
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{
 							{
-								Name:  "ubuntu",
-								Image: "ubuntu",
+								Name:  "opensuse",
+								Image: "opensuse",
 							},
 						},
 					},
@@ -113,9 +113,9 @@ var _ = Describe("Learning", func() {
 			for i := range eventsToProcessNum {
 				eventsToProcess = append(eventsToProcess, eventscraper.KubeProcessInfo{
 					Namespace:      "default",
-					ContainerName:  "ubuntu",
+					ContainerName:  "opensuse",
 					ExecutablePath: fmt.Sprintf("/usr/bin/sleep%d", i),
-					Workload:       "ubuntu-deployment",
+					Workload:       "opensuse-deployment",
 					WorkloadKind:   "Deployment",
 				})
 				expectedAllowList = append(expectedAllowList, fmt.Sprintf("/usr/bin/sleep%d", i))
@@ -174,7 +174,7 @@ var _ = Describe("Learning", func() {
 
 			proposalResult := securityv1alpha1.WorkloadPolicyProposal{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "deploy-ubuntu-deployment",
+					Name:      "deploy-opensuse-deployment",
 					Namespace: "default",
 				},
 			}
@@ -185,7 +185,7 @@ var _ = Describe("Learning", func() {
 			}, &proposalResult)
 			Expect(err).NotTo(HaveOccurred())
 
-			rules := proposalResult.Spec.RulesByContainer["ubuntu"]
+			rules := proposalResult.Spec.RulesByContainer["opensuse"]
 
 			Expect(rules.Executables.Allowed).To(HaveLen(eventsToProcessNum))
 			Expect(rules.Executables.Allowed).To(ContainElements(expectedAllowList))
@@ -195,8 +195,8 @@ var _ = Describe("Learning", func() {
 			var err error
 
 			const testNamespace = "default"
-			const testResourceName = "ubuntu-deployment-2"
-			const testProposalName = "deploy-ubuntu-deployment-2"
+			const testResourceName = "opensuse-deployment-2"
+			const testProposalName = "deploy-opensuse-deployment-2"
 
 			tcs := []struct {
 				processEvents  []eventscraper.KubeProcessInfo
@@ -208,21 +208,21 @@ var _ = Describe("Learning", func() {
 							Namespace:      testNamespace,
 							Workload:       testResourceName,
 							WorkloadKind:   "Deployment",
-							ContainerName:  "ubuntu",
+							ContainerName:  "opensuse",
 							ExecutablePath: "/usr/bin/sleep",
 						},
 						{
 							Namespace:      testNamespace,
 							Workload:       testResourceName,
 							WorkloadKind:   "Deployment",
-							ContainerName:  "ubuntu",
+							ContainerName:  "opensuse",
 							ExecutablePath: "/usr/bin/bash",
 						},
 						{
 							Namespace:      testNamespace,
 							Workload:       testResourceName,
 							WorkloadKind:   "Deployment",
-							ContainerName:  "ubuntu",
+							ContainerName:  "opensuse",
 							ExecutablePath: "/usr/bin/ls",
 						},
 					},
@@ -238,21 +238,21 @@ var _ = Describe("Learning", func() {
 							Namespace:      testNamespace,
 							Workload:       testResourceName,
 							WorkloadKind:   "Deployment",
-							ContainerName:  "ubuntu",
+							ContainerName:  "opensuse",
 							ExecutablePath: "/usr/bin/sleep",
 						},
 						{
 							Namespace:      testNamespace,
 							Workload:       testResourceName,
 							WorkloadKind:   "Deployment",
-							ContainerName:  "ubuntu",
+							ContainerName:  "opensuse",
 							ExecutablePath: "/usr/bin/sleep",
 						},
 						{
 							Namespace:      testNamespace,
 							Workload:       testResourceName,
 							WorkloadKind:   "Deployment",
-							ContainerName:  "ubuntu",
+							ContainerName:  "opensuse",
 							ExecutablePath: "/usr/bin/sleep",
 						},
 					},
@@ -284,7 +284,7 @@ var _ = Describe("Learning", func() {
 				}, testProposal)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(
-					testProposal.Spec.RulesByContainer["ubuntu"].Executables.Allowed,
+					testProposal.Spec.RulesByContainer["opensuse"].Executables.Allowed,
 				).To(ContainElements(tc.expectedResult))
 
 				Expect(k8sClient.Delete(ctx, &securityv1alpha1.WorkloadPolicyProposal{
@@ -298,8 +298,8 @@ var _ = Describe("Learning", func() {
 
 		It("should not learn process behavior when a policy proposal is labeled as ready", func() {
 			const testNamespace = "default"
-			const testResourceName = "ubuntu-deployment-3"
-			const testProposalName = "deploy-ubuntu-deployment-3"
+			const testResourceName = "opensuse-deployment-3"
+			const testProposalName = "deploy-opensuse-deployment-3"
 
 			var err error
 
@@ -308,21 +308,21 @@ var _ = Describe("Learning", func() {
 					Namespace:      testNamespace,
 					Workload:       testResourceName,
 					WorkloadKind:   "Deployment",
-					ContainerName:  "ubuntu",
+					ContainerName:  "opensuse",
 					ExecutablePath: "/usr/bin/sleep",
 				},
 				{
 					Namespace:      testNamespace,
 					Workload:       testResourceName,
 					WorkloadKind:   "Deployment",
-					ContainerName:  "ubuntu",
+					ContainerName:  "opensuse",
 					ExecutablePath: "/usr/bin/bash",
 				},
 				{
 					Namespace:      testNamespace,
 					Workload:       testResourceName,
 					WorkloadKind:   "Deployment",
-					ContainerName:  "ubuntu",
+					ContainerName:  "opensuse",
 					ExecutablePath: "/usr/bin/ls",
 				},
 			}
@@ -362,22 +362,22 @@ var _ = Describe("Learning", func() {
 
 		It("should not learn process behavior when a WorkloadPolicy already exists", func() {
 			const testNamespace = "default"
-			const testResourceName = "ubuntu-deployment-4"
-			const testProposalName = "deploy-ubuntu-deployment-4"
+			const testResourceName = "opensuse-deployment-4"
+			const testProposalName = "deploy-opensuse-deployment-4"
 
 			processEvents := []eventscraper.KubeProcessInfo{
 				{
 					Namespace:      testNamespace,
 					Workload:       testResourceName,
 					WorkloadKind:   "Deployment",
-					ContainerName:  "ubuntu",
+					ContainerName:  "opensuse",
 					ExecutablePath: "/usr/bin/sleep",
 				},
 				{
 					Namespace:      testNamespace,
 					Workload:       testResourceName,
 					WorkloadKind:   "Deployment",
-					ContainerName:  "ubuntu",
+					ContainerName:  "opensuse",
 					ExecutablePath: "/usr/bin/ls",
 				},
 			}
@@ -446,7 +446,7 @@ var _ = Describe("Learning", func() {
 					Namespace:      namespace.Name,
 					Workload:       deployment.Name,
 					WorkloadKind:   "Deployment",
-					ContainerName:  "ubuntu",
+					ContainerName:  "opensuse",
 					ExecutablePath: "/usr/bin/sleep",
 				})
 				Expect(err).NotTo(HaveOccurred())

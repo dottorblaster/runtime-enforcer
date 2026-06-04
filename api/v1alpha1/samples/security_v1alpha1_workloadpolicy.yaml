@@ -5,7 +5,7 @@ metadata:
 spec:
   mode: monitor # monitor/protect
   rulesByContainer:
-    ubuntu:
+    opensuse:
       executables:
         allowed:
           - /nginx-ingress-controller

@@ -15,13 +15,13 @@ import (
 var _ = Describe("WorkloadPolicyProposal Webhook", func() {
 	Context("When learning a process", func() {
 		typeNamespacedName := types.NamespacedName{
-			Name:      "ubuntu-deployment",
+			Name:      "opensuse-deployment",
 			Namespace: "default",
 		}
 
 		proposal := &securityv1alpha1.WorkloadPolicyProposal{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "deploy-ubuntu-deployment",
+				Name:      "deploy-opensuse-deployment",
 				Namespace: "default",
 			},
 			Spec: securityv1alpha1.WorkloadPolicyProposalSpec{},
@@ -35,21 +35,21 @@ var _ = Describe("WorkloadPolicyProposal Webhook", func() {
 			Spec: appsv1.DeploymentSpec{
 				Selector: &metav1.LabelSelector{
 					MatchLabels: map[string]string{
-						"app": "ubuntu",
+						"app": "opensuse",
 					},
 				},
 				Template: corev1.PodTemplateSpec{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "ubuntu",
+						Name: "opensuse",
 						Labels: map[string]string{
-							"app": "ubuntu",
+							"app": "opensuse",
 						},
 					},
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{
 							{
-								Name:  "ubuntu",
-								Image: "ubuntu",
+								Name:  "opensuse",
+								Image: "opensuse",
 							},
 						},
 					},
@@ -88,12 +88,12 @@ var _ = Describe("WorkloadPolicyProposal Webhook", func() {
 				{
 					Resource: &securityv1alpha1.WorkloadPolicyProposal{
 						ObjectMeta: metav1.ObjectMeta{
-							Name:      "deploy-ubuntu-deployment",
+							Name:      "deploy-opensuse-deployment",
 							Namespace: "default",
 							OwnerReferences: []metav1.OwnerReference{
 								{
 									Kind: "Deployment",
-									Name: "ubuntu-deployment",
+									Name: "opensuse-deployment",
 								},
 							},
 						},
@@ -101,12 +101,12 @@ var _ = Describe("WorkloadPolicyProposal Webhook", func() {
 					},
 					Expected: &securityv1alpha1.WorkloadPolicyProposal{
 						ObjectMeta: metav1.ObjectMeta{
-							Name:      "deploy-ubuntu-deployment",
+							Name:      "deploy-opensuse-deployment",
 							Namespace: "default",
 							OwnerReferences: []metav1.OwnerReference{
 								{
 									Kind:               "Deployment",
-									Name:               "ubuntu-deployment",
+									Name:               "opensuse-deployment",
 									APIVersion:         "apps/v1",
 									Controller:         new(true),
 									BlockOwnerDeletion: new(true),
