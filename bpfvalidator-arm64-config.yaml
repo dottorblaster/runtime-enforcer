@@ -3,6 +3,6 @@ parallel: 3
 vm_configs:
     - v6.4
     - v6.6.130
-    - v6.12.78
+    - v6.12.92
       #- v6.17.12 # disabled due to qemu's "unable to handle EFI zboot image with "zstd" compression" error
       #- v6.18.1 # disabled due to qemu's "unable to handle EFI zboot image with "zstd" compression" error
