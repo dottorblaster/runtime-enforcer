@@ -14,6 +14,102 @@ helm upgrade --install runtime-enforcer runtime-enforcer/runtime-enforcer \
   --reuse-values
 ----
 
+== WorkloadPolicy status failures
+
+Each WorkloadPolicy reports its current deployment status on all targeted nodes in its `.status` field. Run:
+
+[source,bash]
+----
+kubectl describe workloadpolicy <name> -n <namespace>
+----
+
+Look for the `Status` section. It shows the overall phase and a breakdown of nodes:
+
+----
+Status:
+  Failed Nodes:         1
+  Nodes With Issues:
+    worker-3:
+      Code:    PolicyFailed
+      Message: failed to populate policy for wp default/allow-shell, container app: ...
+  Observed Generation:  1
+  Phase:                Failed
+  Successful Nodes:     2
+  Total Nodes:          3
+----
+
+The `Phase` field can be one of:
+
+* `Ready` - the policy is enforced on all targeted nodes
+* `Failed` - at least one node has a problem
+* `Transitioning` - some nodes are still switching enforcement mode
+
+The node counters (`SuccessfulNodes`, `FailedNodes`, `TransitioningNodes`) always add up to `TotalNodes`.
+
+=== Node issue codes
+
+When a node has a problem, it appears in `Nodes With Issues` with a `Code` field. The codes are:
+
+`PodNotReady`
+  The controller cannot reach the agent pod on this node. The gRPC connection failed or the agent pod is not running. Check if the agent DaemonSet has a pod scheduled on that node and whether it is in `Running` state.
+
+[source,bash]
+----
+kubectl get pods -n runtime-enforcer --field-selector spec.nodeName=<node-name>
+kubectl describe pod -n runtime-enforcer -l app.kubernetes.io/component=agent --field-selector spec.nodeName=<node-name>
+----
+
+If the agent pod is crash-looping, inspect its logs:
+
+[source,bash]
+----
+kubectl logs -n runtime-enforcer -l app.kubernetes.io/component=agent --field-selector spec.nodeName=<node-name>
+----
+
+`MissingPolicy`
+  The agent pod is reachable but the policy is not loaded on it. This typically happens when the policy was just created and the agent on that node has not reconciled yet, or the pod carrying the policy label was not scheduled on that node. If this persists, check the agent logs for reconciliation errors.
+
+`PolicyFailed`
+  The agent received the policy but failed to apply it. The `Message` field contains the underlying error, usually a BPF map update failure or an internal resolver error. This means something went wrong inside the agent on that specific node. Check the agent logs on that node for more context:
+
+[source,bash]
+----
+kubectl logs -n runtime-enforcer -l app.kubernetes.io/component=agent --field-selector spec.nodeName=<node-name>
+----
+
+Look for log lines containing `reconcile wp-policy` followed by an error. The message in the WorkloadPolicy status is a copy of that error.
+
+=== Controller-side diagnostics
+
+If the `Nodes With Issues` section is empty but the phase is still `Failed`, the status sync controller itself may have encountered an error while collecting node data. The controller runs on a configurable interval and logs every sync attempt. Check its output:
+
+[source,bash]
+----
+kubectl logs -n runtime-enforcer -l app.kubernetes.io/component=controller
+----
+
+Look for lines from the `WorkloadPolicyStatusSync` logger. Errors at this level indicate problems listing WorkloadPolicies, connecting to agents, or updating the status subresource.
+
+=== Quick overview with the kubectl plugin
+
+The `kubectl runtime-enforcer policy show protection` command lists all workloads, their associated policies, enforcement mode, and current status phase in one table. This is useful when you have multiple policies and want to see which ones are not `Ready`.
+
+[source,bash]
+----
+kubectl runtime-enforcer policy show protection
+----
+
+Output:
+
+----
+WORKLOAD                   KIND          POLICY               MODE     STATUS
+default/my-app             Deployment    allow-shell          Protect  Ready
+default/legacy-app         Deployment    restrict-exec        Monitor  Failed
+kube-system/coredns        Deployment    coredns-policy       Protect  Ready
+----
+
+Use the `--all-namespaces` flag to include policies from every namespace, and `-o json` for machine-readable output.
+
 == Debugger
 
 The debugger is an optional Kubernetes Deployment that helps diagnose issues between the runtime-enforcer agents and the actual state of the Kubernetes cluster.
