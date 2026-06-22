@@ -64,3 +64,9 @@ func TestOtelCollector(t *testing.T) {
 
 	testEnv.Test(t, getOtelCollectorTest())
 }
+
+func TestKubectlPluginSmokeTest(t *testing.T) {
+	t.Log("test kubectl plugin smoke test")
+
+	testEnv.Test(t, getKubectlPluginSmokeTest())
+}
