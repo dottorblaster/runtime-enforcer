@@ -7,7 +7,7 @@ require (
 	github.com/cilium/ebpf v0.21.0
 	github.com/containerd/nri v0.12.0
 	github.com/go-logr/logr v1.4.3
-	github.com/onsi/ginkgo/v2 v2.30.0
+	github.com/onsi/ginkgo/v2 v2.31.0
 	github.com/onsi/gomega v1.41.0
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
