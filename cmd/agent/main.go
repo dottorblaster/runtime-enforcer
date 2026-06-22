@@ -28,6 +28,8 @@ import (
 	"github.com/rancher-sandbox/runtime-enforcer/internal/workloadpolicyhandler"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/rancher-sandbox/runtime-enforcer/internal/violationbuf"
 	otellog "go.opentelemetry.io/otel/log"
@@ -68,6 +70,13 @@ func newControllerManager(config Config) (manager.Manager, error) {
 	controllerOptions := ctrl.Options{
 		Scheme:                 scheme,
 		HealthProbeBindAddress: config.probeAddr,
+		Cache: cache.Options{
+			ByObject: map[client.Object]cache.ByObject{
+				&securityv1alpha1.WorkloadPolicy{}: {
+					Transform: stripWorkloadPolicy,
+				},
+			},
+		},
 	}
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), controllerOptions)
 	if err != nil {
@@ -316,6 +325,20 @@ func startAgent(ctx context.Context, logger *slog.Logger, config Config) error {
 	}
 
 	return nil
+}
+
+// stripWorkloadPolicy is a cache transform that removes fields the agent
+// never reads, reducing memory usage per cached WorkloadPolicy object:
+//   - .status (violation records, per-node issue/transitioning maps)
+//   - .metadata.managedFields
+func stripWorkloadPolicy(obj any) (any, error) {
+	wp, ok := obj.(*securityv1alpha1.WorkloadPolicy)
+	if !ok {
+		return obj, nil
+	}
+	wp.Status = securityv1alpha1.WorkloadPolicyStatus{}
+	wp.ManagedFields = nil
+	return wp, nil
 }
 
 // parseLearningNamespaceSelector parses the learning namespace selector from a JSON object (e.g. {"matchLabels":{"env":"prod"}}).
