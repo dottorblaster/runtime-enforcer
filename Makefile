@@ -40,9 +40,6 @@ manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and Cust
 	sed -i 's/controller-role/{{ include "runtime-enforcer.fullname" . }}-controller/' charts/runtime-enforcer/templates/controller/role.yaml
 	sed -i 's/agent-role/{{ include "runtime-enforcer.fullname" . }}-agent/' charts/runtime-enforcer/templates/agent/role.yaml
 	sed -i 's/debugger-role/{{ include "runtime-enforcer.fullname" . }}-debugger/' charts/runtime-enforcer/templates/debugger/role.yaml
-	for f in ./charts/runtime-enforcer/templates/crd/*.yaml; do \
-		sed -i '/^[[:space:]]*annotations:/a\    helm.sh\/resource-policy: keep' "$$f"; \
-	done
 
 REPO ?= ghcr.io/rancher-sandbox/runtime-enforcer
 TAG ?= latest

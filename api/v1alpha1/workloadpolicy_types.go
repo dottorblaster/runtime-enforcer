@@ -169,6 +169,7 @@ func (s *WorkloadPolicyStatus) AddTransitioningNode(nodeName string) {
 // +kubebuilder:printcolumn:name="Mode",type=string,JSONPath=`.spec.mode`
 // +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.phase`
 // +kubebuilder:resource:categories={rancher-security},singular="workloadpolicy",path="workloadpolicies",scope="Namespaced",shortName={wp}
+// +kubebuilder:metadata:annotations="helm.sh/resource-policy=keep"
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
