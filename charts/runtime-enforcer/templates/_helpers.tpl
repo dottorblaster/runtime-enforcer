@@ -70,6 +70,9 @@ Certificates helpers
 {{- define "runtime-enforcer.caIssuerName" -}}
 {{ include "runtime-enforcer.fullname" . }}-ca
 {{- end -}}
+{{- define "runtime-enforcer.caSecretName" -}}
+{{ include "runtime-enforcer.fullname" . }}-ca
+{{- end -}}
 {{- define "runtime-enforcer.otelCollector.certDir" -}}
 /etc/otel-collector/certs
 {{- end -}}
