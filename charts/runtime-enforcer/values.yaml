@@ -176,7 +176,7 @@ debugger:
     repository: ghcr.io/rancher-sandbox/runtime-enforcer/debugger
     # The image tag used by debugger
     # @schema required
-    tag: v0.6.0
+    tag: v0.7.0
     pullPolicy: IfNotPresent
   resources:
     limits:
