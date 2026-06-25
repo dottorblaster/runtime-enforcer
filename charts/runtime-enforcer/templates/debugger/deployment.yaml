@@ -30,7 +30,7 @@ spec:
       securityContext: {{- toYaml .Values.debugger.podSecurityContext | nindent 8 }}
       {{- if .Values.imagePullSecrets }}
       imagePullSecrets:
-      {{- toYaml .Values.imagePullSecrets | nindent 8 }}
+      {{- include "imagePullSecrets" .Values.imagePullSecrets | nindent 8 }}
       {{- end }}
       containers:
       - name: debugger
