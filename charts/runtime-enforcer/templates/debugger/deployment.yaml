@@ -77,5 +77,5 @@ spec:
           volumeAttributes:
             csi.cert-manager.io/issuer-name: {{ include "runtime-enforcer.caIssuerName" . }}
             csi.cert-manager.io/issuer-kind: Issuer
-            csi.cert-manager.io/dns-names: "runtime-enforcer-debugger"
+            csi.cert-manager.io/dns-names: {{ include "runtime-enforcer.fullname" . }}-debugger
 {{- end }}

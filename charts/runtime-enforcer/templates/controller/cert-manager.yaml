@@ -19,7 +19,7 @@ metadata:
 spec:
   isCA: true
   commonName: {{ include "runtime-enforcer.caIssuerName" . }}
-  secretName: runtime-enforcer-ca
+  secretName: {{ include "runtime-enforcer.caSecretName" . }}
   duration: 8736h # 1 year
   renewBefore: 240h # 10 days
   privateKey:
@@ -40,4 +40,4 @@ metadata:
     {{- include "runtime-enforcer.labels" . | nindent 4 }}
 spec:
   ca:
-    secretName: runtime-enforcer-ca
+    secretName: {{ include "runtime-enforcer.caSecretName" . }}

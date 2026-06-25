@@ -1,3 +1,12 @@
+# nameOverride replaces the chart name used when generating resource names,
+# while still keeping the release name as a prefix (e.g. `<release-name>-<nameOverride>`).
+# Leave empty to use the chart name.
+nameOverride: ""
+# fullnameOverride fully replaces the generated resource name prefix
+# (`<release-name>-<chart-name>`) for all resources created by this chart.
+# Leave empty to use the default generated name.
+fullnameOverride: ""
+
 controller:
   args:
     - --metrics-bind-address=:8443

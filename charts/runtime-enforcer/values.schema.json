@@ -455,6 +455,9 @@
             },
             "additionalProperties": false
         },
+        "fullnameOverride": {
+            "type": "string"
+        },
         "global": {
             "description": "Global values shared between all subcharts",
             "$comment": "Added automatically by 'helm schema' to allow this chart to be used as a Helm dependency, as the `additionalProperties` setting would otherwise collide with Helm's special 'global' values key.",
@@ -495,6 +498,9 @@
                 }
             },
             "additionalProperties": false
+        },
+        "nameOverride": {
+            "type": "string"
         },
         "priorityClass": {
             "type": "object",
