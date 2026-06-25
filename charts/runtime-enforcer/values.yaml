@@ -104,7 +104,7 @@ agent:
     repository: ghcr.io/rancher-sandbox/runtime-enforcer/agent
     # The image tag used by agent
     # @schema required
-    tag: v0.6.0
+    tag: v0.7.0
     pullPolicy: IfNotPresent
   grpcExporterPort: "50051"
   logLevel: info # @schema enum: [debug, info, warn, error]
