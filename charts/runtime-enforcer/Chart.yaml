@@ -2,8 +2,8 @@ apiVersion: v2
 name: runtime-enforcer
 description: SUSE Security Runtime Enforcer helm chart
 type: application
-version: 0.1.8
-appVersion: v0.6.0
+version: 0.1.9
+appVersion: v0.7.0
 
 dependencies: []
 
