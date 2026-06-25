@@ -26,6 +26,8 @@ body:
           - [ ] Check if app version and chart version are correctly bumped.
           - [ ] Check if CI for the Helm chart PR is green. If so, merge it.
         - [ ] Verify that helm release is correctly created and new version in helm repo is accessible.
+        - [ ] Close the released milestone on GH and move everything in that milestone to the next one.
+        - [ ] Try the quickstart and see if everything works.
 
         ## FAQ
         ### What if we want to bump the helm chart to more than just a patch release?
