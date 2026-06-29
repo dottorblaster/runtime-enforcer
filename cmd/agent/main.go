@@ -135,7 +135,7 @@ func setupWorkloadPolicyHandler(
 func waitForMutatingAdmissionWebhook(ctx context.Context) error {
 	const (
 		connectionTimeout = 3 * time.Second
-		attempts          = 5
+		attempts          = 10
 	)
 
 	mutatingWebhookEP := os.Getenv("RUNTIME_ENFORCER_WEBHOOK_ENDPOINT")
