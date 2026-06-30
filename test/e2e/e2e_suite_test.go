@@ -45,10 +45,6 @@ func useExistingCluster() bool {
 	return os.Getenv("E2E_USE_EXISTING_CLUSTER") == "true"
 }
 
-func installDependencies() bool {
-	return os.Getenv("E2E_SKIP_DEPENDENCIES") != "true"
-}
-
 type helmChart struct {
 	name          string
 	namespace     string
@@ -58,60 +54,85 @@ type helmChart struct {
 	helmOptions   []helm.Option
 }
 
+// selectOptionalCharts inspects E2E_DEPENDENCIES and returns the
+// optional e2e helm dependencies to install, in canonical install
+// order. The "none" value installs nothing; an empty/unset value
+// installs all; a comma-separated list installs only the named
+// dependencies. Unknown names are silently ignored.
+func selectOptionalCharts() []helmChart {
+	raw := strings.TrimSpace(os.Getenv("E2E_DEPENDENCIES"))
+	var selected []helmChart
+
+	// cert-manager (no prerequisites; install first)
+	if hasName(raw, "cert-manager") {
+		selected = append(selected, helmChart{
+			name:          "cert-manager",
+			namespace:     runtimeEnforcerE2EPrefix + "cert-manager",
+			repoLocalName: runtimeEnforcerE2EPrefix + "cert-manager-repo",
+			repoURL:       "https://charts.jetstack.io",
+			path:          "/cert-manager",
+			helmOptions: []helm.Option{
+				helm.WithArgs("--version", "v1.18.2"),
+				helm.WithArgs("--set", "installCRDs=true"),
+			},
+		})
+	}
+
+	// cert-manager-csi-driver (depends on cert-manager; install after)
+	if hasName(raw, "cert-manager-csi-driver") {
+		selected = append(selected, helmChart{
+			name:          "cert-manager-csi-driver",
+			namespace:     runtimeEnforcerE2EPrefix + "cert-manager-csi-driver",
+			repoLocalName: runtimeEnforcerE2EPrefix + "cert-manager-csi-driver-repo",
+			repoURL:       "https://charts.jetstack.io",
+			path:          "/cert-manager-csi-driver",
+			helmOptions: []helm.Option{
+				helm.WithArgs("--version", "v0.12.0"),
+			},
+		})
+	}
+
+	return selected
+}
+
+func hasName(env, name string) bool {
+	if env == "" {
+		return true
+	}
+	for tok := range strings.SplitSeq(env, ",") {
+		if strings.EqualFold(strings.TrimSpace(tok), name) {
+			return true
+		}
+	}
+	return false
+}
+
 func getCharts() []helmChart {
 	// The order of the charts is relevant because the installation
 	// of certain charts may depend on others being present.
 	//
-	// There are the charts that are always installed by tests.
-	charts := []helmChart{
-		{
-			name:          "runtime-enforcer",
-			namespace:     runtimeEnforcerNamespace,
-			repoLocalName: runtimeEnforcerE2EPrefix + "runtime-enforcer-repo",
-			// no need of repoURL since this is a local installation
-			path: "../../charts/runtime-enforcer/",
-			helmOptions: []helm.Option{
-				helm.WithArgs("--set", "controller.image.tag=latest"),
-				helm.WithArgs("--set", "agent.image.tag=latest"),
-				helm.WithArgs("--set", "debugger.image.tag=latest"),
-				helm.WithArgs("--set", "debugger.enabled=true"),
-				// we need to reduce the timeout to see the wp status controller working properly in e2e tests
-				helm.WithArgs("--set", "controller.wpStatusUpdateInterval=2s"),
-				// All test namespaces will be created with these labels, so that if we want to disable the learning
-				// it is enough to not put the label on the namespace.
-				helm.WithArgs("--set-json", testLearningSelector),
-			},
+	// The runtime-enforcer chart is always installed. Optional
+	// dependencies are selected declaratively via selectOptionalCharts
+	// and prepended so they are installed first.
+	charts := selectOptionalCharts()
+	return append(charts, helmChart{
+		name:          "runtime-enforcer",
+		namespace:     runtimeEnforcerNamespace,
+		repoLocalName: runtimeEnforcerE2EPrefix + "runtime-enforcer-repo",
+		// no need of repoURL since this is a local installation
+		path: "../../charts/runtime-enforcer/",
+		helmOptions: []helm.Option{
+			helm.WithArgs("--set", "controller.image.tag=latest"),
+			helm.WithArgs("--set", "agent.image.tag=latest"),
+			helm.WithArgs("--set", "debugger.image.tag=latest"),
+			helm.WithArgs("--set", "debugger.enabled=true"),
+			// we need to reduce the timeout to see the wp status controller working properly in e2e tests
+			helm.WithArgs("--set", "controller.wpStatusUpdateInterval=2s"),
+			// All test namespaces will be created with these labels, so that if we want to disable the learning
+			// it is enough to not put the label on the namespace.
+			helm.WithArgs("--set-json", testLearningSelector),
 		},
-	}
-
-	// We let the user choose whether to install the dependencies or not.
-	if installDependencies() {
-		// If we need to install them, we need to prepend them.
-		charts = append([]helmChart{
-			{
-				name:          "cert-manager",
-				namespace:     runtimeEnforcerE2EPrefix + "cert-manager",
-				repoLocalName: runtimeEnforcerE2EPrefix + "cert-manager-repo",
-				repoURL:       "https://charts.jetstack.io",
-				path:          "/cert-manager",
-				helmOptions: []helm.Option{
-					helm.WithArgs("--version", "v1.18.2"),
-					helm.WithArgs("--set", "installCRDs=true"),
-				},
-			},
-			{
-				name:          "cert-manager-csi-driver",
-				namespace:     runtimeEnforcerE2EPrefix + "cert-manager-csi-driver",
-				repoLocalName: runtimeEnforcerE2EPrefix + "cert-manager-csi-driver-repo",
-				repoURL:       "https://charts.jetstack.io",
-				path:          "/cert-manager-csi-driver",
-				helmOptions: []helm.Option{
-					helm.WithArgs("--version", "v0.12.0"),
-				},
-			},
-		}, charts...)
-	}
-	return charts
+	})
 }
 
 func TestMain(m *testing.M) {
