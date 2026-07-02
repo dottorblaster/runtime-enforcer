@@ -119,20 +119,19 @@ func buildPolicyStatus(
 
 	// Dedupe scraped violations against the existing list, allocate ids for
 	// new records, look up workload (name/kind) from the pod's first owner
-	// reference, and refresh the timestamp/node on matched records.
-	merged, nextID, added := resolveScrapedViolations(
+	// reference, and refresh the timestamp/node on matched records. The
+	// returned int64 is the updated ViolationCount, which doubles as the
+	// id allocator (the most recently allocated id is always equal to
+	// ViolationCount).
+	merged, newCount := resolveScrapedViolations(
 		ctx, c, log,
 		wp.Status.Violations,
 		scrapedViolations,
-		wp.Status.NextViolationID,
+		wp.Status.ViolationCount,
 		wp.Namespace,
 	)
 	newStatus.Violations = merged
-	newStatus.NextViolationID = nextID
-	// ViolationCount is the total number of unique records ever observed for
-	// this policy, including those that have already been trimmed out of
-	// Violations. Re-scraped records do not bump it.
-	newStatus.ViolationCount = wp.Status.ViolationCount + added
+	newStatus.ViolationCount = newCount
 	return newStatus, nil
 }
 
@@ -182,28 +181,22 @@ func violationRecordKeyOf(r v1alpha1.ViolationRecord) violationRecordKey {
 // pod's first owner reference, and refreshes the timestamp/node on matched
 // records. It returns the merged violations list (unmatched scraped records
 // prepended, existing records in their original order with timestamps and
-// nodes refreshed where matched), the next id to allocate, and the number of
-// records that were newly added (used to bump ViolationCount).
+// nodes refreshed where matched) and the updated ViolationCount.
 //
-// nextID == 0 is treated as "uninitialized" and the counter starts at 1, so
-// fresh policies allocate ids 1, 2, 3, ... and never id 0.
+// ViolationCount doubles as the id allocator: every brand-new record is
+// stamped with the post-increment value of ViolationCount, so the largest
+// id ever allocated for a policy is always equal to ViolationCount and
+// re-scraped (deduped) records do not bump it. A fresh policy starts at
+// 0 and the first id allocated is 1.
 func resolveScrapedViolations(
 	ctx context.Context,
 	c client.Client,
 	log logr.Logger,
 	existing []v1alpha1.ViolationRecord,
 	scraped []v1alpha1.ViolationRecord,
-	nextID int64,
+	violationCount int64,
 	namespace string,
-) ([]v1alpha1.ViolationRecord, int64, int64) {
-	// Fresh policy: counter starts at 1 so the first id is 1, not 0.
-	// Once the policy has ever allocated an id the field is at least 1
-	// (because the counter is bumped after every allocation), so this
-	// branch fires exactly once per policy lifetime.
-	if nextID <= 0 {
-		nextID = 1
-	}
-
+) ([]v1alpha1.ViolationRecord, int64) {
 	// Index existing records by their dedup key so we can recognize a
 	// re-scraped record on the first try.
 	indexByKey := make(map[violationRecordKey]int, len(existing))
@@ -211,22 +204,30 @@ func resolveScrapedViolations(
 		indexByKey[violationRecordKeyOf(r)] = i
 	}
 
-	// Cache pod
+	// Cache pod -> (workload name, workload kind) lookups so a re-scraped
+	// record that we've already resolved this tick does not hit the API
+	// server again. Misses are also cached (as empty refs) to avoid
+	// hammering the API server for pods that genuinely have no owner.
 	workloadCache := make(map[string]workloadRef, len(scraped))
 
 	var newRecords []v1alpha1.ViolationRecord
 	for _, s := range scraped {
 		key := violationRecordKeyOf(s)
 		if idx, ok := indexByKey[key]; ok {
-			// Same logical record
+			// Same logical record: refresh the time and node in place.
+			// We keep the original id and workload fields — that is the
+			// whole point of the dedup key.
 			existing[idx].Timestamp = s.Timestamp
 			existing[idx].NodeName = s.NodeName
 			continue
 		}
 
-		// Brand-new record
-		s.ID = nextID
-		nextID++
+		// Brand-new record: bump the count, stamp the new value as the
+		// record's id, and look up the pod's first owner reference to
+		// populate the workload fields. The increment happens before the
+		// assignment so a fresh policy (count == 0) gets id 1, not 0.
+		violationCount++
+		s.ID = violationCount
 		name, kind := lookupWorkload(ctx, c, log, workloadCache, namespace, s.PodName)
 		s.WorkloadName = name
 		s.WorkloadKind = kind
@@ -234,7 +235,7 @@ func resolveScrapedViolations(
 	}
 
 	// Prepend the freshly allocated records in scrape order, then keep
-	// the existing list
+	// the existing list in place (with timestamps refreshed for matches).
 	merged := slices.Concat(newRecords, existing)
 
 	// Trim tail (oldest entries) to keep the most recent MaxViolationRecords.
@@ -242,7 +243,7 @@ func resolveScrapedViolations(
 		merged = merged[:v1alpha1.MaxViolationRecords]
 	}
 
-	return merged, nextID, int64(len(newRecords))
+	return merged, violationCount
 }
 
 // workloadRef is the workload identity (name + kind) taken from a pod's

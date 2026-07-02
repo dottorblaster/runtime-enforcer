@@ -147,9 +147,6 @@ var schemaYAML = typed.YAMLObject(`types:
     - name: failedNodes
       type:
         scalar: numeric
-    - name: nextViolationID
-      type:
-        scalar: numeric
     - name: nodesTransitioning
       type:
         list:

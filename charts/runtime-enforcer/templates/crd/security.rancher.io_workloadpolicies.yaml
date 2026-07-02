@@ -87,19 +87,6 @@ spec:
                 description: failedNodes is the number of nodes where the policy enforcement
                   failed.
                 type: integer
-              nextViolationID:
-                description: |-
-                  nextViolationID is the next id to assign to a brand-new violation
-                  record for this policy. It is incremented atomically with the
-                  status update that introduces a new record, so a single reconcile
-                  cannot double-allocate. Fresh policies start at 1.
-
-                  Stored as int64 (not uint64) for compatibility with the Kubernetes
-                  field-management machinery used by controller-runtime's test
-                  fixtures; the counter is monotonically increasing and never goes
-                  negative, so the sign bit is never set in practice.
-                format: int64
-                type: integer
               nodesTransitioning:
                 description: nodesTransitioning contains the names of the nodes that
                   are transitioning.
@@ -141,8 +128,14 @@ spec:
                 type: integer
               violationCount:
                 description: |-
-                  violationCount is the total number of violation records,
-                  including those no longer retained in violations.
+                  violationCount is the total number of unique violation records
+                  ever observed for this policy, including those that have already
+                  been trimmed out of Violations. It also doubles as the per-policy
+                  id allocator: when a brand-new record is first added, the
+                  reconciler bumps ViolationCount and stamps the new value onto the
+                  record as its id, all in the same status update. As a result, the
+                  largest id ever allocated for a policy is always equal to
+                  ViolationCount, and re-scraped (deduped) records do not bump it.
 
                   Note: This value is maintained by the reconciler and reflects
                   its best-effort view of the system. It is not guaranteed to be

@@ -574,14 +574,7 @@ func schema_rancher_sandbox_runtime_enforcer_api_v1alpha1_WorkloadPolicyStatus(r
 					},
 					"violationCount": {
 						SchemaProps: spec.SchemaProps{
-							Description: "violationCount is the total number of violation records, including those no longer retained in violations.\n\nNote: This value is maintained by the reconciler and reflects its best-effort view of the system. It is not guaranteed to be strongly consistent and may be temporarily outdated depending on reconciliation.",
-							Type:        []string{"integer"},
-							Format:      "int64",
-						},
-					},
-					"nextViolationID": {
-						SchemaProps: spec.SchemaProps{
-							Description: "nextViolationID is the next id to assign to a brand-new violation record for this policy. It is incremented atomically with the status update that introduces a new record, so a single reconcile cannot double-allocate. Fresh policies start at 1.\n\nStored as int64 (not uint64) for compatibility with the Kubernetes field-management machinery used by controller-runtime's test fixtures; the counter is monotonically increasing and never goes negative, so the sign bit is never set in practice.",
+							Description: "violationCount is the total number of unique violation records ever observed for this policy, including those that have already been trimmed out of Violations. It also doubles as the per-policy id allocator: when a brand-new record is first added, the reconciler bumps ViolationCount and stamps the new value onto the record as its id, all in the same status update. As a result, the largest id ever allocated for a policy is always equal to ViolationCount, and re-scraped (deduped) records do not bump it.\n\nNote: This value is maintained by the reconciler and reflects its best-effort view of the system. It is not guaranteed to be strongly consistent and may be temporarily outdated depending on reconciliation.",
 							Type:        []string{"integer"},
 							Format:      "int64",
 						},

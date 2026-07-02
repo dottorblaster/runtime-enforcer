@@ -122,8 +122,14 @@ type WorkloadPolicyStatus struct {
 	NodesTransitioning []string `json:"nodesTransitioning,omitempty"`
 	// phase indicates the current phase of the workload policy.
 	Phase Phase `json:"phase,omitempty"`
-	// violationCount is the total number of violation records,
-	// including those no longer retained in violations.
+	// violationCount is the total number of unique violation records
+	// ever observed for this policy, including those that have already
+	// been trimmed out of Violations. It also doubles as the per-policy
+	// id allocator: when a brand-new record is first added, the
+	// reconciler bumps ViolationCount and stamps the new value onto the
+	// record as its id, all in the same status update. As a result, the
+	// largest id ever allocated for a policy is always equal to
+	// ViolationCount, and re-scraped (deduped) records do not bump it.
 	//
 	// Note: This value is maintained by the reconciler and reflects
 	// its best-effort view of the system. It is not guaranteed to be
@@ -131,17 +137,6 @@ type WorkloadPolicyStatus struct {
 	// reconciliation.
 	// +optional
 	ViolationCount int64 `json:"violationCount,omitempty"`
-	// nextViolationID is the next id to assign to a brand-new violation
-	// record for this policy. It is incremented atomically with the
-	// status update that introduces a new record, so a single reconcile
-	// cannot double-allocate. Fresh policies start at 1.
-	//
-	// Stored as int64 (not uint64) for compatibility with the Kubernetes
-	// field-management machinery used by controller-runtime's test
-	// fixtures; the counter is monotonically increasing and never goes
-	// negative, so the sign bit is never set in practice.
-	// +optional
-	NextViolationID int64 `json:"nextViolationID,omitempty"`
 	// violations is the list of the most recent violation records (max MaxViolationRecords).
 	// Oldest entries are dropped when the limit is reached.
 	// +optional
