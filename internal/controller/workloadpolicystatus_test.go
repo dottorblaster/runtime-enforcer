@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/grpcexporter"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/testutil"
@@ -15,10 +17,21 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 )
+
+// testLogger is a discard logr.Logger for tests that need a logger but don't
+// care about its output.
+func testLogger(t *testing.T) logr.Logger {
+	t.Helper()
+	return logr.FromSlogHandler(testutil.NewTestLogger(t).Handler())
+}
 
 func createTestWPStatusSync(t *testing.T) *WorkloadPolicyStatusSync {
 	scheme := runtime.NewScheme()
@@ -225,67 +238,365 @@ func makeRecord(i int) v1alpha1.ViolationRecord {
 	}
 }
 
-func TestMergeViolations(t *testing.T) {
-	tests := []struct {
-		name     string
-		existing []v1alpha1.ViolationRecord
-		scraped  []v1alpha1.ViolationRecord
-		expected []v1alpha1.ViolationRecord
-	}{
-		{
-			name:     "both nil/empty returns nil",
-			existing: nil,
-			scraped:  nil,
-			expected: nil,
-		},
-		{
-			name:     "scraped only",
-			existing: nil,
-			scraped:  []v1alpha1.ViolationRecord{makeRecord(2), makeRecord(1)},
-			expected: []v1alpha1.ViolationRecord{makeRecord(2), makeRecord(1)},
-		},
-		{
-			name:     "existing only",
-			existing: []v1alpha1.ViolationRecord{makeRecord(1)},
-			scraped:  nil,
-			expected: []v1alpha1.ViolationRecord{makeRecord(1)},
-		},
-		{
-			name:     "scraped prepended before existing",
-			existing: []v1alpha1.ViolationRecord{makeRecord(1)},
-			scraped:  []v1alpha1.ViolationRecord{makeRecord(3), makeRecord(2)},
-			expected: []v1alpha1.ViolationRecord{makeRecord(3), makeRecord(2), makeRecord(1)},
-		},
-		{
-			name: "trims to MaxViolationRecords",
-			existing: func() []v1alpha1.ViolationRecord {
-				recs := make([]v1alpha1.ViolationRecord, v1alpha1.MaxViolationRecords)
-				for i := range recs {
-					recs[i] = makeRecord(i)
-				}
-				return recs
-			}(),
-			scraped: []v1alpha1.ViolationRecord{makeRecord(999)},
-			expected: func() []v1alpha1.ViolationRecord {
-				recs := make([]v1alpha1.ViolationRecord, v1alpha1.MaxViolationRecords)
-				recs[0] = makeRecord(999)
-				for i := 1; i < v1alpha1.MaxViolationRecords; i++ {
-					recs[i] = makeRecord(i - 1)
-				}
-				return recs
-			}(),
-		},
-	}
+// workloadKindDeployment is the API kind string we use as a fixture for
+// owner-reference-based workload resolution tests. Defining it as a constant
+// keeps the linter happy about repeated string literals and reads as a
+// named fixture.
+const workloadKindDeployment = "Deployment"
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := mergeViolations(tt.existing, tt.scraped)
-			require.Equal(t, tt.expected, got)
-		})
+func newTestClient(t *testing.T, objs ...client.Object) client.WithWatch {
+	t.Helper()
+	scheme := runtime.NewScheme()
+	require.NoError(t, corev1.AddToScheme(scheme))
+	require.NoError(t, v1alpha1.AddToScheme(scheme))
+	return fake.NewClientBuilder().WithScheme(scheme).WithObjects(objs...).Build()
+}
+
+func TestResolveScrapedViolations(t *testing.T) {
+	ts := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	ctx := context.Background()
+
+	t.Run("both nil/empty returns nil and counter starts at 1", func(t *testing.T) {
+		cl := newTestClient(t)
+		merged, nextID, added := resolveScrapedViolations(ctx, cl, testLogger(t), nil, nil, 0, "ns")
+		require.Nil(t, merged)
+		require.Equal(t, int64(1), nextID)
+		require.Equal(t, int64(0), added)
+	})
+
+	t.Run("scraped only gets new ids starting at counter", func(t *testing.T) {
+		cl := newTestClient(t)
+		scraped := []v1alpha1.ViolationRecord{
+			{
+				Timestamp:      metav1.NewTime(ts),
+				PodName:        "pod-a",
+				ContainerName:  "c",
+				ExecutablePath: "/x",
+				NodeName:       "n1",
+				Action:         "monitor",
+			},
+			{
+				Timestamp:      metav1.NewTime(ts),
+				PodName:        "pod-b",
+				ContainerName:  "c",
+				ExecutablePath: "/x",
+				NodeName:       "n1",
+				Action:         "monitor",
+			},
+		}
+		merged, nextID, added := resolveScrapedViolations(ctx, cl, testLogger(t), nil, scraped, 5, "ns")
+		require.Equal(t, int64(7), nextID)
+		require.Equal(t, int64(2), added)
+		require.Len(t, merged, 2)
+		require.Equal(t, int64(5), merged[0].ID)
+		require.Equal(t, int64(6), merged[1].ID)
+	})
+
+	t.Run("matched re-scraped record keeps id and workload fields", func(t *testing.T) {
+		cl := newTestClient(t)
+		// Existing record: id=5, owned by a Deployment, scraped an hour ago.
+		existing := []v1alpha1.ViolationRecord{{
+			ID:             5,
+			Timestamp:      metav1.NewTime(ts.Add(-time.Hour)),
+			PodName:        "pod-a",
+			ContainerName:  "c",
+			ExecutablePath: "/x",
+			NodeName:       "node-1",
+			Action:         "monitor",
+			WorkloadName:   "my-deploy",
+			WorkloadKind:   workloadKindDeployment,
+		}}
+		// Re-scraped: same key (pod, container, executable, action), new
+		// timestamp and a different node.
+		newer := ts
+		scraped := []v1alpha1.ViolationRecord{{
+			Timestamp:      metav1.NewTime(newer),
+			PodName:        "pod-a",
+			ContainerName:  "c",
+			ExecutablePath: "/x",
+			NodeName:       "node-2",
+			Action:         "monitor",
+		}}
+
+		merged, nextID, added := resolveScrapedViolations(ctx, cl, testLogger(t), existing, scraped, 6, "ns")
+		require.Equal(t, int64(6), nextID, "counter must not bump for a re-scraped record")
+		require.Equal(t, int64(0), added, "violation count must not bump for a re-scraped record")
+		require.Len(t, merged, 1)
+		got := merged[0]
+		require.Equal(t, int64(5), got.ID, "id must be preserved across re-scrapes")
+		require.Equal(t, "my-deploy", got.WorkloadName, "workload name must be preserved")
+		require.Equal(t, workloadKindDeployment, got.WorkloadKind, "workload kind must be preserved")
+		require.Equal(t, metav1.NewTime(newer), got.Timestamp, "timestamp must move to the latest scrape")
+		require.Equal(t, "node-2", got.NodeName, "node must follow the latest scrape")
+	})
+
+	t.Run("dedup uses policy, pod, container, executable, action only", func(t *testing.T) {
+		cl := newTestClient(t)
+		// All four scraped records differ on exactly one key field from the
+		// existing one; none of them should dedup.
+		base := v1alpha1.ViolationRecord{
+			Timestamp:      metav1.NewTime(ts),
+			PodName:        "pod-a",
+			ContainerName:  "c",
+			ExecutablePath: "/x",
+			NodeName:       "node-1",
+			Action:         "monitor",
+		}
+		existing := []v1alpha1.ViolationRecord{withID(base, 10)}
+
+		cases := []struct {
+			name string
+			mut  func(*v1alpha1.ViolationRecord)
+		}{
+			{"different pod", func(r *v1alpha1.ViolationRecord) { r.PodName = "pod-b" }},
+			{"different container", func(r *v1alpha1.ViolationRecord) { r.ContainerName = "c2" }},
+			{"different executable", func(r *v1alpha1.ViolationRecord) { r.ExecutablePath = "/y" }},
+			{"different action", func(r *v1alpha1.ViolationRecord) { r.Action = "protect" }},
+			// Node is intentionally NOT in the dedup key: a different node
+			// on the same key is the same record.
+			{"different node dedups", nil},
+		}
+
+		scraped := make([]v1alpha1.ViolationRecord, 0, len(cases))
+		expectedNew := 0
+		for _, tc := range cases {
+			r := base
+			if tc.mut != nil {
+				tc.mut(&r)
+			}
+			scraped = append(scraped, r)
+			if tc.mut != nil {
+				expectedNew++
+			}
+		}
+
+		merged, nextID, added := resolveScrapedViolations(ctx, cl, testLogger(t), existing, scraped, 11, "ns")
+		require.Equal(t, int64(expectedNew), added, "only node-only differences should dedup")
+		require.Equal(t, int64(11)+int64(expectedNew), nextID)
+		require.Len(t, merged, 1+expectedNew)
+		// New records are prepended, so the existing record (id=10) sits
+		// at the tail of the merged list, after the newly allocated ones.
+		require.Equal(t, int64(10), merged[len(merged)-1].ID)
+	})
+
+	t.Run("unmatched scraped records are prepended before existing", func(t *testing.T) {
+		cl := newTestClient(t)
+		existing := []v1alpha1.ViolationRecord{withID(makeRecord(1), 5)}
+		scraped := []v1alpha1.ViolationRecord{
+			makeRecord(3), // new
+			makeRecord(2), // new
+		}
+		merged, _, _ := resolveScrapedViolations(ctx, cl, testLogger(t), existing, scraped, 6, "ns")
+		require.Len(t, merged, 3)
+		require.Equal(t, "pod-3", merged[0].PodName)
+		require.Equal(t, "pod-2", merged[1].PodName)
+		require.Equal(t, "pod-1", merged[2].PodName)
+	})
+
+	t.Run("list is trimmed to MaxViolationRecords", func(t *testing.T) {
+		cl := newTestClient(t)
+		existing := make([]v1alpha1.ViolationRecord, v1alpha1.MaxViolationRecords)
+		for i := range existing {
+			existing[i] = withID(makeRecord(i), int64(i+1))
+		}
+		scraped := []v1alpha1.ViolationRecord{withID(makeRecord(999), 0)}
+		merged, _, _ := resolveScrapedViolations(ctx, cl, testLogger(t), existing, scraped, 1000, "ns")
+		require.Len(t, merged, v1alpha1.MaxViolationRecords)
+		require.Equal(t, "pod-999", merged[0].PodName, "new record sits at the top")
+		require.Equal(t, "pod-0", merged[1].PodName, "oldest existing is dropped")
+	})
+}
+
+// withID returns a copy of r with the given id.
+func withID(r v1alpha1.ViolationRecord, id int64) v1alpha1.ViolationRecord {
+	r.ID = id
+	return r
+}
+
+func TestResolveScrapedViolationsWorkloadFromOwnerReferences(t *testing.T) {
+	ctx := context.Background()
+	ns := "ns"
+	logger := testLogger(t)
+
+	// Pod owned by a Deployment called "my-app".
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "pod-a",
+			Namespace: ns,
+			OwnerReferences: []metav1.OwnerReference{{
+				Kind: workloadKindDeployment,
+				Name: "my-app",
+			}},
+		},
 	}
+	// Pod with no owner reference at all.
+	orphan := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "pod-orphan",
+			Namespace: ns,
+		},
+	}
+	cl := newTestClient(t, pod, orphan)
+
+	t.Run("new violation populates workload name and kind from owner reference", func(t *testing.T) {
+		scraped := []v1alpha1.ViolationRecord{{
+			Timestamp: metav1.NewTime(time.Now()), PodName: "pod-a",
+			ContainerName: "c", ExecutablePath: "/x", NodeName: "n1", Action: "monitor",
+		}}
+		merged, _, _ := resolveScrapedViolations(ctx, cl, logger, nil, scraped, 1, ns)
+		require.Len(t, merged, 1)
+		require.Equal(t, "my-app", merged[0].WorkloadName)
+		require.Equal(t, workloadKindDeployment, merged[0].WorkloadKind)
+	})
+
+	t.Run("pod with no owner reference yields empty workload fields", func(t *testing.T) {
+		scraped := []v1alpha1.ViolationRecord{{
+			Timestamp: metav1.NewTime(time.Now()), PodName: "pod-orphan",
+			ContainerName: "c", ExecutablePath: "/x", NodeName: "n1", Action: "monitor",
+		}}
+		merged, _, _ := resolveScrapedViolations(ctx, cl, logger, nil, scraped, 1, ns)
+		require.Len(t, merged, 1)
+		require.Empty(t, merged[0].WorkloadName)
+		require.Empty(t, merged[0].WorkloadKind)
+	})
+
+	t.Run("missing pod yields empty workload fields (no error)", func(t *testing.T) {
+		scraped := []v1alpha1.ViolationRecord{{
+			Timestamp: metav1.NewTime(time.Now()), PodName: "does-not-exist",
+			ContainerName: "c", ExecutablePath: "/x", NodeName: "n1", Action: "monitor",
+		}}
+		merged, _, _ := resolveScrapedViolations(ctx, cl, logger, nil, scraped, 1, ns)
+		require.Len(t, merged, 1)
+		require.Empty(t, merged[0].WorkloadName)
+		require.Empty(t, merged[0].WorkloadKind)
+	})
+
+	t.Run("workload is resolved once per pod even with multiple scraped records", func(t *testing.T) {
+		// Two scraped records for the same pod: the second should reuse
+		// the cached workload ref and not hit the API server a second
+		// time. We assert by counting Get calls via the interceptor.
+		var gets atomic.Int64
+		intr := interceptor.Funcs{
+			Get: func(ctx context.Context, c client.WithWatch, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+				gets.Add(1)
+				return c.Get(ctx, key, obj, opts...)
+			},
+		}
+		wrapped := interceptor.NewClient(cl, intr)
+		scraped := []v1alpha1.ViolationRecord{
+			{
+				Timestamp:      metav1.NewTime(time.Now()),
+				PodName:        "pod-a",
+				ContainerName:  "c1",
+				ExecutablePath: "/x",
+				NodeName:       "n1",
+				Action:         "monitor",
+			},
+			{
+				Timestamp:      metav1.NewTime(time.Now()),
+				PodName:        "pod-a",
+				ContainerName:  "c2",
+				ExecutablePath: "/x",
+				NodeName:       "n1",
+				Action:         "monitor",
+			},
+		}
+		merged, _, _ := resolveScrapedViolations(ctx, wrapped, logger, nil, scraped, 1, ns)
+		require.Len(t, merged, 2)
+		require.Equal(t, int64(1), gets.Load(), "pod lookup should be cached across scraped records in the same tick")
+	})
+}
+
+func TestBuildPolicyStatusAtomicCounter(t *testing.T) {
+	ctx := context.Background()
+	ns := "ns"
+
+	t.Run("fresh policy: counter starts at 1 and first record gets id 1", func(t *testing.T) {
+		cl := newTestClient(t)
+		wp := &v1alpha1.WorkloadPolicy{
+			ObjectMeta: metav1.ObjectMeta{Name: "p", Namespace: ns},
+			Spec:       v1alpha1.WorkloadPolicySpec{Mode: policymode.MonitorString},
+		}
+		scraped := []v1alpha1.ViolationRecord{makeRecord(1)}
+		status, err := buildPolicyStatus(ctx, cl, testLogger(t), wp, nil, scraped)
+		require.NoError(t, err)
+		require.Equal(t, int64(2), status.NextViolationID, "next id is one past the allocated id")
+		require.Equal(t, int64(1), status.ViolationCount)
+		require.Len(t, status.Violations, 1)
+		require.Equal(t, int64(1), status.Violations[0].ID)
+	})
+
+	t.Run("counter continues from the existing value", func(t *testing.T) {
+		cl := newTestClient(t)
+		existing := []v1alpha1.ViolationRecord{withID(makeRecord(1), 5)}
+		wp := &v1alpha1.WorkloadPolicy{
+			ObjectMeta: metav1.ObjectMeta{Name: "p", Namespace: ns},
+			Spec:       v1alpha1.WorkloadPolicySpec{Mode: policymode.MonitorString},
+			Status: v1alpha1.WorkloadPolicyStatus{
+				NextViolationID: 6,
+				ViolationCount:  1,
+				Violations:      existing,
+			},
+		}
+		scraped := []v1alpha1.ViolationRecord{makeRecord(2)}
+		status, err := buildPolicyStatus(ctx, cl, testLogger(t), wp, nil, scraped)
+		require.NoError(t, err)
+		require.Equal(t, int64(7), status.NextViolationID)
+		require.Equal(t, int64(2), status.ViolationCount)
+		require.Len(t, status.Violations, 2)
+		require.Equal(t, int64(6), status.Violations[0].ID)
+	})
+}
+
+func TestBuildPolicyStatusReScrapedKeepsId(t *testing.T) {
+	ctx := context.Background()
+	ns := "ns"
+	cl := newTestClient(t)
+	existing := []v1alpha1.ViolationRecord{{
+		ID:             5,
+		Timestamp:      metav1.NewTime(time.Date(2026, 1, 1, 0, 0, 1, 0, time.UTC)),
+		PodName:        "pod-a",
+		ContainerName:  "c",
+		ExecutablePath: "/x",
+		NodeName:       "node-1",
+		Action:         "monitor",
+		WorkloadName:   "my-deploy",
+		WorkloadKind:   workloadKindDeployment,
+	}}
+	wp := &v1alpha1.WorkloadPolicy{
+		ObjectMeta: metav1.ObjectMeta{Name: "p", Namespace: ns},
+		Spec:       v1alpha1.WorkloadPolicySpec{Mode: policymode.MonitorString},
+		Status: v1alpha1.WorkloadPolicyStatus{
+			NextViolationID: 6,
+			ViolationCount:  1,
+			Violations:      existing,
+		},
+	}
+	// Re-scraped record: same dedup key, new timestamp and node.
+	rescraped := []v1alpha1.ViolationRecord{{
+		Timestamp:      metav1.NewTime(time.Date(2026, 1, 1, 1, 0, 0, 0, time.UTC)),
+		PodName:        "pod-a",
+		ContainerName:  "c",
+		ExecutablePath: "/x",
+		NodeName:       "node-2",
+		Action:         "monitor",
+	}}
+
+	status, err := buildPolicyStatus(ctx, cl, testLogger(t), wp, nil, rescraped)
+	require.NoError(t, err)
+	require.Equal(t, int64(6), status.NextViolationID, "counter must not bump for a dedup")
+	require.Equal(t, int64(1), status.ViolationCount, "count must not bump for a dedup")
+	require.Len(t, status.Violations, 1)
+	got := status.Violations[0]
+	require.Equal(t, int64(5), got.ID)
+	require.Equal(t, "my-deploy", got.WorkloadName)
+	require.Equal(t, workloadKindDeployment, got.WorkloadKind)
+	require.Equal(t, "node-2", got.NodeName, "node follows the latest scrape")
+	require.Equal(t, rescraped[0].Timestamp, got.Timestamp, "timestamp follows the latest scrape")
 }
 
 func TestWorkloadPolicyViolationCount(t *testing.T) {
+	cl := newTestClient(t)
 	wp := &v1alpha1.WorkloadPolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "policy",
@@ -293,8 +604,9 @@ func TestWorkloadPolicyViolationCount(t *testing.T) {
 		},
 		Spec: v1alpha1.WorkloadPolicySpec{Mode: policymode.MonitorString},
 		Status: v1alpha1.WorkloadPolicyStatus{
-			ViolationCount: 1,
-			Violations:     []v1alpha1.ViolationRecord{makeRecord(1)},
+			NextViolationID: 2, // one record already allocated (id=1), next id is 2
+			ViolationCount:  1,
+			Violations:      []v1alpha1.ViolationRecord{withID(makeRecord(1), 1)},
 		},
 	}
 	scraped := make([]v1alpha1.ViolationRecord, v1alpha1.MaxViolationRecords)
@@ -302,11 +614,124 @@ func TestWorkloadPolicyViolationCount(t *testing.T) {
 		scraped[i] = makeRecord(i + 2)
 	}
 
-	status, err := buildPolicyStatus(wp, nil, scraped)
+	status, err := buildPolicyStatus(context.Background(), cl, testLogger(t), wp, nil, scraped)
 	require.NoError(t, err)
 
 	require.Equal(t, int64(101), status.ViolationCount)
+	require.Equal(t, int64(102), status.NextViolationID, "counter must reflect every newly allocated id")
 	require.Len(t, status.Violations, v1alpha1.MaxViolationRecords)
+}
+
+// TestConcurrentReconcilesDoNotDoubleAllocate fakes a status-update conflict
+// on the second concurrent reconcile and asserts that the policy never ends
+// up with duplicate ids.
+func TestConcurrentReconcilesDoNotDoubleAllocate(t *testing.T) {
+	ctx := context.Background()
+	ns := "ns"
+	policyName := "policy"
+	scrapeRec := v1alpha1.ViolationRecord{
+		Timestamp:      metav1.NewTime(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)),
+		PodName:        "pod-a",
+		ContainerName:  "c",
+		ExecutablePath: "/x",
+		NodeName:       "node-1",
+		Action:         "monitor",
+	}
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, corev1.AddToScheme(scheme))
+	require.NoError(t, v1alpha1.AddToScheme(scheme))
+	baseClient := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(&v1alpha1.WorkloadPolicy{
+			ObjectMeta: metav1.ObjectMeta{Name: policyName, Namespace: ns},
+			Spec:       v1alpha1.WorkloadPolicySpec{Mode: policymode.MonitorString},
+			Status:     v1alpha1.WorkloadPolicyStatus{NextViolationID: 5},
+		}).
+		WithStatusSubresource(&v1alpha1.WorkloadPolicy{}).
+		Build()
+
+	var updates atomic.Int64
+	cl := interceptor.NewClient(baseClient, interceptor.Funcs{
+		SubResourceUpdate: func(ctx context.Context, c client.Client, subResource string, obj client.Object, opts ...client.SubResourceUpdateOption) error {
+			n := updates.Add(1)
+			if n == 2 {
+				// Simulate an optimistic-concurrency conflict that the real
+				// API server would raise if two reconciles raced for the
+				// same record.
+				return apierrors.NewConflict(
+					schema.GroupResource{Group: "security.rancher.io", Resource: "workloadpolicies"},
+					policyName,
+					errors.New("resourceVersion changed"),
+				)
+			}
+			return c.SubResource(subResource).Update(ctx, obj, opts...)
+		},
+	})
+
+	r, err := NewWorkloadPolicyStatusSync(cl, &WorkloadPolicyStatusSyncConfig{
+		AgentPoolConf: grpcexporter.AgentClientPoolConfig{
+			AgentFactoryConfig:  grpcexporter.AgentFactoryConfig{Port: 50051, MTLSEnabled: false},
+			LabelSelectorString: "app=agent",
+			Namespace:           ns,
+			Logger:              testutil.NewTestLogger(t),
+		},
+		UpdateInterval: time.Second,
+	})
+	require.NoError(t, err)
+
+	// Two concurrent reconciles both try to allocate id=5 for the same
+	// scraped violation. The fake client rejects the second Status().Update
+	// with a conflict, so only one allocation should land.
+	errCh := make(chan error, 2)
+	for range 2 {
+		go func() {
+			wp := &v1alpha1.WorkloadPolicy{}
+			if getErr := cl.Get(ctx, client.ObjectKey{Namespace: ns, Name: policyName}, wp); getErr != nil {
+				errCh <- getErr
+				return
+			}
+			errCh <- r.processWorkloadPolicy(ctx, wp, nil, []v1alpha1.ViolationRecord{scrapeRec})
+		}()
+	}
+
+	var firstErr, secondErr error
+	for i := range 2 {
+		select {
+		case e := <-errCh:
+			if i == 0 {
+				firstErr = e
+			} else {
+				secondErr = e
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatal("reconcile did not return in time")
+		}
+	}
+
+	// Exactly one of the two reconciles must have observed a conflict.
+	conflicts := 0
+	for _, e := range []error{firstErr, secondErr} {
+		if apierrors.IsConflict(e) {
+			conflicts++
+		}
+	}
+	require.Equal(
+		t,
+		1,
+		conflicts,
+		"exactly one reconcile should hit a conflict, got errors: %v, %v",
+		firstErr,
+		secondErr,
+	)
+
+	// And the persisted state must reflect a single id allocation.
+	final := &v1alpha1.WorkloadPolicy{}
+	require.NoError(t, cl.Get(ctx, client.ObjectKey{Namespace: ns, Name: policyName}, final))
+	require.Equal(t, int64(6), final.Status.NextViolationID, "counter must be bumped exactly once")
+	require.Equal(t, int64(1), final.Status.ViolationCount)
+	require.Len(t, final.Status.Violations, 1)
+	require.Equal(t, int64(5), final.Status.Violations[0].ID, "only one id=5 should be allocated")
 }
 
 func TestGetViolationsByPolicy(t *testing.T) {

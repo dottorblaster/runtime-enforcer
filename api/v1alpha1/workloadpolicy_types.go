@@ -72,7 +72,17 @@ const MaxViolationRecords = 100
 
 // ViolationRecord holds the details of a single policy violation.
 type ViolationRecord struct {
-	// timestamp is when the violation occurred.
+	// id is a per-policy unique identifier allocated by the controller
+	// when the record is first observed. It is stable across re-scrapes
+	// of the same logical violation, so consumers can refer to a single
+	// record by id (for example when correlating with external events).
+	//
+	// Stored as int64 (not uint64) for compatibility with the Kubernetes
+	// field-management machinery used by controller-runtime's test
+	// fixtures; the counter is monotonically increasing and never goes
+	// negative, so the sign bit is never set in practice.
+	ID int64 `json:"id"`
+	// timestamp is when the violation last occurred.
 	Timestamp metav1.Time `json:"timestamp"`
 	// podName is the name of the pod where the violation occurred.
 	PodName string `json:"podName"`
@@ -84,6 +94,16 @@ type ViolationRecord struct {
 	NodeName string `json:"nodeName"`
 	// action is the enforcement action taken (monitor or protect).
 	Action string `json:"action"`
+	// workloadName is the name of the workload that owns the pod, taken
+	// from the pod's first owner reference at the time the record was
+	// first observed. Empty if the pod has no owner reference or could
+	// not be looked up.
+	WorkloadName string `json:"workloadName,omitempty"`
+	// workloadKind is the kind of the workload that owns the pod, taken
+	// from the pod's first owner reference at the time the record was
+	// first observed. Empty if the pod has no owner reference or could
+	// not be looked up.
+	WorkloadKind string `json:"workloadKind,omitempty"`
 }
 
 type WorkloadPolicyStatus struct {
@@ -111,6 +131,17 @@ type WorkloadPolicyStatus struct {
 	// reconciliation.
 	// +optional
 	ViolationCount int64 `json:"violationCount,omitempty"`
+	// nextViolationID is the next id to assign to a brand-new violation
+	// record for this policy. It is incremented atomically with the
+	// status update that introduces a new record, so a single reconcile
+	// cannot double-allocate. Fresh policies start at 1.
+	//
+	// Stored as int64 (not uint64) for compatibility with the Kubernetes
+	// field-management machinery used by controller-runtime's test
+	// fixtures; the counter is monotonically increasing and never goes
+	// negative, so the sign bit is never set in practice.
+	// +optional
+	NextViolationID int64 `json:"nextViolationID,omitempty"`
 	// violations is the list of the most recent violation records (max MaxViolationRecords).
 	// Oldest entries are dropped when the limit is reached.
 	// +optional

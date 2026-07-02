@@ -87,6 +87,19 @@ spec:
                 description: failedNodes is the number of nodes where the policy enforcement
                   failed.
                 type: integer
+              nextViolationID:
+                description: |-
+                  nextViolationID is the next id to assign to a brand-new violation
+                  record for this policy. It is incremented atomically with the
+                  status update that introduces a new record, so a single reconcile
+                  cannot double-allocate. Fresh policies start at 1.
+
+                  Stored as int64 (not uint64) for compatibility with the Kubernetes
+                  field-management machinery used by controller-runtime's test
+                  fixtures; the counter is monotonically increasing and never goes
+                  negative, so the sign bit is never set in practice.
+                format: int64
+                type: integer
               nodesTransitioning:
                 description: nodesTransitioning contains the names of the nodes that
                   are transitioning.
@@ -157,6 +170,19 @@ spec:
                       description: executablePath is the path of the unauthorized
                         executable.
                       type: string
+                    id:
+                      description: |-
+                        id is a per-policy unique identifier allocated by the controller
+                        when the record is first observed. It is stable across re-scrapes
+                        of the same logical violation, so consumers can refer to a single
+                        record by id (for example when correlating with external events).
+
+                        Stored as int64 (not uint64) for compatibility with the Kubernetes
+                        field-management machinery used by controller-runtime's test
+                        fixtures; the counter is monotonically increasing and never goes
+                        negative, so the sign bit is never set in practice.
+                      format: int64
+                      type: integer
                     nodeName:
                       description: nodeName is the node where the violation occurred.
                       type: string
@@ -165,13 +191,28 @@ spec:
                         occurred.
                       type: string
                     timestamp:
-                      description: timestamp is when the violation occurred.
+                      description: timestamp is when the violation last occurred.
                       format: date-time
+                      type: string
+                    workloadKind:
+                      description: |-
+                        workloadKind is the kind of the workload that owns the pod, taken
+                        from the pod's first owner reference at the time the record was
+                        first observed. Empty if the pod has no owner reference or could
+                        not be looked up.
+                      type: string
+                    workloadName:
+                      description: |-
+                        workloadName is the name of the workload that owns the pod, taken
+                        from the pod's first owner reference at the time the record was
+                        first observed. Empty if the pod has no owner reference or could
+                        not be looked up.
                       type: string
                   required:
                   - action
                   - containerName
                   - executablePath
+                  - id
                   - nodeName
                   - podName
                   - timestamp
