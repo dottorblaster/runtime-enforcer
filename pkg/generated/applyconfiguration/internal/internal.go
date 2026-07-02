@@ -47,6 +47,10 @@ var schemaYAML = typed.YAMLObject(`types:
       type:
         scalar: string
       default: ""
+    - name: id
+      type:
+        scalar: numeric
+      default: 0
     - name: nodeName
       type:
         scalar: string
@@ -58,6 +62,12 @@ var schemaYAML = typed.YAMLObject(`types:
     - name: timestamp
       type:
         namedType: io.k8s.apimachinery.pkg.apis.meta.v1.Time
+    - name: workloadKind
+      type:
+        scalar: string
+    - name: workloadName
+      type:
+        scalar: string
 - name: com.github.rancher-sandbox.runtime-enforcer.api.v1alpha1.WorkloadPolicy
   map:
     fields:
@@ -135,6 +145,9 @@ var schemaYAML = typed.YAMLObject(`types:
   map:
     fields:
     - name: failedNodes
+      type:
+        scalar: numeric
+    - name: nextViolationID
       type:
         scalar: numeric
     - name: nodesTransitioning

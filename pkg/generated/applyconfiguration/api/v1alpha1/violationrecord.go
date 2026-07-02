@@ -11,7 +11,17 @@ import (
 //
 // ViolationRecord holds the details of a single policy violation.
 type ViolationRecordApplyConfiguration struct {
-	// timestamp is when the violation occurred.
+	// id is a per-policy unique identifier allocated by the controller
+	// when the record is first observed. It is stable across re-scrapes
+	// of the same logical violation, so consumers can refer to a single
+	// record by id (for example when correlating with external events).
+	//
+	// Stored as int64 (not uint64) for compatibility with the Kubernetes
+	// field-management machinery used by controller-runtime's test
+	// fixtures; the counter is monotonically increasing and never goes
+	// negative, so the sign bit is never set in practice.
+	ID *int64 `json:"id,omitempty"`
+	// timestamp is when the violation last occurred.
 	Timestamp *v1.Time `json:"timestamp,omitempty"`
 	// podName is the name of the pod where the violation occurred.
 	PodName *string `json:"podName,omitempty"`
@@ -23,12 +33,30 @@ type ViolationRecordApplyConfiguration struct {
 	NodeName *string `json:"nodeName,omitempty"`
 	// action is the enforcement action taken (monitor or protect).
 	Action *string `json:"action,omitempty"`
+	// workloadName is the name of the workload that owns the pod, taken
+	// from the pod's first owner reference at the time the record was
+	// first observed. Empty if the pod has no owner reference or could
+	// not be looked up.
+	WorkloadName *string `json:"workloadName,omitempty"`
+	// workloadKind is the kind of the workload that owns the pod, taken
+	// from the pod's first owner reference at the time the record was
+	// first observed. Empty if the pod has no owner reference or could
+	// not be looked up.
+	WorkloadKind *string `json:"workloadKind,omitempty"`
 }
 
 // ViolationRecordApplyConfiguration constructs a declarative configuration of the ViolationRecord type for use with
 // apply.
 func ViolationRecord() *ViolationRecordApplyConfiguration {
 	return &ViolationRecordApplyConfiguration{}
+}
+
+// WithID sets the ID field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the ID field is set to the value of the last call.
+func (b *ViolationRecordApplyConfiguration) WithID(value int64) *ViolationRecordApplyConfiguration {
+	b.ID = &value
+	return b
 }
 
 // WithTimestamp sets the Timestamp field in the declarative configuration to the given value
@@ -76,5 +104,21 @@ func (b *ViolationRecordApplyConfiguration) WithNodeName(value string) *Violatio
 // If called multiple times, the Action field is set to the value of the last call.
 func (b *ViolationRecordApplyConfiguration) WithAction(value string) *ViolationRecordApplyConfiguration {
 	b.Action = &value
+	return b
+}
+
+// WithWorkloadName sets the WorkloadName field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the WorkloadName field is set to the value of the last call.
+func (b *ViolationRecordApplyConfiguration) WithWorkloadName(value string) *ViolationRecordApplyConfiguration {
+	b.WorkloadName = &value
+	return b
+}
+
+// WithWorkloadKind sets the WorkloadKind field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the WorkloadKind field is set to the value of the last call.
+func (b *ViolationRecordApplyConfiguration) WithWorkloadKind(value string) *ViolationRecordApplyConfiguration {
+	b.WorkloadKind = &value
 	return b
 }

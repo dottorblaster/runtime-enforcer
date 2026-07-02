@@ -120,9 +120,17 @@ func schema_rancher_sandbox_runtime_enforcer_api_v1alpha1_ViolationRecord(ref co
 				Description: "ViolationRecord holds the details of a single policy violation.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
+					"id": {
+						SchemaProps: spec.SchemaProps{
+							Description: "id is a per-policy unique identifier allocated by the controller when the record is first observed. It is stable across re-scrapes of the same logical violation, so consumers can refer to a single record by id (for example when correlating with external events).\n\nStored as int64 (not uint64) for compatibility with the Kubernetes field-management machinery used by controller-runtime's test fixtures; the counter is monotonically increasing and never goes negative, so the sign bit is never set in practice.",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
 					"timestamp": {
 						SchemaProps: spec.SchemaProps{
-							Description: "timestamp is when the violation occurred.",
+							Description: "timestamp is when the violation last occurred.",
 							Ref:         ref(v1.Time{}.OpenAPIModelName()),
 						},
 					},
@@ -166,8 +174,22 @@ func schema_rancher_sandbox_runtime_enforcer_api_v1alpha1_ViolationRecord(ref co
 							Format:      "",
 						},
 					},
+					"workloadName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "workloadName is the name of the workload that owns the pod, taken from the pod's first owner reference at the time the record was first observed. Empty if the pod has no owner reference or could not be looked up.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"workloadKind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "workloadKind is the kind of the workload that owns the pod, taken from the pod's first owner reference at the time the record was first observed. Empty if the pod has no owner reference or could not be looked up.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
-				Required: []string{"timestamp", "podName", "containerName", "executablePath", "nodeName", "action"},
+				Required: []string{"id", "timestamp", "podName", "containerName", "executablePath", "nodeName", "action"},
 			},
 		},
 		Dependencies: []string{
@@ -553,6 +575,13 @@ func schema_rancher_sandbox_runtime_enforcer_api_v1alpha1_WorkloadPolicyStatus(r
 					"violationCount": {
 						SchemaProps: spec.SchemaProps{
 							Description: "violationCount is the total number of violation records, including those no longer retained in violations.\n\nNote: This value is maintained by the reconciler and reflects its best-effort view of the system. It is not guaranteed to be strongly consistent and may be temporarily outdated depending on reconciliation.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"nextViolationID": {
+						SchemaProps: spec.SchemaProps{
+							Description: "nextViolationID is the next id to assign to a brand-new violation record for this policy. It is incremented atomically with the status update that introduces a new record, so a single reconcile cannot double-allocate. Fresh policies start at 1.\n\nStored as int64 (not uint64) for compatibility with the Kubernetes field-management machinery used by controller-runtime's test fixtures; the counter is monotonically increasing and never goes negative, so the sign bit is never set in practice.",
 							Type:        []string{"integer"},
 							Format:      "int64",
 						},

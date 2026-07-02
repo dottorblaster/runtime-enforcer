@@ -32,6 +32,16 @@ type WorkloadPolicyStatusApplyConfiguration struct {
 	// strongly consistent and may be temporarily outdated depending on
 	// reconciliation.
 	ViolationCount *int64 `json:"violationCount,omitempty"`
+	// nextViolationID is the next id to assign to a brand-new violation
+	// record for this policy. It is incremented atomically with the
+	// status update that introduces a new record, so a single reconcile
+	// cannot double-allocate. Fresh policies start at 1.
+	//
+	// Stored as int64 (not uint64) for compatibility with the Kubernetes
+	// field-management machinery used by controller-runtime's test
+	// fixtures; the counter is monotonically increasing and never goes
+	// negative, so the sign bit is never set in practice.
+	NextViolationID *int64 `json:"nextViolationID,omitempty"`
 	// violations is the list of the most recent violation records (max MaxViolationRecords).
 	// Oldest entries are dropped when the limit is reached.
 	Violations []ViolationRecordApplyConfiguration `json:"violations,omitempty"`
@@ -120,6 +130,14 @@ func (b *WorkloadPolicyStatusApplyConfiguration) WithPhase(value apiv1alpha1.Pha
 // If called multiple times, the ViolationCount field is set to the value of the last call.
 func (b *WorkloadPolicyStatusApplyConfiguration) WithViolationCount(value int64) *WorkloadPolicyStatusApplyConfiguration {
 	b.ViolationCount = &value
+	return b
+}
+
+// WithNextViolationID sets the NextViolationID field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the NextViolationID field is set to the value of the last call.
+func (b *WorkloadPolicyStatusApplyConfiguration) WithNextViolationID(value int64) *WorkloadPolicyStatusApplyConfiguration {
+	b.NextViolationID = &value
 	return b
 }
 
