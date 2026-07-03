@@ -367,9 +367,10 @@ func TestResolveScrapedViolations(t *testing.T) {
 			check: func(t *testing.T, merged []v1alpha1.ViolationRecord) {
 				require.Len(t, merged, v1alpha1.MaxViolationRecords)
 				require.Equal(t, "pod-999", merged[0].PodName, "new record sits at the top")
-				// The oldest existing record (id=100, pod-99) was bumped off.
-				// The tail is now the second-oldest existing (id=99, pod-98).
-				require.Equal(t, int64(99), merged[v1alpha1.MaxViolationRecords-1].ID,
+				// After sorting by timestamp, the oldest existing record
+				// (id=1, pod-0, ts=second 0) ends up at the tail and is
+				// dropped. The new tail is id=2, pod-1.
+				require.Equal(t, int64(2), merged[v1alpha1.MaxViolationRecords-1].ID,
 					"oldest existing is dropped")
 			},
 		},

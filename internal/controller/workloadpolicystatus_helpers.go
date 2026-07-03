@@ -167,9 +167,8 @@ func violationRecordKeyOf(r v1alpha1.ViolationRecord) violationRecordKey {
 // resolveScrapedViolations dedupes scraped records against the existing list,
 // allocates ids for new records (workload name/kind are already populated
 // by the agent), and refreshes the timestamp/node on matched records. It
-// returns the merged violations list (unmatched scraped records prepended,
-// existing records in their original order with timestamps and nodes
-// refreshed where matched) and the updated ViolationCount.
+// returns the merged violations list sorted by timestamp descending
+// (newest first) and the updated ViolationCount.
 //
 // ViolationCount doubles as the id allocator: every brand-new record is
 // stamped with the post-increment value of ViolationCount, so the largest
@@ -209,9 +208,18 @@ func resolveScrapedViolations(
 		newRecords = append(newRecords, s)
 	}
 
-	// Prepend the freshly allocated records in scrape order, then keep
-	// the existing list in place (with timestamps refreshed for matches).
 	merged := slices.Concat(newRecords, existing)
+
+	slices.SortStableFunc(merged, func(a, b v1alpha1.ViolationRecord) int {
+		switch {
+		case a.Timestamp.Time.After(b.Timestamp.Time):
+			return -1
+		case b.Timestamp.Time.After(a.Timestamp.Time):
+			return 1
+		default:
+			return 0
+		}
+	})
 
 	// Trim tail (oldest entries) to keep the most recent MaxViolationRecords.
 	if len(merged) > v1alpha1.MaxViolationRecords {
