@@ -110,10 +110,16 @@ func buildPolicyStatus(
 	}
 	newStatus.ObservedGeneration = wp.Generation
 
-	// Merge scraped violations into status: prepend new violations to existing,
-	// then trim to the most recent MaxViolationRecords entries.
-	newStatus.Violations = mergeViolations(wp.Status.Violations, scrapedViolations)
-	newStatus.ViolationCount = wp.Status.ViolationCount + int64(len(scrapedViolations))
+	// Dedupe scraped violations against the existing list, allocate ids for
+	// new records (workload name/kind are already populated by the agent),
+	// and refresh the timestamp/node on matched records. The returned int64
+	// is the updated ViolationCount, which doubles as the id allocator (the
+	// most recently allocated id is always equal to ViolationCount).
+	newStatus.Violations, newStatus.ViolationCount = resolveScrapedViolations(
+		wp.Status.Violations,
+		scrapedViolations,
+		wp.Status.ViolationCount,
+	)
 	return newStatus, nil
 }
 
@@ -136,20 +142,62 @@ func (r *WorkloadPolicyStatusSync) processWorkloadPolicy(
 	return r.Status().Update(ctx, newPolicy)
 }
 
-// mergeViolations prepends scraped violations to the existing list,
-// trimming the tail (oldest) to keep only the most recent MaxViolationRecords.
-// The resulting list is ordered newest-to-oldest.
-func mergeViolations(
+// violationRecordKey is the in-memory dedup key used to recognize the same
+// logical violation across scrapes. The policy is fixed per reconcile, so
+// the remaining fields are what makes a record unique. This is the same key
+// the agent's in-memory buffer naturally keys on (policy, pod, container,
+// executable, action); the node is intentionally excluded so a violation
+// re-observed on a different node is still the same record.
+type violationRecordKey struct {
+	podName        string
+	containerName  string
+	executablePath string
+	action         string
+}
+
+func violationRecordKeyOf(r v1alpha1.ViolationRecord) violationRecordKey {
+	return violationRecordKey{
+		podName:        r.PodName,
+		containerName:  r.ContainerName,
+		executablePath: r.ExecutablePath,
+		action:         r.Action,
+	}
+}
+
+// resolveScrapedViolations merges scraped records into existing, deduping by
+// key, allocating monotonically increasing ids, and sorting by timestamp.
+func resolveScrapedViolations(
 	existing []v1alpha1.ViolationRecord,
 	scraped []v1alpha1.ViolationRecord,
-) []v1alpha1.ViolationRecord {
-	// Prepend scraped (newest) before existing (older) so the list is newest-to-oldest.
-	merged := slices.Concat(scraped, existing)
-
-	// Trim tail (oldest entries) to keep the most recent MaxViolationRecords.
-	if len(merged) > v1alpha1.MaxViolationRecords {
-		merged = merged[:v1alpha1.MaxViolationRecords]
+	violationCount int64,
+) ([]v1alpha1.ViolationRecord, int64) {
+	indexByKey := make(map[violationRecordKey]int, len(existing))
+	for i, r := range existing {
+		indexByKey[violationRecordKeyOf(r)] = i
 	}
 
-	return merged
+	for _, s := range scraped {
+		key := violationRecordKeyOf(s)
+		if idx, ok := indexByKey[key]; ok {
+			// Same logical record.
+			existing[idx].Timestamp = s.Timestamp
+		} else {
+			// Brand-new record.
+			s.ID = violationCount
+			existing = append(existing, s)
+			indexByKey[key] = len(existing) - 1
+		}
+		violationCount++
+	}
+
+	slices.SortStableFunc(existing, func(a, b v1alpha1.ViolationRecord) int {
+		return b.Timestamp.Time.Compare(a.Timestamp.Time)
+	})
+
+	// Trim tail (oldest entries) to keep the most recent MaxViolationRecords.
+	if len(existing) > v1alpha1.MaxViolationRecords {
+		existing = existing[:v1alpha1.MaxViolationRecords]
+	}
+
+	return existing, violationCount
 }

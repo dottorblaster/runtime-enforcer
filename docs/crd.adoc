@@ -96,12 +96,29 @@ ViolationRecord holds the details of a single policy violation.
 [cols="20a,50a,15a,15a", options="header"]
 |===
 | Field | Description | Default | Validation
-| *`timestamp`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.35/#time-v1-meta[$$Time$$]__ | timestamp is when the violation occurred. + |  | 
+| *`id`* __integer__ | id is a per-policy unique identifier allocated by the controller +
+when the record is first observed. It is stable across re-scrapes +
+of the same logical violation, so consumers can refer to a single +
+record by id (for example when correlating with external events). +
+
+Stored as int64 (not uint64) for compatibility with the Kubernetes +
+field-management machinery used by controller-runtime's test +
+fixtures; the counter is monotonically increasing and never goes +
+negative, so the sign bit is never set in practice. + |  | 
+| *`timestamp`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.35/#time-v1-meta[$$Time$$]__ | timestamp is when the violation last occurred. + |  | 
 | *`podName`* __string__ | podName is the name of the pod where the violation occurred. + |  | 
 | *`containerName`* __string__ | containerName is the container where the unauthorized executable ran. + |  | 
 | *`executablePath`* __string__ | executablePath is the path of the unauthorized executable. + |  | 
 | *`nodeName`* __string__ | nodeName is the node where the violation occurred. + |  | 
 | *`action`* __string__ | action is the enforcement action taken (monitor or protect). + |  | 
+| *`workloadName`* __string__ | workloadName is the name of the workload that owns the pod, taken +
+from the pod's first owner reference at the time the record was +
+first observed. Empty if the pod has no owner reference or could +
+not be looked up. + |  | 
+| *`workloadKind`* __string__ | workloadKind is the kind of the workload that owns the pod, taken +
+from the pod's first owner reference at the time the record was +
+first observed. Empty if the pod has no owner reference or could +
+not be looked up. + |  | 
 |===
 
 
@@ -317,8 +334,14 @@ Required: \{} +
 | *`transitioningNodes`* __integer__ | transitioningNodes is the number of nodes where the policy is transitioning mode. + |  | 
 | *`nodesTransitioning`* __string array__ | nodesTransitioning contains the names of the nodes that are transitioning. + |  | 
 | *`phase`* __xref:{anchor_prefix}-github-com-rancher-sandbox-runtime-enforcer-api-v1alpha1-phase[$$Phase$$]__ | phase indicates the current phase of the workload policy. + |  | 
-| *`violationCount`* __integer__ | violationCount is the total number of violation records, +
-including those no longer retained in violations. +
+| *`violationCount`* __integer__ | violationCount is the total number of unique violation records +
+ever observed for this policy, including those that have already +
+been trimmed out of Violations. It also doubles as the per-policy +
+id allocator: when a brand-new record is first added, the +
+reconciler bumps ViolationCount and stamps the new value onto the +
+record as its id, all in the same status update. As a result, the +
+largest id ever allocated for a policy is always equal to +
+ViolationCount, and re-scraped (deduped) records do not bump it. +
 
 Note: This value is maintained by the reconciler and reflects +
 its best-effort view of the system. It is not guaranteed to be +

@@ -211,6 +211,8 @@ func (es *EventScraper) reportViolation(info *KubeProcessInfo, action string) {
 		ExePath:       info.ExecutablePath,
 		NodeName:      es.nodeName,
 		Action:        action,
+		WorkloadName:  info.Workload,
+		WorkloadKind:  info.WorkloadKind,
 	})
 	if dropped {
 		if es.bufferFullLimiter.shouldLog() {

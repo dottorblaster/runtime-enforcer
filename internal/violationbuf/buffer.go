@@ -15,6 +15,8 @@ type ViolationRecord struct {
 	ExePath       string
 	NodeName      string
 	Action        string
+	WorkloadName  string
+	WorkloadKind  string
 }
 
 // MaxBufferEntries is the capacity of the ring buffer. When full, the oldest

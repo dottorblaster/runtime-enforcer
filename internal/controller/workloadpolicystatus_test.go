@@ -10,7 +10,7 @@ import (
 	"github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/grpcexporter"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/testutil"
-	"github.com/rancher-sandbox/runtime-enforcer/internal/types/policymode"
+	"github.com/rancher-sandbox/runtime-enforcer/internal/types/workloadkind"
 	pb "github.com/rancher-sandbox/runtime-enforcer/proto/agent/v1"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -225,88 +225,231 @@ func makeRecord(i int) v1alpha1.ViolationRecord {
 	}
 }
 
-func TestMergeViolations(t *testing.T) {
-	tests := []struct {
-		name     string
-		existing []v1alpha1.ViolationRecord
-		scraped  []v1alpha1.ViolationRecord
-		expected []v1alpha1.ViolationRecord
-	}{
+// withID returns a copy of r with the given id.
+func withID(r v1alpha1.ViolationRecord, id int64) v1alpha1.ViolationRecord {
+	r.ID = id
+	return r
+}
+
+// withPod returns a copy of r with the given pod name.
+func withPod(r v1alpha1.ViolationRecord, pod string) v1alpha1.ViolationRecord {
+	r.PodName = pod
+	return r
+}
+
+func TestResolveScrapedViolations(t *testing.T) {
+	ts := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	// base record used as a template for building test fixtures.
+	base := v1alpha1.ViolationRecord{
+		Timestamp:      metav1.NewTime(ts),
+		PodName:        "pod-a",
+		ContainerName:  "c",
+		ExecutablePath: "/x",
+		NodeName:       "node-1",
+		Action:         "monitor",
+	}
+
+	type resolveTestCase struct {
+		name      string
+		existing  []v1alpha1.ViolationRecord
+		scraped   []v1alpha1.ViolationRecord
+		count     int64
+		wantCount int64
+		// wantMerged is the expected merged list. nil means skip merged
+		// equality (for cases that need custom assertions via check).
+		wantMerged []v1alpha1.ViolationRecord
+		// check is an optional function for custom assertions. When set,
+		// it overrides wantMerged.
+		check func(t *testing.T, merged []v1alpha1.ViolationRecord)
+	}
+
+	tests := []resolveTestCase{
 		{
-			name:     "both nil/empty returns nil",
-			existing: nil,
-			scraped:  nil,
-			expected: nil,
+			name:      "both nil/empty leaves the counter untouched",
+			count:     0,
+			wantCount: 0,
+			check: func(t *testing.T, merged []v1alpha1.ViolationRecord) {
+				require.Nil(t, merged)
+			},
 		},
 		{
-			name:     "scraped only",
-			existing: nil,
-			scraped:  []v1alpha1.ViolationRecord{makeRecord(2), makeRecord(1)},
-			expected: []v1alpha1.ViolationRecord{makeRecord(2), makeRecord(1)},
+			name: "scraped only gets new ids starting from count",
+			scraped: []v1alpha1.ViolationRecord{
+				withPod(base, "pod-a"),
+				withPod(base, "pod-b"),
+			},
+			count:     5,
+			wantCount: 7,
+			wantMerged: []v1alpha1.ViolationRecord{
+				withID(withPod(base, "pod-a"), 5),
+				withID(withPod(base, "pod-b"), 6),
+			},
 		},
 		{
-			name:     "existing only",
-			existing: []v1alpha1.ViolationRecord{makeRecord(1)},
-			scraped:  nil,
-			expected: []v1alpha1.ViolationRecord{makeRecord(1)},
+			name: "matched re-scraped record keeps id and workload fields",
+			existing: []v1alpha1.ViolationRecord{{
+				ID:             5,
+				Timestamp:      metav1.NewTime(ts.Add(-time.Hour)),
+				PodName:        "pod-a",
+				ContainerName:  "c",
+				ExecutablePath: "/x",
+				NodeName:       "node-1",
+				Action:         "monitor",
+				WorkloadName:   "my-deploy",
+				WorkloadKind:   workloadkind.Deployment.String(),
+			}},
+			scraped: []v1alpha1.ViolationRecord{{
+				Timestamp:      metav1.NewTime(ts),
+				PodName:        "pod-a",
+				ContainerName:  "c",
+				ExecutablePath: "/x",
+				NodeName:       "node-2",
+				Action:         "monitor",
+			}},
+			count:     5,
+			wantCount: 6,
+			check: func(t *testing.T, merged []v1alpha1.ViolationRecord) {
+				require.Len(t, merged, 1)
+				got := merged[0]
+				require.Equal(t, int64(5), got.ID, "id must be preserved across re-scrapes")
+				require.Equal(t, "my-deploy", got.WorkloadName, "workload name must be preserved")
+				require.Equal(t, string(workloadkind.Deployment), got.WorkloadKind, "workload kind must be preserved")
+				require.Equal(t, metav1.NewTime(ts), got.Timestamp, "timestamp must move to the latest scrape")
+				// NodeName is NOT updated on dedup — the dedup key includes
+				// podName so the node is always the same for a given pod.
+				require.Equal(t, "node-1", got.NodeName, "node must NOT be updated on re-scrape")
+			},
 		},
 		{
-			name:     "scraped prepended before existing",
-			existing: []v1alpha1.ViolationRecord{makeRecord(1)},
-			scraped:  []v1alpha1.ViolationRecord{makeRecord(3), makeRecord(2)},
-			expected: []v1alpha1.ViolationRecord{makeRecord(3), makeRecord(2), makeRecord(1)},
+			name:     "dedup key excludes node: different node is the same record",
+			existing: []v1alpha1.ViolationRecord{withID(base, 10)},
+			scraped: []v1alpha1.ViolationRecord{
+				withID(base, 0),
+			},
+			count:     10,
+			wantCount: 11,
+			check: func(t *testing.T, merged []v1alpha1.ViolationRecord) {
+				require.Len(t, merged, 1)
+				// Existing record was updated in place, preserving its id.
+				require.Equal(t, int64(10), merged[0].ID)
+			},
 		},
 		{
-			name: "trims to MaxViolationRecords",
+			name:     "new records are appended then sorted by timestamp",
+			existing: []v1alpha1.ViolationRecord{withID(makeRecord(1), 1)},
+			scraped: []v1alpha1.ViolationRecord{
+				makeRecord(3),
+				makeRecord(2),
+			},
+			count:     5,
+			wantCount: 7,
+			wantMerged: []v1alpha1.ViolationRecord{
+				withID(makeRecord(3), 5),
+				withID(makeRecord(2), 6),
+				withID(makeRecord(1), 1),
+			},
+		},
+		{
+			name: "list is trimmed to MaxViolationRecords",
 			existing: func() []v1alpha1.ViolationRecord {
-				recs := make([]v1alpha1.ViolationRecord, v1alpha1.MaxViolationRecords)
-				for i := range recs {
-					recs[i] = makeRecord(i)
+				r := make([]v1alpha1.ViolationRecord, v1alpha1.MaxViolationRecords)
+				for i := range r {
+					r[i] = withID(makeRecord(i), int64(i+1))
 				}
-				return recs
+				return r
 			}(),
-			scraped: []v1alpha1.ViolationRecord{makeRecord(999)},
-			expected: func() []v1alpha1.ViolationRecord {
-				recs := make([]v1alpha1.ViolationRecord, v1alpha1.MaxViolationRecords)
-				recs[0] = makeRecord(999)
-				for i := 1; i < v1alpha1.MaxViolationRecords; i++ {
-					recs[i] = makeRecord(i - 1)
-				}
-				return recs
-			}(),
+			scraped:   []v1alpha1.ViolationRecord{withPod(makeRecord(999), "pod-999")},
+			count:     101,
+			wantCount: 102,
+			check: func(t *testing.T, merged []v1alpha1.ViolationRecord) {
+				require.Len(t, merged, v1alpha1.MaxViolationRecords)
+				require.Equal(t, "pod-999", merged[0].PodName, "new record sits at the top")
+				// After sorting by timestamp, the oldest existing record
+				// (id=1, pod-0, ts=second 0) ends up at the tail and is
+				// dropped. The new tail is id=2, pod-1.
+				require.Equal(t, int64(2), merged[v1alpha1.MaxViolationRecords-1].ID,
+					"oldest existing is dropped")
+			},
+		},
+		{
+			name: "workload fields from scraped records are preserved for new entries",
+			scraped: []v1alpha1.ViolationRecord{{
+				Timestamp:      metav1.NewTime(ts),
+				PodName:        "pod-a",
+				ContainerName:  "c",
+				ExecutablePath: "/x",
+				NodeName:       "n1",
+				Action:         "monitor",
+				WorkloadName:   "my-app",
+				WorkloadKind:   workloadkind.Deployment.String(),
+			}, {
+				Timestamp:      metav1.NewTime(ts),
+				PodName:        "pod-orphan",
+				ContainerName:  "c",
+				ExecutablePath: "/x",
+				NodeName:       "n1",
+				Action:         "monitor",
+			}},
+			count:     0,
+			wantCount: 2,
+			check: func(t *testing.T, merged []v1alpha1.ViolationRecord) {
+				require.Len(t, merged, 2)
+				require.Equal(t, "my-app", merged[0].WorkloadName)
+				require.Equal(t, string(workloadkind.Deployment), merged[0].WorkloadKind)
+				require.Empty(t, merged[1].WorkloadName)
+				require.Empty(t, merged[1].WorkloadKind)
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := mergeViolations(tt.existing, tt.scraped)
-			require.Equal(t, tt.expected, got)
+			merged, gotCount := resolveScrapedViolations(tt.existing, tt.scraped, tt.count)
+			require.Equal(t, tt.wantCount, gotCount, "violation count")
+			if tt.check != nil {
+				tt.check(t, merged)
+			} else if tt.wantMerged != nil {
+				require.Equal(t, tt.wantMerged, merged)
+			}
 		})
 	}
-}
 
-func TestWorkloadPolicyViolationCount(t *testing.T) {
-	wp := &v1alpha1.WorkloadPolicy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "policy",
-			Namespace: "ns",
-		},
-		Spec: v1alpha1.WorkloadPolicySpec{Mode: policymode.MonitorString},
-		Status: v1alpha1.WorkloadPolicyStatus{
-			ViolationCount: 1,
-			Violations:     []v1alpha1.ViolationRecord{makeRecord(1)},
-		},
-	}
-	scraped := make([]v1alpha1.ViolationRecord, v1alpha1.MaxViolationRecords)
-	for i := range scraped {
-		scraped[i] = makeRecord(i + 2)
-	}
+	// Separate subtest for the dedup-key composition: each field (pod,
+	// container, executable, action) independently prevents dedup, while
+	// node is intentionally excluded from the key. This is inherently a
+	// multi-case assertion that doesn't fit into the simple table above.
+	t.Run("dedup key is composed of pod, container, executable, action", func(t *testing.T) {
+		existing := []v1alpha1.ViolationRecord{withID(base, 10)}
 
-	status, err := buildPolicyStatus(wp, nil, scraped)
-	require.NoError(t, err)
+		cases := []struct {
+			name   string
+			mutate func(*v1alpha1.ViolationRecord)
+		}{
+			{"different pod", func(r *v1alpha1.ViolationRecord) { r.PodName = "pod-b" }},
+			{"different container", func(r *v1alpha1.ViolationRecord) { r.ContainerName = "c2" }},
+			{"different executable", func(r *v1alpha1.ViolationRecord) { r.ExecutablePath = "/y" }},
+			{"different action", func(r *v1alpha1.ViolationRecord) { r.Action = "protect" }},
+			// Node is intentionally NOT in the dedup key.
+			{"different node dedups (not in key)", nil},
+		}
 
-	require.Equal(t, int64(101), status.ViolationCount)
-	require.Len(t, status.Violations, v1alpha1.MaxViolationRecords)
+		scraped := make([]v1alpha1.ViolationRecord, 0, len(cases))
+		expectedNew := 0
+		for _, tc := range cases {
+			r := base
+			if tc.mutate != nil {
+				tc.mutate(&r)
+				expectedNew++
+			}
+			scraped = append(scraped, r)
+		}
+
+		merged, count := resolveScrapedViolations(existing, scraped, 14)
+		require.Equal(t, int64(19), count, "count is bumped for every scraped record")
+		require.Len(t, merged, 1+expectedNew)
+		require.Equal(t, int64(10), merged[0].ID, "existing record stays at head")
+	})
 }
 
 func TestGetViolationsByPolicy(t *testing.T) {

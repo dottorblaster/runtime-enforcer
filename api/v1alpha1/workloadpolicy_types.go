@@ -72,7 +72,17 @@ const MaxViolationRecords = 100
 
 // ViolationRecord holds the details of a single policy violation.
 type ViolationRecord struct {
-	// timestamp is when the violation occurred.
+	// id is a per-policy unique identifier allocated by the controller
+	// when the record is first observed. It is stable across re-scrapes
+	// of the same logical violation, so consumers can refer to a single
+	// record by id (for example when correlating with external events).
+	//
+	// Stored as int64 (not uint64) for compatibility with the Kubernetes
+	// field-management machinery used by controller-runtime's test
+	// fixtures; the counter is monotonically increasing and never goes
+	// negative, so the sign bit is never set in practice.
+	ID int64 `json:"id"`
+	// timestamp is when the violation last occurred.
 	Timestamp metav1.Time `json:"timestamp"`
 	// podName is the name of the pod where the violation occurred.
 	PodName string `json:"podName"`
@@ -84,6 +94,16 @@ type ViolationRecord struct {
 	NodeName string `json:"nodeName"`
 	// action is the enforcement action taken (monitor or protect).
 	Action string `json:"action"`
+	// workloadName is the name of the workload that owns the pod, taken
+	// from the pod's first owner reference at the time the record was
+	// first observed. Empty if the pod has no owner reference or could
+	// not be looked up.
+	WorkloadName string `json:"workloadName,omitempty"`
+	// workloadKind is the kind of the workload that owns the pod, taken
+	// from the pod's first owner reference at the time the record was
+	// first observed. Empty if the pod has no owner reference or could
+	// not be looked up.
+	WorkloadKind string `json:"workloadKind,omitempty"`
 }
 
 type WorkloadPolicyStatus struct {
@@ -102,8 +122,14 @@ type WorkloadPolicyStatus struct {
 	NodesTransitioning []string `json:"nodesTransitioning,omitempty"`
 	// phase indicates the current phase of the workload policy.
 	Phase Phase `json:"phase,omitempty"`
-	// violationCount is the total number of violation records,
-	// including those no longer retained in violations.
+	// violationCount is the total number of unique violation records
+	// ever observed for this policy, including those that have already
+	// been trimmed out of Violations. It also doubles as the per-policy
+	// id allocator: when a brand-new record is first added, the
+	// reconciler bumps ViolationCount and stamps the new value onto the
+	// record as its id, all in the same status update. As a result, the
+	// largest id ever allocated for a policy is always equal to
+	// ViolationCount, and re-scraped (deduped) records do not bump it.
 	//
 	// Note: This value is maintained by the reconciler and reflects
 	// its best-effort view of the system. It is not guaranteed to be
