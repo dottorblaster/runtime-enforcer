@@ -37,6 +37,10 @@ type WorkloadPolicyStatusApplyConfiguration struct {
 	// violations is the list of the most recent violation records (max MaxViolationRecords).
 	// Oldest entries are dropped when the limit is reached.
 	Violations []ViolationRecordApplyConfiguration `json:"violations,omitempty"`
+	// acknowledgedViolations is the list of the most recent violation records that are acknowledged
+	// by users (max MaxViolationRecords).
+	// Oldest entries are dropped when the limit is reached.
+	AcknowledgedViolations []AcknowledgedViolationRecordApplyConfiguration `json:"acknowledgedViolations,omitempty"`
 }
 
 // WorkloadPolicyStatusApplyConfiguration constructs a declarative configuration of the WorkloadPolicyStatus type for use with
@@ -142,6 +146,19 @@ func (b *WorkloadPolicyStatusApplyConfiguration) WithViolations(values ...*Viola
 			panic("nil value passed to WithViolations")
 		}
 		b.Violations = append(b.Violations, *values[i])
+	}
+	return b
+}
+
+// WithAcknowledgedViolations adds the given value to the AcknowledgedViolations field in the declarative configuration
+// and returns the receiver, so that objects can be build by chaining "With" function invocations.
+// If called multiple times, values provided by each call will be appended to the AcknowledgedViolations field.
+func (b *WorkloadPolicyStatusApplyConfiguration) WithAcknowledgedViolations(values ...*AcknowledgedViolationRecordApplyConfiguration) *WorkloadPolicyStatusApplyConfiguration {
+	for i := range values {
+		if values[i] == nil {
+			panic("nil value passed to WithAcknowledgedViolations")
+		}
+		b.AcknowledgedViolations = append(b.AcknowledgedViolations, *values[i])
 	}
 	return b
 }

@@ -83,6 +83,87 @@ spec:
             type: object
           status:
             properties:
+              acknowledgedViolations:
+                description: |-
+                  acknowledgedViolations is the list of the most recent violation records that are acknowledged
+                  by users (max MaxViolationRecords).
+                  Oldest entries are dropped when the limit is reached.
+                items:
+                  properties:
+                    acknowledgedAt:
+                      description: acknowledgedAt is the time when the violation was
+                        acknowledged
+                      format: date-time
+                      type: string
+                    reason:
+                      description: reason is an optional field to indicate the reason
+                        this violation is acknowledged.
+                      type: string
+                    violation:
+                      description: violation is the violation record acknowledged
+                        by users
+                      properties:
+                        action:
+                          description: action is the enforcement action taken (monitor
+                            or protect).
+                          type: string
+                        containerName:
+                          description: containerName is the container where the unauthorized
+                            executable ran.
+                          type: string
+                        executablePath:
+                          description: executablePath is the path of the unauthorized
+                            executable.
+                          type: string
+                        id:
+                          description: |-
+                            id is a per-policy unique identifier allocated by the controller
+                            when the record is first observed. It is stable across re-scrapes
+                            of the same logical violation, so consumers can refer to a single
+                            record by id (for example when correlating with external events).
+
+                            Stored as int64 (not uint64) for compatibility with the Kubernetes
+                            field-management machinery used by controller-runtime's test
+                            fixtures; the counter is monotonically increasing and never goes
+                            negative, so the sign bit is never set in practice.
+                          format: int64
+                          type: integer
+                        nodeName:
+                          description: nodeName is the node where the violation occurred.
+                          type: string
+                        podName:
+                          description: podName is the name of the pod where the violation
+                            occurred.
+                          type: string
+                        timestamp:
+                          description: timestamp is when the violation last occurred.
+                          format: date-time
+                          type: string
+                        workloadKind:
+                          description: |-
+                            workloadKind is the kind of the workload that owns the pod, taken
+                            from the pod's first owner reference at the time the record was
+                            first observed. Empty if the pod has no owner reference or could
+                            not be looked up.
+                          type: string
+                        workloadName:
+                          description: |-
+                            workloadName is the name of the workload that owns the pod, taken
+                            from the pod's first owner reference at the time the record was
+                            first observed. Empty if the pod has no owner reference or could
+                            not be looked up.
+                          type: string
+                      required:
+                      - action
+                      - containerName
+                      - executablePath
+                      - id
+                      - nodeName
+                      - podName
+                      - timestamp
+                      type: object
+                  type: object
+                type: array
               activeViolationCount:
                 description: |-
                   activeViolationCount is the number of currently active (non-cleared)
