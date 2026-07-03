@@ -115,13 +115,11 @@ func buildPolicyStatus(
 	// and refresh the timestamp/node on matched records. The returned int64
 	// is the updated ViolationCount, which doubles as the id allocator (the
 	// most recently allocated id is always equal to ViolationCount).
-	merged, newCount := resolveScrapedViolations(
+	newStatus.Violations, newStatus.ViolationCount = resolveScrapedViolations(
 		wp.Status.Violations,
 		scrapedViolations,
 		wp.Status.ViolationCount,
 	)
-	newStatus.Violations = merged
-	newStatus.ViolationCount = newCount
 	return newStatus, nil
 }
 
