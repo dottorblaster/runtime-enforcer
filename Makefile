@@ -108,6 +108,10 @@ controller: generate-ebpf fmt ## Build manager binary.
 test-bpf: generate-ebpf ## Run bpf tests.
 	go test -v ./internal/bpf -count=1 -exec "sudo -E"
 
+.PHONY: check-nri-benchmarks
+check-nri-benchmarks: generate-ebpf ## Validate NRI callback benchmarks against thresholds.
+	hack/ci/check-nri-benchmarks.sh
+
 .PHONY: agent
 agent: generate-ebpf fmt ## Build agent binary.
 	CGO_ENABLED=0 GOOS=linux go build -o bin/agent ./cmd/agent

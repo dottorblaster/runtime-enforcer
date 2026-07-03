@@ -31,7 +31,7 @@ func (op CgroupPolicyOperation) String() string {
 
 func (m *Manager) GetCgroupPolicyUpdateFunc() func(polID uint64, cgroupIDs []uint64, op CgroupPolicyOperation) error {
 	return func(polID uint64, cgroupIDs []uint64, op CgroupPolicyOperation) error {
-		return m.handleErrOnShutdown(m.updateCgroupPolicy(polID, cgroupIDs, op))
+		return m.handleErrOnShutdown(UpdateCgroupPolicy(m.objs.CgToPolicyMap, polID, cgroupIDs, op))
 	}
 }
 
@@ -126,8 +126,7 @@ func removeCgroups(cgToPol *ebpf.Map, targetPolID uint64, cgroupIDs []uint64) er
 	return multiErr
 }
 
-func (m *Manager) updateCgroupPolicy(targetPolID uint64, cgroupIDs []uint64, op CgroupPolicyOperation) error {
-	cgToPol := m.objs.CgToPolicyMap
+func UpdateCgroupPolicy(cgToPol *ebpf.Map, targetPolID uint64, cgroupIDs []uint64, op CgroupPolicyOperation) error {
 	if cgToPol == nil {
 		return errors.New("cgroup to policy map is nil")
 	}

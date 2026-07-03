@@ -16,11 +16,11 @@ import (
 
 func (m *Manager) GetCgroupTrackerUpdateFunc() func(cgID uint64, cgroupPath string) error {
 	return func(cgID uint64, cgroupPath string) error {
-		return m.handleErrOnShutdown(updateCgTrackerMap(m.logger, m.objs.CgtrackerMap, cgID, cgroupPath))
+		return m.handleErrOnShutdown(UpdateCgTrackerMap(m.logger, m.objs.CgtrackerMap, cgID, cgroupPath))
 	}
 }
 
-func updateCgTrackerMap(logger *slog.Logger, cgTrackerMap *ebpf.Map, cgID uint64, cgroupPath string) error {
+func UpdateCgTrackerMap(logger *slog.Logger, cgTrackerMap *ebpf.Map, cgID uint64, cgroupPath string) error {
 	// we populate the entry for the cgroup id with itself as tracker id so that the child cgroups
 	// can inherit the same tracker id
 	if err := cgTrackerMap.Update(&cgID, &cgID, ebpf.UpdateAny); err != nil {
