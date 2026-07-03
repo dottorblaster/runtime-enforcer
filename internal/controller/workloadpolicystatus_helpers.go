@@ -105,12 +105,13 @@ func processNodeStatus(
 }
 
 func (r *WorkloadPolicyStatusSync) processPolicyStatus(
+	ctx context.Context,
 	wp *v1alpha1.WorkloadPolicy,
 	nodesInfo nodesInfoMap,
 	scrapedViolations []v1alpha1.ViolationRecord,
 ) error {
 	// This has to be called before considering new scraped violations, so we won't acknowledge future violations.
-	err := r.processAcknowledgement(wp.Annotations, &wp.Status)
+	err := r.processAcknowledgement(ctx, wp.Annotations, &wp.Status)
 	if err != nil {
 		return fmt.Errorf(
 			"failed to process acknowledgement for policy %s: %w",
@@ -151,6 +152,7 @@ func (r *WorkloadPolicyStatusSync) processPolicyStatus(
 //
 //nolint:unparam // keep returning error for code consistency
 func (r *WorkloadPolicyStatusSync) processAcknowledgement(
+	ctx context.Context,
 	annotations map[string]string,
 	status *v1alpha1.WorkloadPolicyStatus,
 ) error {
@@ -184,6 +186,7 @@ func (r *WorkloadPolicyStatusSync) processAcknowledgement(
 				},
 			)
 			delete(acknowledges, violation.ID)
+			r.emitAcknowledgedViolationOtelLog(ctx, violation, reason)
 		} else {
 			violationResult = append(violationResult, violation)
 		}
@@ -214,7 +217,7 @@ func (r *WorkloadPolicyStatusSync) processWorkloadPolicy(
 	patchBase := client.MergeFrom(wp.DeepCopy())
 	newPolicy := wp.DeepCopy()
 
-	err := r.processPolicyStatus(newPolicy, nodesInfo, scrapedViolations)
+	err := r.processPolicyStatus(ctx, newPolicy, nodesInfo, scrapedViolations)
 	if err != nil {
 		return err
 	}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"flag"
 	"fmt"
@@ -30,7 +31,10 @@ import (
 	securityv1alpha1 "github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/controller"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/customloggers/httpserverlogger"
+	"github.com/rancher-sandbox/runtime-enforcer/internal/events"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/grpcexporter"
+
+	otellog "go.opentelemetry.io/otel/log"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -45,6 +49,11 @@ type Config struct {
 	tlsOpts                                          []func(*tls.Config)
 	wpStatusSyncConfig                               controller.WorkloadPolicyStatusSyncConfig
 	logLevel                                         string
+	otlpEndpoint                                     string
+	otlpProtocol                                     string
+	otlpCACert                                       string
+	otlpClientCert                                   string
+	otlpClientKey                                    string
 }
 
 func parseFlags() Config {
@@ -94,6 +103,32 @@ func parseFlags() Config {
 		"info",
 		"controller logger level (debug, info, warn, error)",
 	)
+	flag.StringVar(
+		&config.otlpEndpoint,
+		"otlp-endpoint",
+		os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"),
+		"OTLP gRPC endpoint (defaults to OTEL_EXPORTER_OTLP_ENDPOINT env var, empty = disabled)",
+	)
+	flag.StringVar(
+		&config.otlpCACert,
+		"otlp-ca-cert",
+		os.Getenv("OTEL_EXPORTER_OTLP_CERTIFICATE"),
+		"Path to the CA certificate for verifying the OTLP collector's TLS certificate (defaults to OTEL_EXPORTER_OTLP_CERTIFICATE env var)",
+	)
+	flag.StringVar(
+		&config.otlpClientCert,
+		"otlp-client-cert",
+		os.Getenv("OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE"),
+		"Path to the client TLS certificate for mTLS with the OTLP collector (defaults to OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE env var)",
+	)
+	flag.StringVar(
+		&config.otlpClientKey,
+		"otlp-client-key",
+		os.Getenv("OTEL_EXPORTER_OTLP_CLIENT_KEY"),
+		"Path to the client TLS key for mTLS with the OTLP collector (defaults to OTEL_EXPORTER_OTLP_CLIENT_KEY env var)",
+	)
+	flag.StringVar(&config.otlpProtocol, "otlp-protocol", os.Getenv("OTEL_EXPORTER_OTLP_PROTOCOL"),
+		"OTLP protocol (defaults to OTEL_EXPORTER_OTLP_PROTOCOL env var)")
 	flag.Parse()
 
 	return config
@@ -103,15 +138,18 @@ func SetupControllers(logger logr.Logger,
 	mgr manager.Manager,
 	metricsCertWatcher *certwatcher.CertWatcher,
 	webhookCertWatcher *certwatcher.CertWatcher,
-	wpStatusSyncConf *controller.WorkloadPolicyStatusSyncConfig,
+	config *Config,
 ) error {
 	var err error
 
 	logger.Info("Setting up WorkloadPolicyStatusSync with",
-		"config", wpStatusSyncConf)
+		"config", config.wpStatusSyncConfig)
 
 	var wpStatusSync *controller.WorkloadPolicyStatusSync
-	if wpStatusSync, err = controller.NewWorkloadPolicyStatusSync(mgr.GetClient(), wpStatusSyncConf); err != nil {
+	if wpStatusSync, err = controller.NewWorkloadPolicyStatusSync(
+		mgr.GetClient(),
+		&config.wpStatusSyncConfig,
+	); err != nil {
 		return fmt.Errorf("unable to create WorkloadPolicyStatusSync: %w", err)
 	}
 	if err = mgr.Add(wpStatusSync); err != nil {
@@ -257,6 +295,28 @@ func getMetricsServerOptions(logger *slog.Logger, config *Config) (*certwatcher.
 	return metricsCertWatcher, metricsServerOptions
 }
 
+func setupOtel(ctx context.Context, slogger *slog.Logger, config *Config) (func(context.Context) error, error) {
+	var err error
+	var eventShutdown func(context.Context) error
+	if config.otlpEndpoint != "" {
+		var eventLogger otellog.Logger
+		eventLogger, eventShutdown, err = events.Init(
+			ctx,
+			config.otlpEndpoint,
+			config.otlpCACert,
+			config.otlpClientCert,
+			config.otlpClientKey,
+			config.otlpProtocol,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize otel: %w", err)
+		}
+		config.wpStatusSyncConfig.EventLogger = eventLogger
+		slogger.InfoContext(ctx, "OTLP telemetry enabled", "endpoint", config.otlpEndpoint)
+	}
+	return eventShutdown, nil
+}
+
 func main() {
 	var err error
 	config := parseFlags()
@@ -306,9 +366,17 @@ func main() {
 		os.Exit(1)
 	}
 
+	var eventShutdown func(context.Context) error
+
+	eventShutdown, err = setupOtel(ctx, slogger, &config)
+	if err != nil {
+		setupLog.Error(err, "failed to setup otel")
+		os.Exit(1)
+	}
+
 	config.wpStatusSyncConfig.AgentPoolConf.Logger = slog.New(slogHandler).With("component", "agent-pool")
 	if err = SetupControllers(
-		ctrlLogger, mgr, metricsCertWatcher, webhookCertWatcher, &config.wpStatusSyncConfig,
+		ctrlLogger, mgr, metricsCertWatcher, webhookCertWatcher, &config,
 	); err != nil {
 		setupLog.Error(err, "unable to setup controllers")
 		os.Exit(1)
@@ -334,5 +402,11 @@ func main() {
 	if err = mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
+	}
+
+	if eventShutdown != nil {
+		if err = eventShutdown(ctx); err != nil {
+			slogger.ErrorContext(ctx, "failed to shutdown violation event pipeline", "error", err)
+		}
 	}
 }
