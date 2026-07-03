@@ -34,14 +34,14 @@ func (r *WorkloadPolicyProposalReconciler) Reconcile(
 
 	log.Info("workloadpolicyproposal", "req", req)
 
-	var policyProposal securityv1alpha1.WorkloadPolicyProposal
+	var proposal securityv1alpha1.WorkloadPolicyProposal
 	var err error
 
-	if err = r.Get(ctx, req.NamespacedName, &policyProposal); err != nil {
+	if err = r.Get(ctx, req.NamespacedName, &proposal); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if policyProposal.GetDeletionTimestamp() != nil {
+	if proposal.GetDeletionTimestamp() != nil {
 		return ctrl.Result{}, nil
 	}
 
@@ -52,34 +52,34 @@ func (r *WorkloadPolicyProposalReconciler) Reconcile(
 	var alreadyPromoted bool
 	alreadyPromoted, err = proposalutils.HasProposalBeenPromoted(
 		ctx, r.Client,
-		policyProposal.Namespace,
-		policyProposal.Name,
+		proposal.Namespace,
+		proposal.Name,
 	)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to check promoted WorkloadPolicy: %w", err)
 	}
 	if alreadyPromoted {
 		log.Info("Deleting WorkloadPolicyProposal; promoted WorkloadPolicy already exists",
-			"proposal", policyProposal.Name)
-		if err = r.Delete(ctx, &policyProposal); err != nil {
+			"proposal", proposal.Name)
+		if err = r.Delete(ctx, &proposal); err != nil {
 			return ctrl.Result{}, client.IgnoreNotFound(err)
 		}
 		return ctrl.Result{}, nil
 	}
 
-	if policyProposal.GetLabels()[securityv1alpha1.ApprovalLabelKey] != "true" {
+	if proposal.GetLabels()[securityv1alpha1.ApprovalLabelKey] != "true" {
 		return ctrl.Result{}, nil
 	}
 
 	policy := securityv1alpha1.WorkloadPolicy{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      policyProposal.ObjectMeta.Name,
-			Namespace: policyProposal.ObjectMeta.Namespace,
+			Name:      proposal.ObjectMeta.Name,
+			Namespace: proposal.ObjectMeta.Namespace,
 			Labels: map[string]string{
-				securityv1alpha1.PromotedFromLabelKey: policyProposal.Name,
+				securityv1alpha1.PromotedFromLabelKey: proposal.Name,
 			},
 		},
-		Spec: policyProposal.Spec.IntoWorkloadPolicySpec(),
+		Spec: proposal.Spec.IntoWorkloadPolicySpec(),
 	}
 
 	if err = r.Create(ctx, &policy); err != nil {
@@ -92,7 +92,7 @@ func (r *WorkloadPolicyProposalReconciler) Reconcile(
 
 	// Once we successfully promote the proposal into a policy, we no longer
 	// need the proposal to remain in the cluster.
-	if err = r.Delete(ctx, &policyProposal); err != nil {
+	if err = r.Delete(ctx, &proposal); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
