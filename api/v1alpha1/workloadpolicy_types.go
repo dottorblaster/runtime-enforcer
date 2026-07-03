@@ -124,19 +124,16 @@ type WorkloadPolicyStatus struct {
 	Phase Phase `json:"phase,omitempty"`
 	// violationCount is the total number of unique violation records
 	// ever observed for this policy, including those that have already
-	// been trimmed out of Violations. It also doubles as the per-policy
-	// id allocator: when a brand-new record is first added, the
-	// reconciler bumps ViolationCount and stamps the new value onto the
-	// record as its id, all in the same status update. As a result, the
-	// largest id ever allocated for a policy is always equal to
-	// ViolationCount, and re-scraped (deduped) records do not bump it.
-	//
-	// Note: This value is maintained by the reconciler and reflects
-	// its best-effort view of the system. It is not guaranteed to be
-	// strongly consistent and may be temporarily outdated depending on
-	// reconciliation.
+	// been trimmed out of Violations or cleared because the executable
+	// was later added to an allowlist. It is not guaranteed to be strongly
+	// consistent and may be temporarily outdated.
 	// +optional
 	ViolationCount int64 `json:"violationCount,omitempty"`
+	// activeViolationCount is the number of currently active (non-cleared)
+	// violation records. It is always equal to len(Violations) and is
+	// updated in the same status write.
+	// +optional
+	ActiveViolationCount int `json:"activeViolationCount,omitempty"`
 	// violations is the list of the most recent violation records (max MaxViolationRecords).
 	// Oldest entries are dropped when the limit is reached.
 	// +optional
@@ -160,6 +157,13 @@ func (s *WorkloadPolicyStatus) AddNodeIssue(nodeName string, issue NodeIssue) {
 			Message: "Maximum number of nodes with issues reached",
 		}
 	}
+}
+
+func (wp *WorkloadPolicy) ClearAllowed() []ViolationRecord {
+	return slices.DeleteFunc(wp.Status.Violations, func(v ViolationRecord) bool {
+		rules := wp.Spec.RulesByContainer[v.ContainerName]
+		return rules != nil && slices.Contains(rules.Executables.Allowed, v.ExecutablePath)
+	})
 }
 
 func (s *WorkloadPolicyStatus) SortTransitioningNodes() {
