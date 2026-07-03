@@ -67,10 +67,7 @@ func (r *WorkloadPolicyProposalReconciler) Reconcile(
 		return ctrl.Result{}, nil
 	}
 
-	labels := policyProposal.GetLabels()
-	approved := labels[securityv1alpha1.ApprovalLabelKey] == "true"
-
-	if !approved {
+	if policyProposal.GetLabels()[securityv1alpha1.ApprovalLabelKey] != "true" {
 		return ctrl.Result{}, nil
 	}
 
