@@ -94,6 +94,8 @@ message ViolationRecord {
   string node_name = 5;
   string action = 6;
   string policy_name = 7;
+  string workload_name = 8;
+  string workload_kind = 9;
 }
 
 message ScrapeViolationsResponse {

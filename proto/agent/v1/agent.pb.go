@@ -590,6 +590,8 @@ type ViolationRecord struct {
 	NodeName       string                 `protobuf:"bytes,5,opt,name=node_name,json=nodeName,proto3" json:"node_name,omitempty"`
 	Action         string                 `protobuf:"bytes,6,opt,name=action,proto3" json:"action,omitempty"`
 	PolicyName     string                 `protobuf:"bytes,7,opt,name=policy_name,json=policyName,proto3" json:"policy_name,omitempty"`
+	WorkloadName   string                 `protobuf:"bytes,8,opt,name=workload_name,json=workloadName,proto3" json:"workload_name,omitempty"`
+	WorkloadKind   string                 `protobuf:"bytes,9,opt,name=workload_kind,json=workloadKind,proto3" json:"workload_kind,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -669,6 +671,20 @@ func (x *ViolationRecord) GetAction() string {
 func (x *ViolationRecord) GetPolicyName() string {
 	if x != nil {
 		return x.PolicyName
+	}
+	return ""
+}
+
+func (x *ViolationRecord) GetWorkloadName() string {
+	if x != nil {
+		return x.WorkloadName
+	}
+	return ""
+}
+
+func (x *ViolationRecord) GetWorkloadKind() string {
+	if x != nil {
+		return x.WorkloadKind
 	}
 	return ""
 }
@@ -757,7 +773,7 @@ const file_proto_agent_v1_agent_proto_rawDesc = "" +
 	"\rPoliciesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12<\n" +
 	"\x05value\x18\x02 \x01(\v2&.runtimeenforcer.agent.v1.PolicyStatusR\x05value:\x028\x01\"\x19\n" +
-	"\x17ScrapeViolationsRequest\"\x8c\x02\n" +
+	"\x17ScrapeViolationsRequest\"\xd6\x02\n" +
 	"\x0fViolationRecord\x128\n" +
 	"\ttimestamp\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12\x19\n" +
 	"\bpod_name\x18\x02 \x01(\tR\apodName\x12%\n" +
@@ -766,7 +782,9 @@ const file_proto_agent_v1_agent_proto_rawDesc = "" +
 	"\tnode_name\x18\x05 \x01(\tR\bnodeName\x12\x16\n" +
 	"\x06action\x18\x06 \x01(\tR\x06action\x12\x1f\n" +
 	"\vpolicy_name\x18\a \x01(\tR\n" +
-	"policyName\"e\n" +
+	"policyName\x12#\n" +
+	"\rworkload_name\x18\b \x01(\tR\fworkloadName\x12#\n" +
+	"\rworkload_kind\x18\t \x01(\tR\fworkloadKind\"e\n" +
 	"\x18ScrapeViolationsResponse\x12I\n" +
 	"\n" +
 	"violations\x18\x01 \x03(\v2).runtimeenforcer.agent.v1.ViolationRecordR\n" +

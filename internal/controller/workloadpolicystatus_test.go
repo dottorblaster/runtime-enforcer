@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-logr/logr"
 	"github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/grpcexporter"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/testutil"
@@ -25,13 +24,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 )
-
-// testLogger is a discard logr.Logger for tests that need a logger but don't
-// care about its output.
-func testLogger(t *testing.T) logr.Logger {
-	t.Helper()
-	return logr.FromSlogHandler(testutil.NewTestLogger(t).Handler())
-}
 
 func createTestWPStatusSync(t *testing.T) *WorkloadPolicyStatusSync {
 	scheme := runtime.NewScheme()
@@ -244,27 +236,16 @@ func makeRecord(i int) v1alpha1.ViolationRecord {
 // named fixture.
 const workloadKindDeployment = "Deployment"
 
-func newTestClient(t *testing.T, objs ...client.Object) client.WithWatch {
-	t.Helper()
-	scheme := runtime.NewScheme()
-	require.NoError(t, corev1.AddToScheme(scheme))
-	require.NoError(t, v1alpha1.AddToScheme(scheme))
-	return fake.NewClientBuilder().WithScheme(scheme).WithObjects(objs...).Build()
-}
-
 func TestResolveScrapedViolations(t *testing.T) {
 	ts := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-	ctx := context.Background()
 
 	t.Run("both nil/empty leaves the counter untouched", func(t *testing.T) {
-		cl := newTestClient(t)
-		merged, count := resolveScrapedViolations(ctx, cl, testLogger(t), nil, nil, 0, "ns")
+		merged, count := resolveScrapedViolations(nil, nil, 0)
 		require.Nil(t, merged)
 		require.Equal(t, int64(0), count)
 	})
 
 	t.Run("scraped only gets new ids starting from count+1", func(t *testing.T) {
-		cl := newTestClient(t)
 		scraped := []v1alpha1.ViolationRecord{
 			{
 				Timestamp:      metav1.NewTime(ts),
@@ -283,7 +264,7 @@ func TestResolveScrapedViolations(t *testing.T) {
 				Action:         "monitor",
 			},
 		}
-		merged, count := resolveScrapedViolations(ctx, cl, testLogger(t), nil, scraped, 5, "ns")
+		merged, count := resolveScrapedViolations(nil, scraped, 5)
 		require.Equal(t, int64(7), count, "count is bumped once per new record")
 		require.Len(t, merged, 2)
 		require.Equal(t, int64(6), merged[0].ID, "first new id is count+1")
@@ -291,7 +272,6 @@ func TestResolveScrapedViolations(t *testing.T) {
 	})
 
 	t.Run("matched re-scraped record keeps id and workload fields", func(t *testing.T) {
-		cl := newTestClient(t)
 		// Existing record: id=5, owned by a Deployment, scraped an hour ago.
 		// ViolationCount is 5 to match the highest allocated id.
 		existing := []v1alpha1.ViolationRecord{{
@@ -306,7 +286,8 @@ func TestResolveScrapedViolations(t *testing.T) {
 			WorkloadKind:   workloadKindDeployment,
 		}}
 		// Re-scraped: same key (pod, container, executable, action), new
-		// timestamp and a different node.
+		// timestamp and a different node. Workload fields are left empty
+		// in the scraped record — the existing ones should be preserved.
 		newer := ts
 		scraped := []v1alpha1.ViolationRecord{{
 			Timestamp:      metav1.NewTime(newer),
@@ -317,7 +298,7 @@ func TestResolveScrapedViolations(t *testing.T) {
 			Action:         "monitor",
 		}}
 
-		merged, count := resolveScrapedViolations(ctx, cl, testLogger(t), existing, scraped, 5, "ns")
+		merged, count := resolveScrapedViolations(existing, scraped, 5)
 		require.Equal(t, int64(5), count, "count must not bump for a re-scraped record")
 		require.Len(t, merged, 1)
 		got := merged[0]
@@ -329,7 +310,6 @@ func TestResolveScrapedViolations(t *testing.T) {
 	})
 
 	t.Run("dedup uses policy, pod, container, executable, action only", func(t *testing.T) {
-		cl := newTestClient(t)
 		// All four scraped records differ on exactly one key field from the
 		// existing one; none of them should dedup.
 		base := v1alpha1.ViolationRecord{
@@ -368,7 +348,7 @@ func TestResolveScrapedViolations(t *testing.T) {
 			}
 		}
 
-		merged, count := resolveScrapedViolations(ctx, cl, testLogger(t), existing, scraped, 10, "ns")
+		merged, count := resolveScrapedViolations(existing, scraped, 10)
 		require.Equal(t, int64(10+expectedNew), count, "count is bumped once per new record")
 		require.Len(t, merged, 1+expectedNew)
 		// New records are prepended, so the existing record (id=10) sits
@@ -377,13 +357,12 @@ func TestResolveScrapedViolations(t *testing.T) {
 	})
 
 	t.Run("unmatched scraped records are prepended before existing", func(t *testing.T) {
-		cl := newTestClient(t)
 		existing := []v1alpha1.ViolationRecord{withID(makeRecord(1), 5)}
 		scraped := []v1alpha1.ViolationRecord{
 			makeRecord(3), // new
 			makeRecord(2), // new
 		}
-		merged, count := resolveScrapedViolations(ctx, cl, testLogger(t), existing, scraped, 5, "ns")
+		merged, count := resolveScrapedViolations(existing, scraped, 5)
 		require.Equal(t, int64(7), count)
 		require.Len(t, merged, 3)
 		require.Equal(t, "pod-3", merged[0].PodName)
@@ -392,17 +371,43 @@ func TestResolveScrapedViolations(t *testing.T) {
 	})
 
 	t.Run("list is trimmed to MaxViolationRecords", func(t *testing.T) {
-		cl := newTestClient(t)
 		existing := make([]v1alpha1.ViolationRecord, v1alpha1.MaxViolationRecords)
 		for i := range existing {
 			existing[i] = withID(makeRecord(i), int64(i+1))
 		}
 		scraped := []v1alpha1.ViolationRecord{withID(makeRecord(999), 0)}
-		merged, count := resolveScrapedViolations(ctx, cl, testLogger(t), existing, scraped, 100, "ns")
+		merged, count := resolveScrapedViolations(existing, scraped, 100)
 		require.Equal(t, int64(101), count)
 		require.Len(t, merged, v1alpha1.MaxViolationRecords)
 		require.Equal(t, "pod-999", merged[0].PodName, "new record sits at the top")
 		require.Equal(t, "pod-0", merged[1].PodName, "oldest existing is dropped")
+	})
+
+	t.Run("workload fields from scraped records are preserved for new entries", func(t *testing.T) {
+		scraped := []v1alpha1.ViolationRecord{{
+			Timestamp:      metav1.NewTime(ts),
+			PodName:        "pod-a",
+			ContainerName:  "c",
+			ExecutablePath: "/x",
+			NodeName:       "n1",
+			Action:         "monitor",
+			WorkloadName:   "my-app",
+			WorkloadKind:   workloadKindDeployment,
+		}, {
+			Timestamp:      metav1.NewTime(ts),
+			PodName:        "pod-orphan",
+			ContainerName:  "c",
+			ExecutablePath: "/x",
+			NodeName:       "n1",
+			Action:         "monitor",
+			// No workload fields — e.g. the agent couldn't determine them.
+		}}
+		merged, _ := resolveScrapedViolations(nil, scraped, 0)
+		require.Len(t, merged, 2)
+		require.Equal(t, "my-app", merged[0].WorkloadName)
+		require.Equal(t, workloadKindDeployment, merged[0].WorkloadKind)
+		require.Empty(t, merged[1].WorkloadName)
+		require.Empty(t, merged[1].WorkloadKind)
 	})
 }
 
@@ -412,112 +417,16 @@ func withID(r v1alpha1.ViolationRecord, id int64) v1alpha1.ViolationRecord {
 	return r
 }
 
-func TestResolveScrapedViolationsWorkloadFromOwnerReferences(t *testing.T) {
-	ctx := context.Background()
-	ns := "ns"
-	logger := testLogger(t)
-
-	// Pod owned by a Deployment called "my-app".
-	pod := &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "pod-a",
-			Namespace: ns,
-			OwnerReferences: []metav1.OwnerReference{{
-				Kind: workloadKindDeployment,
-				Name: "my-app",
-			}},
-		},
-	}
-	// Pod with no owner reference at all.
-	orphan := &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "pod-orphan",
-			Namespace: ns,
-		},
-	}
-	cl := newTestClient(t, pod, orphan)
-
-	t.Run("new violation populates workload name and kind from owner reference", func(t *testing.T) {
-		scraped := []v1alpha1.ViolationRecord{{
-			Timestamp: metav1.NewTime(time.Now()), PodName: "pod-a",
-			ContainerName: "c", ExecutablePath: "/x", NodeName: "n1", Action: "monitor",
-		}}
-		merged, _ := resolveScrapedViolations(ctx, cl, logger, nil, scraped, 1, ns)
-		require.Len(t, merged, 1)
-		require.Equal(t, "my-app", merged[0].WorkloadName)
-		require.Equal(t, workloadKindDeployment, merged[0].WorkloadKind)
-	})
-
-	t.Run("pod with no owner reference yields empty workload fields", func(t *testing.T) {
-		scraped := []v1alpha1.ViolationRecord{{
-			Timestamp: metav1.NewTime(time.Now()), PodName: "pod-orphan",
-			ContainerName: "c", ExecutablePath: "/x", NodeName: "n1", Action: "monitor",
-		}}
-		merged, _ := resolveScrapedViolations(ctx, cl, logger, nil, scraped, 1, ns)
-		require.Len(t, merged, 1)
-		require.Empty(t, merged[0].WorkloadName)
-		require.Empty(t, merged[0].WorkloadKind)
-	})
-
-	t.Run("missing pod yields empty workload fields (no error)", func(t *testing.T) {
-		scraped := []v1alpha1.ViolationRecord{{
-			Timestamp: metav1.NewTime(time.Now()), PodName: "does-not-exist",
-			ContainerName: "c", ExecutablePath: "/x", NodeName: "n1", Action: "monitor",
-		}}
-		merged, _ := resolveScrapedViolations(ctx, cl, logger, nil, scraped, 1, ns)
-		require.Len(t, merged, 1)
-		require.Empty(t, merged[0].WorkloadName)
-		require.Empty(t, merged[0].WorkloadKind)
-	})
-
-	t.Run("workload is resolved once per pod even with multiple scraped records", func(t *testing.T) {
-		// Two scraped records for the same pod: the second should reuse
-		// the cached workload ref and not hit the API server a second
-		// time. We assert by counting Get calls via the interceptor.
-		var gets atomic.Int64
-		intr := interceptor.Funcs{
-			Get: func(ctx context.Context, c client.WithWatch, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-				gets.Add(1)
-				return c.Get(ctx, key, obj, opts...)
-			},
-		}
-		wrapped := interceptor.NewClient(cl, intr)
-		scraped := []v1alpha1.ViolationRecord{
-			{
-				Timestamp:      metav1.NewTime(time.Now()),
-				PodName:        "pod-a",
-				ContainerName:  "c1",
-				ExecutablePath: "/x",
-				NodeName:       "n1",
-				Action:         "monitor",
-			},
-			{
-				Timestamp:      metav1.NewTime(time.Now()),
-				PodName:        "pod-a",
-				ContainerName:  "c2",
-				ExecutablePath: "/x",
-				NodeName:       "n1",
-				Action:         "monitor",
-			},
-		}
-		merged, _ := resolveScrapedViolations(ctx, wrapped, logger, nil, scraped, 1, ns)
-		require.Len(t, merged, 2)
-		require.Equal(t, int64(1), gets.Load(), "pod lookup should be cached across scraped records in the same tick")
-	})
-}
-
 func TestBuildPolicyStatusAtomicCounter(t *testing.T) {
-	ctx := context.Background()
 	ns := "ns"
 
 	t.Run("fresh policy: first record gets id 1 and count becomes 1", func(t *testing.T) {
-		cl := newTestClient(t)
 		wp := &v1alpha1.WorkloadPolicy{
 			ObjectMeta: metav1.ObjectMeta{Name: "p", Namespace: ns},
 			Spec:       v1alpha1.WorkloadPolicySpec{Mode: policymode.MonitorString},
 		}
 		scraped := []v1alpha1.ViolationRecord{makeRecord(1)}
-		status, err := buildPolicyStatus(ctx, cl, testLogger(t), wp, nil, scraped)
+		status, err := buildPolicyStatus(wp, nil, scraped)
 		require.NoError(t, err)
 		require.Equal(t, int64(1), status.ViolationCount)
 		require.Len(t, status.Violations, 1)
@@ -525,7 +434,6 @@ func TestBuildPolicyStatusAtomicCounter(t *testing.T) {
 	})
 
 	t.Run("counter continues from the existing value", func(t *testing.T) {
-		cl := newTestClient(t)
 		// Existing record has id=5; the count is 5 (equal to the highest
 		// allocated id). One new record should land at id=6 and bump the
 		// count to 6.
@@ -539,7 +447,7 @@ func TestBuildPolicyStatusAtomicCounter(t *testing.T) {
 			},
 		}
 		scraped := []v1alpha1.ViolationRecord{makeRecord(2)}
-		status, err := buildPolicyStatus(ctx, cl, testLogger(t), wp, nil, scraped)
+		status, err := buildPolicyStatus(wp, nil, scraped)
 		require.NoError(t, err)
 		require.Equal(t, int64(6), status.ViolationCount)
 		require.Len(t, status.Violations, 2)
@@ -548,9 +456,7 @@ func TestBuildPolicyStatusAtomicCounter(t *testing.T) {
 }
 
 func TestBuildPolicyStatusReScrapedKeepsId(t *testing.T) {
-	ctx := context.Background()
 	ns := "ns"
-	cl := newTestClient(t)
 	existing := []v1alpha1.ViolationRecord{{
 		ID:             5,
 		Timestamp:      metav1.NewTime(time.Date(2026, 1, 1, 0, 0, 1, 0, time.UTC)),
@@ -580,7 +486,7 @@ func TestBuildPolicyStatusReScrapedKeepsId(t *testing.T) {
 		Action:         "monitor",
 	}}
 
-	status, err := buildPolicyStatus(ctx, cl, testLogger(t), wp, nil, rescraped)
+	status, err := buildPolicyStatus(wp, nil, rescraped)
 	require.NoError(t, err)
 	require.Equal(t, int64(5), status.ViolationCount, "count must not bump for a dedup")
 	require.Len(t, status.Violations, 1)
@@ -593,7 +499,6 @@ func TestBuildPolicyStatusReScrapedKeepsId(t *testing.T) {
 }
 
 func TestWorkloadPolicyViolationCount(t *testing.T) {
-	cl := newTestClient(t)
 	wp := &v1alpha1.WorkloadPolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "policy",
@@ -610,7 +515,7 @@ func TestWorkloadPolicyViolationCount(t *testing.T) {
 		scraped[i] = makeRecord(i + 2)
 	}
 
-	status, err := buildPolicyStatus(context.Background(), cl, testLogger(t), wp, nil, scraped)
+	status, err := buildPolicyStatus(wp, nil, scraped)
 	require.NoError(t, err)
 
 	require.Equal(t, int64(101), status.ViolationCount)

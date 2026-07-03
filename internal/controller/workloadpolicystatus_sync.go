@@ -187,6 +187,8 @@ func (r *WorkloadPolicyStatusSync) getViolationsByPolicy(
 				ExecutablePath: v.GetExecutablePath(),
 				NodeName:       v.GetNodeName(),
 				Action:         v.GetAction(),
+				WorkloadName:   v.GetWorkloadName(),
+				WorkloadKind:   v.GetWorkloadKind(),
 			}
 			violationsByPolicy[namespacedName] = append(violationsByPolicy[namespacedName], rec)
 		}

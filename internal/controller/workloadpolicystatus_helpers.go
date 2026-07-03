@@ -5,14 +5,10 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/go-logr/logr"
 	"github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/types/loglevel"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/types/policymode"
 	pb "github.com/rancher-sandbox/runtime-enforcer/proto/agent/v1"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func convertToPolicyMode(mode string) pb.PolicyMode {
@@ -100,9 +96,6 @@ func computeWpStatus(
 }
 
 func buildPolicyStatus(
-	ctx context.Context,
-	c client.Client,
-	log logr.Logger,
 	wp *v1alpha1.WorkloadPolicy,
 	nodesInfo nodesInfoMap,
 	scrapedViolations []v1alpha1.ViolationRecord,
@@ -118,17 +111,14 @@ func buildPolicyStatus(
 	newStatus.ObservedGeneration = wp.Generation
 
 	// Dedupe scraped violations against the existing list, allocate ids for
-	// new records, look up workload (name/kind) from the pod's first owner
-	// reference, and refresh the timestamp/node on matched records. The
-	// returned int64 is the updated ViolationCount, which doubles as the
-	// id allocator (the most recently allocated id is always equal to
-	// ViolationCount).
+	// new records (workload name/kind are already populated by the agent),
+	// and refresh the timestamp/node on matched records. The returned int64
+	// is the updated ViolationCount, which doubles as the id allocator (the
+	// most recently allocated id is always equal to ViolationCount).
 	merged, newCount := resolveScrapedViolations(
-		ctx, c, log,
 		wp.Status.Violations,
 		scrapedViolations,
 		wp.Status.ViolationCount,
-		wp.Namespace,
 	)
 	newStatus.Violations = merged
 	newStatus.ViolationCount = newCount
@@ -141,7 +131,7 @@ func (r *WorkloadPolicyStatusSync) processWorkloadPolicy(
 	nodesInfo nodesInfoMap,
 	scrapedViolations []v1alpha1.ViolationRecord,
 ) error {
-	status, err := buildPolicyStatus(ctx, r.Client, r.logger, wp, nodesInfo, scrapedViolations)
+	status, err := buildPolicyStatus(wp, nodesInfo, scrapedViolations)
 	if err != nil {
 		return err
 	}
@@ -177,11 +167,11 @@ func violationRecordKeyOf(r v1alpha1.ViolationRecord) violationRecordKey {
 }
 
 // resolveScrapedViolations dedupes scraped records against the existing list,
-// allocates ids for new records, looks up the workload (name/kind) from the
-// pod's first owner reference, and refreshes the timestamp/node on matched
-// records. It returns the merged violations list (unmatched scraped records
-// prepended, existing records in their original order with timestamps and
-// nodes refreshed where matched) and the updated ViolationCount.
+// allocates ids for new records (workload name/kind are already populated
+// by the agent), and refreshes the timestamp/node on matched records. It
+// returns the merged violations list (unmatched scraped records prepended,
+// existing records in their original order with timestamps and nodes
+// refreshed where matched) and the updated ViolationCount.
 //
 // ViolationCount doubles as the id allocator: every brand-new record is
 // stamped with the post-increment value of ViolationCount, so the largest
@@ -189,13 +179,9 @@ func violationRecordKeyOf(r v1alpha1.ViolationRecord) violationRecordKey {
 // re-scraped (deduped) records do not bump it. A fresh policy starts at
 // 0 and the first id allocated is 1.
 func resolveScrapedViolations(
-	ctx context.Context,
-	c client.Client,
-	log logr.Logger,
 	existing []v1alpha1.ViolationRecord,
 	scraped []v1alpha1.ViolationRecord,
 	violationCount int64,
-	namespace string,
 ) ([]v1alpha1.ViolationRecord, int64) {
 	// Index existing records by their dedup key so we can recognize a
 	// re-scraped record on the first try.
@@ -203,12 +189,6 @@ func resolveScrapedViolations(
 	for i, r := range existing {
 		indexByKey[violationRecordKeyOf(r)] = i
 	}
-
-	// Cache pod -> (workload name, workload kind) lookups so a re-scraped
-	// record that we've already resolved this tick does not hit the API
-	// server again. Misses are also cached (as empty refs) to avoid
-	// hammering the API server for pods that genuinely have no owner.
-	workloadCache := make(map[string]workloadRef, len(scraped))
 
 	var newRecords []v1alpha1.ViolationRecord
 	for _, s := range scraped {
@@ -223,14 +203,11 @@ func resolveScrapedViolations(
 		}
 
 		// Brand-new record: bump the count, stamp the new value as the
-		// record's id, and look up the pod's first owner reference to
-		// populate the workload fields. The increment happens before the
-		// assignment so a fresh policy (count == 0) gets id 1, not 0.
+		// record's id. The increment happens before the assignment so
+		// a fresh policy (count == 0) gets id 1, not 0. Workload
+		// fields are already populated by the agent.
 		violationCount++
 		s.ID = violationCount
-		name, kind := lookupWorkload(ctx, c, log, workloadCache, namespace, s.PodName)
-		s.WorkloadName = name
-		s.WorkloadKind = kind
 		newRecords = append(newRecords, s)
 	}
 
@@ -244,50 +221,4 @@ func resolveScrapedViolations(
 	}
 
 	return merged, violationCount
-}
-
-// workloadRef is the workload identity (name + kind) taken from a pod's
-// first owner reference.
-type workloadRef struct {
-	name string
-	kind string
-}
-
-// lookupWorkload returns the name and kind of the workload that owns the
-// given pod, based on the pod's first owner reference. Results are cached
-// in `cache` so repeated lookups in the same tick are free, and misses are
-// also cached (as the zero value) to avoid retrying forever. The function
-// swallows lookup errors — a missing pod or one without an owner reference
-// is a legitimate end state, not a failure.
-func lookupWorkload(
-	ctx context.Context,
-	c client.Client,
-	log logr.Logger,
-	cache map[string]workloadRef,
-	namespace, podName string,
-) (string, string) {
-	if podName == "" {
-		return "", ""
-	}
-	if ref, ok := cache[podName]; ok {
-		return ref.name, ref.kind
-	}
-	pod := &corev1.Pod{}
-	key := types.NamespacedName{Namespace: namespace, Name: podName}
-	if err := c.Get(ctx, key, pod); err != nil {
-		log.V(loglevel.VerbosityDebug).Info("could not look up pod for workload resolution",
-			"pod", podName, "namespace", namespace, "error", err)
-		cache[podName] = workloadRef{}
-		return "", ""
-	}
-	if len(pod.OwnerReferences) == 0 {
-		cache[podName] = workloadRef{}
-		return "", ""
-	}
-	ref := workloadRef{
-		name: pod.OwnerReferences[0].Name,
-		kind: pod.OwnerReferences[0].Kind,
-	}
-	cache[podName] = ref
-	return ref.name, ref.kind
 }
