@@ -4,11 +4,16 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/types/loglevel"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/types/policymode"
 	pb "github.com/rancher-sandbox/runtime-enforcer/proto/agent/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func convertToPolicyMode(mode string) pb.PolicyMode {
@@ -22,14 +27,19 @@ func convertToPolicyMode(mode string) pb.PolicyMode {
 	}
 }
 
-func computeWpStatus(
+func processNodeStatus(
+	status *v1alpha1.WorkloadPolicyStatus,
 	nodesInfo nodesInfoMap,
 	expectedMode pb.PolicyMode,
 	wpNamespacedName string,
-) (v1alpha1.WorkloadPolicyStatus, error) {
-	status := v1alpha1.WorkloadPolicyStatus{
-		TotalNodes: len(nodesInfo),
-	}
+) error {
+	// reset related fields
+	status.NodesWithIssues = nil
+	status.TotalNodes = len(nodesInfo)
+	status.SuccessfulNodes = 0
+	status.FailedNodes = 0
+	status.TransitioningNodes = 0
+	status.NodesTransitioning = nil
 
 	for nodeName, nodeInfo := range nodesInfo {
 		// If we previously detected that the policy is not deployed on this node, we can skip it.
@@ -41,7 +51,7 @@ func computeWpStatus(
 		policies := nodeInfo.policies
 		if len(policies) == 0 {
 			// This should be impossible since we check policies != 0 in the sync method before calling this one.
-			return v1alpha1.WorkloadPolicyStatus{}, fmt.Errorf("no policies found for node '%s'", nodeName)
+			return fmt.Errorf("no policies found for node '%s'", nodeName)
 		}
 
 		policyStatus, ok := policies[wpNamespacedName]
@@ -71,15 +81,14 @@ func computeWpStatus(
 			})
 		case pb.PolicyState_POLICY_STATE_UNSPECIFIED:
 		default:
-			return v1alpha1.WorkloadPolicyStatus{}, fmt.Errorf("unknown policy state '%s' for node '%s'",
+			return fmt.Errorf("unknown policy state '%s' for node '%s'",
 				policyStatus.GetState().String(), nodeName)
 		}
 	}
 
 	if status.TotalNodes != status.FailedNodes+status.TransitioningNodes+status.SuccessfulNodes {
-		return v1alpha1.WorkloadPolicyStatus{},
-			fmt.Errorf("inconsistent node stats, total: %d != successful(%d)+transitioning(%d)+failed(%d)",
-				status.TotalNodes, status.SuccessfulNodes, status.TransitioningNodes, status.FailedNodes)
+		return fmt.Errorf("inconsistent node stats, total: %d != successful(%d)+transitioning(%d)+failed(%d)",
+			status.TotalNodes, status.SuccessfulNodes, status.TransitioningNodes, status.FailedNodes)
 	}
 
 	status.SortTransitioningNodes()
@@ -92,23 +101,33 @@ func computeWpStatus(
 	case status.TransitioningNodes > 0:
 		status.Phase = v1alpha1.Transitioning
 	}
-	return status, nil
+	return nil
 }
 
-func buildPolicyStatus(
+func (r *WorkloadPolicyStatusSync) processPolicyStatus(
 	wp *v1alpha1.WorkloadPolicy,
 	nodesInfo nodesInfoMap,
 	scrapedViolations []v1alpha1.ViolationRecord,
-) (v1alpha1.WorkloadPolicyStatus, error) {
-	newStatus, err := computeWpStatus(nodesInfo, convertToPolicyMode(wp.Spec.Mode), wp.NamespacedName())
+) error {
+	// This has to be called before considering new scraped violations, so we won't acknowledge future violations.
+	err := r.processAcknowledgement(wp.Annotations, &wp.Status)
 	if err != nil {
-		return v1alpha1.WorkloadPolicyStatus{}, fmt.Errorf(
-			"failed to compute status for policy %s: %w",
+		return fmt.Errorf(
+			"failed to process acknowledgement for policy %s: %w",
 			wp.NamespacedName(),
 			err,
 		)
 	}
-	newStatus.ObservedGeneration = wp.Generation
+
+	err = processNodeStatus(&wp.Status, nodesInfo, convertToPolicyMode(wp.Spec.Mode), wp.NamespacedName())
+	if err != nil {
+		return fmt.Errorf(
+			"failed to compute node status for policy %s: %w",
+			wp.NamespacedName(),
+			err,
+		)
+	}
+	wp.Status.ObservedGeneration = wp.Generation
 
 	existingViolations := wp.ClearAllowed()
 
@@ -117,32 +136,110 @@ func buildPolicyStatus(
 	// and refresh the timestamp/node on matched records. The returned int64
 	// is the updated ViolationCount, which doubles as the id allocator (the
 	// most recently allocated id is always equal to ViolationCount).
-	newStatus.Violations, newStatus.ViolationCount = resolveScrapedViolations(
+	wp.Status.Violations, wp.Status.ViolationCount = resolveScrapedViolations(
 		existingViolations,
 		scrapedViolations,
 		wp.Status.ViolationCount,
 	)
-	newStatus.ActiveViolationCount = len(newStatus.Violations)
-	return newStatus, nil
+
+	wp.Status.ActiveViolationCount = len(wp.Status.Violations)
+
+	return nil
 }
 
+// processAcknowledgement handles the acknowledge annotations, remove the annotations in place, and return the updated status.
+//
+//nolint:unparam // keep returning error for code consistency
+func (r *WorkloadPolicyStatusSync) processAcknowledgement(
+	annotations map[string]string,
+	status *v1alpha1.WorkloadPolicyStatus,
+) error {
+	acknowledges := make(map[int64]string, len(annotations))
+
+	// Find all valid annotations.
+	for k, v := range annotations {
+		if idStr, found := strings.CutPrefix(k, v1alpha1.ViolationAcknowledgePrefix); found {
+			delete(annotations, k)
+			id, err := strconv.ParseInt(idStr, 10, 64)
+			if err != nil {
+				r.logger.Error(err, "failed to convert acknowledge id",
+					"annotation", k,
+				)
+				continue
+			}
+			acknowledges[id] = v
+		}
+	}
+
+	// Filter status.Violations
+	violationResult := make([]v1alpha1.ViolationRecord, 0, len(status.Violations))
+	for _, violation := range status.Violations {
+		if reason, found := acknowledges[violation.ID]; found {
+			status.AcknowledgedViolations = append(
+				status.AcknowledgedViolations,
+				v1alpha1.AcknowledgedViolationRecord{
+					Violation:      violation,
+					Reason:         reason,
+					AcknowledgedAt: metav1.NewTime(time.Now()),
+				},
+			)
+			delete(acknowledges, violation.ID)
+		} else {
+			violationResult = append(violationResult, violation)
+		}
+	}
+	status.Violations = violationResult
+
+	if len(acknowledges) > 0 {
+		r.logger.Info("no matching violations for ID in acknowledgements",
+			"acknowledges", acknowledges,
+		)
+	}
+
+	// Trim front (oldest entries) to keep the most recent MaxViolationRecords.
+	if len(status.AcknowledgedViolations) > v1alpha1.MaxViolationRecords {
+		status.AcknowledgedViolations = status.AcknowledgedViolations[len(status.AcknowledgedViolations)-v1alpha1.MaxViolationRecords:]
+	}
+	return nil
+}
+
+// processWorkloadPolicy updates the wp.status and wp.annotation in order to acknowledge a violation.
+// NOTE: agent side ignores annotation changes and status change via predicate.GenerationChangedPredicate{}.
 func (r *WorkloadPolicyStatusSync) processWorkloadPolicy(
 	ctx context.Context,
 	wp *v1alpha1.WorkloadPolicy,
 	nodesInfo nodesInfoMap,
 	scrapedViolations []v1alpha1.ViolationRecord,
 ) error {
-	status, err := buildPolicyStatus(wp, nodesInfo, scrapedViolations)
+	patchBase := client.MergeFrom(wp.DeepCopy())
+	newPolicy := wp.DeepCopy()
+
+	err := r.processPolicyStatus(newPolicy, nodesInfo, scrapedViolations)
 	if err != nil {
 		return err
 	}
-	newPolicy := wp.DeepCopy()
-	newPolicy.Status = status
 
 	r.logger.V(loglevel.VerbosityDebug).Info("updating",
 		"policy", newPolicy.NamespacedName(),
+		"annotations", newPolicy.Annotations,
 		"status", newPolicy.Status)
-	return r.Status().Update(ctx, newPolicy)
+
+	// At this point, we already have the expected WorkloadPolicy.
+	// Due to kubernetes design, we have to call update annotations and status separately.
+	// Here we use Patch() to prevent annotation changes made between two calls from being lost.
+
+	// We update status first and remove the annotations later
+	// If anything goes wrong we can retry in the next reconcile.
+	err = r.Status().Patch(ctx, newPolicy.DeepCopy(), patchBase)
+	if err != nil {
+		return err
+	}
+
+	err = r.Patch(ctx, newPolicy.DeepCopy(), patchBase)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // violationRecordKey is the in-memory dedup key used to recognize the same
@@ -172,7 +269,7 @@ func violationRecordKeyOf(r v1alpha1.ViolationRecord) violationRecordKey {
 func resolveScrapedViolations(
 	existing []v1alpha1.ViolationRecord,
 	scraped []v1alpha1.ViolationRecord,
-	violationCount int64,
+	nextViolationID int64,
 ) ([]v1alpha1.ViolationRecord, int64) {
 	indexByKey := make(map[violationRecordKey]int, len(existing))
 	for i, r := range existing {
@@ -186,11 +283,11 @@ func resolveScrapedViolations(
 			existing[idx].Timestamp = s.Timestamp
 		} else {
 			// Brand-new record.
-			s.ID = violationCount
+			s.ID = nextViolationID
 			existing = append(existing, s)
 			indexByKey[key] = len(existing) - 1
 		}
-		violationCount++
+		nextViolationID++
 	}
 
 	slices.SortStableFunc(existing, func(a, b v1alpha1.ViolationRecord) int {
@@ -202,5 +299,5 @@ func resolveScrapedViolations(
 		existing = existing[:v1alpha1.MaxViolationRecords]
 	}
 
-	return existing, violationCount
+	return existing, nextViolationID
 }

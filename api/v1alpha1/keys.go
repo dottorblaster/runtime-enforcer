@@ -12,4 +12,7 @@ const (
 
 	// PolicyLabelKey is set on a Workload to identify to bind it to a specific policy.
 	PolicyLabelKey = "security.rancher.io/policy"
+
+	// ViolationAcknowledgePrefix is the prefix of annotation key used to acknowledge a violation.
+	ViolationAcknowledgePrefix = "security.rancher.io/acknowledge-"
 )

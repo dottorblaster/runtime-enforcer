@@ -76,7 +76,7 @@ func TestComputeWpStatus(t *testing.T) {
 	tests := []struct {
 		name     string
 		nodes    nodesInfoMap
-		expected v1alpha1.WorkloadPolicyStatus
+		expected *v1alpha1.WorkloadPolicyStatus
 	}{
 		{
 			// - node1 is in an error condition because it has no policies.
@@ -104,7 +104,7 @@ func TestComputeWpStatus(t *testing.T) {
 					},
 				},
 			},
-			expected: v1alpha1.WorkloadPolicyStatus{
+			expected: &v1alpha1.WorkloadPolicyStatus{
 				NodesWithIssues: map[string]v1alpha1.NodeIssue{
 					node1: {Code: v1alpha1.NodeIssueMissingPolicy},
 				},
@@ -150,7 +150,7 @@ func TestComputeWpStatus(t *testing.T) {
 					},
 				},
 			},
-			expected: v1alpha1.WorkloadPolicyStatus{
+			expected: &v1alpha1.WorkloadPolicyStatus{
 				NodesWithIssues:    nil,
 				TotalNodes:         3,
 				SuccessfulNodes:    1,
@@ -194,7 +194,7 @@ func TestComputeWpStatus(t *testing.T) {
 					},
 				},
 			},
-			expected: v1alpha1.WorkloadPolicyStatus{
+			expected: &v1alpha1.WorkloadPolicyStatus{
 				NodesWithIssues:    nil,
 				TotalNodes:         3,
 				SuccessfulNodes:    3,
@@ -208,7 +208,8 @@ func TestComputeWpStatus(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := computeWpStatus(tt.nodes, expectedMode, policyName)
+			got := &v1alpha1.WorkloadPolicyStatus{}
+			err := processNodeStatus(got, tt.nodes, expectedMode, policyName)
 			require.NoError(t, err)
 			require.Equal(t, tt.expected, got)
 		})
@@ -652,7 +653,10 @@ func TestBuildPolicyStatusClearanceFreesCapForNewViolations(t *testing.T) {
 		Action:         "monitor",
 	}
 
-	status, err := buildPolicyStatus(wp, nil, []v1alpha1.ViolationRecord{newViolation})
+	r := createTestWPStatusSync(t)
+
+	err := r.processPolicyStatus(t.Context(), wp, nil, []v1alpha1.ViolationRecord{newViolation})
+	status := wp.Status
 	require.NoError(t, err)
 	require.Len(t, status.Violations, v1alpha1.MaxViolationRecords,
 		"list should remain at the cap after clearance + merge")
