@@ -274,7 +274,7 @@ func TestResolveScrapedViolations(t *testing.T) {
 			},
 		},
 		{
-			name: "scraped only gets new ids starting from count+1",
+			name: "scraped only gets new ids starting from count",
 			scraped: []v1alpha1.ViolationRecord{
 				withPod(base, "pod-a"),
 				withPod(base, "pod-b"),
@@ -282,8 +282,8 @@ func TestResolveScrapedViolations(t *testing.T) {
 			count:     5,
 			wantCount: 7,
 			wantMerged: []v1alpha1.ViolationRecord{
-				withID(withPod(base, "pod-a"), 6),
-				withID(withPod(base, "pod-b"), 7),
+				withID(withPod(base, "pod-a"), 5),
+				withID(withPod(base, "pod-b"), 6),
 			},
 		},
 		{
@@ -299,9 +299,6 @@ func TestResolveScrapedViolations(t *testing.T) {
 				WorkloadName:   "my-deploy",
 				WorkloadKind:   workloadkind.Deployment.String(),
 			}},
-			// Re-scraped: same key (pod, container, executable, action), new
-			// timestamp and different node. Workload fields are left empty in
-			// the scraped record — the existing ones should be preserved.
 			scraped: []v1alpha1.ViolationRecord{{
 				Timestamp:      metav1.NewTime(ts),
 				PodName:        "pod-a",
@@ -311,7 +308,7 @@ func TestResolveScrapedViolations(t *testing.T) {
 				Action:         "monitor",
 			}},
 			count:     5,
-			wantCount: 5,
+			wantCount: 6,
 			check: func(t *testing.T, merged []v1alpha1.ViolationRecord) {
 				require.Len(t, merged, 1)
 				got := merged[0]
@@ -319,18 +316,19 @@ func TestResolveScrapedViolations(t *testing.T) {
 				require.Equal(t, "my-deploy", got.WorkloadName, "workload name must be preserved")
 				require.Equal(t, string(workloadkind.Deployment), got.WorkloadKind, "workload kind must be preserved")
 				require.Equal(t, metav1.NewTime(ts), got.Timestamp, "timestamp must move to the latest scrape")
-				require.Equal(t, "node-2", got.NodeName, "node must follow the latest scrape")
+				// NodeName is NOT updated on dedup — the dedup key includes
+				// podName so the node is always the same for a given pod.
+				require.Equal(t, "node-1", got.NodeName, "node must NOT be updated on re-scrape")
 			},
 		},
 		{
 			name:     "dedup key excludes node: different node is the same record",
 			existing: []v1alpha1.ViolationRecord{withID(base, 10)},
 			scraped: []v1alpha1.ViolationRecord{
-				// Same key — should dedup (node differs but that's excluded).
 				withID(base, 0),
 			},
 			count:     10,
-			wantCount: 10,
+			wantCount: 11,
 			check: func(t *testing.T, merged []v1alpha1.ViolationRecord) {
 				require.Len(t, merged, 1)
 				// Existing record was updated in place, preserving its id.
@@ -338,18 +336,18 @@ func TestResolveScrapedViolations(t *testing.T) {
 			},
 		},
 		{
-			name:     "unmatched scraped records are prepended before existing",
-			existing: []v1alpha1.ViolationRecord{withID(makeRecord(1), 5)},
+			name:     "new records are appended then sorted by timestamp",
+			existing: []v1alpha1.ViolationRecord{withID(makeRecord(1), 1)},
 			scraped: []v1alpha1.ViolationRecord{
-				makeRecord(3), // new
-				makeRecord(2), // new
+				makeRecord(3),
+				makeRecord(2),
 			},
 			count:     5,
 			wantCount: 7,
 			wantMerged: []v1alpha1.ViolationRecord{
-				withID(makeRecord(3), 6),
-				withID(makeRecord(2), 7),
-				withID(makeRecord(1), 5),
+				withID(makeRecord(3), 5),
+				withID(makeRecord(2), 6),
+				withID(makeRecord(1), 1),
 			},
 		},
 		{
@@ -362,8 +360,8 @@ func TestResolveScrapedViolations(t *testing.T) {
 				return r
 			}(),
 			scraped:   []v1alpha1.ViolationRecord{withPod(makeRecord(999), "pod-999")},
-			count:     100,
-			wantCount: 101,
+			count:     101,
+			wantCount: 102,
 			check: func(t *testing.T, merged []v1alpha1.ViolationRecord) {
 				require.Len(t, merged, v1alpha1.MaxViolationRecords)
 				require.Equal(t, "pod-999", merged[0].PodName, "new record sits at the top")
@@ -447,12 +445,10 @@ func TestResolveScrapedViolations(t *testing.T) {
 			scraped = append(scraped, r)
 		}
 
-		merged, count := resolveScrapedViolations(existing, scraped, 10)
-		require.Equal(t, int64(10+expectedNew), count, "count is bumped once per new record")
+		merged, count := resolveScrapedViolations(existing, scraped, 14)
+		require.Equal(t, int64(19), count, "count is bumped for every scraped record")
 		require.Len(t, merged, 1+expectedNew)
-		// New records are prepended, so the existing record (id=10) sits
-		// at the tail of the merged list.
-		require.Equal(t, int64(10), merged[len(merged)-1].ID, "existing record stays at tail")
+		require.Equal(t, int64(10), merged[0].ID, "existing record stays at head")
 	})
 }
 

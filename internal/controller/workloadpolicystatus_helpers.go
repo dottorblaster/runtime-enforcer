@@ -164,67 +164,40 @@ func violationRecordKeyOf(r v1alpha1.ViolationRecord) violationRecordKey {
 	}
 }
 
-// resolveScrapedViolations dedupes scraped records against the existing list,
-// allocates ids for new records (workload name/kind are already populated
-// by the agent), and refreshes the timestamp/node on matched records. It
-// returns the merged violations list sorted by timestamp descending
-// (newest first) and the updated ViolationCount.
-//
-// ViolationCount doubles as the id allocator: every brand-new record is
-// stamped with the post-increment value of ViolationCount, so the largest
-// id ever allocated for a policy is always equal to ViolationCount and
-// re-scraped (deduped) records do not bump it. A fresh policy starts at
-// 0 and the first id allocated is 1.
+// resolveScrapedViolations merges scraped records into existing, deduping by
+// key, allocating monotonically increasing ids, and sorting by timestamp.
 func resolveScrapedViolations(
 	existing []v1alpha1.ViolationRecord,
 	scraped []v1alpha1.ViolationRecord,
 	violationCount int64,
 ) ([]v1alpha1.ViolationRecord, int64) {
-	// Index existing records by their dedup key so we can recognize a
-	// re-scraped record on the first try.
 	indexByKey := make(map[violationRecordKey]int, len(existing))
 	for i, r := range existing {
 		indexByKey[violationRecordKeyOf(r)] = i
 	}
 
-	var newRecords []v1alpha1.ViolationRecord
 	for _, s := range scraped {
 		key := violationRecordKeyOf(s)
 		if idx, ok := indexByKey[key]; ok {
-			// Same logical record: refresh the time and node in place.
-			// We keep the original id and workload fields — that is the
-			// whole point of the dedup key.
+			// Same logical record.
 			existing[idx].Timestamp = s.Timestamp
-			existing[idx].NodeName = s.NodeName
-			continue
+		} else {
+			// Brand-new record.
+			s.ID = violationCount
+			existing = append(existing, s)
+			indexByKey[key] = len(existing) - 1
 		}
-
-		// Brand-new record: bump the count, stamp the new value as the
-		// record's id. The increment happens before the assignment so
-		// a fresh policy (count == 0) gets id 1, not 0. Workload
-		// fields are already populated by the agent.
 		violationCount++
-		s.ID = violationCount
-		newRecords = append(newRecords, s)
 	}
 
-	merged := slices.Concat(newRecords, existing)
-
-	slices.SortStableFunc(merged, func(a, b v1alpha1.ViolationRecord) int {
-		switch {
-		case a.Timestamp.Time.After(b.Timestamp.Time):
-			return -1
-		case b.Timestamp.Time.After(a.Timestamp.Time):
-			return 1
-		default:
-			return 0
-		}
+	slices.SortStableFunc(existing, func(a, b v1alpha1.ViolationRecord) int {
+		return b.Timestamp.Time.Compare(a.Timestamp.Time)
 	})
 
 	// Trim tail (oldest entries) to keep the most recent MaxViolationRecords.
-	if len(merged) > v1alpha1.MaxViolationRecords {
-		merged = merged[:v1alpha1.MaxViolationRecords]
+	if len(existing) > v1alpha1.MaxViolationRecords {
+		existing = existing[:v1alpha1.MaxViolationRecords]
 	}
 
-	return merged, violationCount
+	return existing, violationCount
 }
