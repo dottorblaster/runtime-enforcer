@@ -219,7 +219,8 @@ func (wp *WorkloadPolicy) SetPromotedLabel(proposalName string) error {
 		return errors.New("WorkloadPolicy is nil")
 	}
 
-	// k8s labels must have 63 chars or less.
+	// Valid k8s label value must be 63 characters or less.
+	// https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#syntax-and-character-set
 	// We catch here the error instead of letting the API server handle it.
 	const maxLabelValueLength = 63
 	if len(proposalName) > maxLabelValueLength {
