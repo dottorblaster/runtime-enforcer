@@ -99,7 +99,7 @@ func TestHasProposalBeenPromoted(t *testing.T) {
 					Namespace: defaultNamespace,
 					Name:      proposalName,
 					Labels: map[string]string{
-						securityv1alpha1.PromotedFromLabelKey: proposalName,
+						securityv1alpha1.PolicyPromotedFromLabelKey: proposalName,
 					},
 				},
 			},

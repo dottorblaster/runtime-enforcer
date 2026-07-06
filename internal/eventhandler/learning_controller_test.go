@@ -332,10 +332,7 @@ var _ = Describe("Learning", func() {
 			testProposal := proposal.DeepCopy()
 			testProposal.Namespace = testNamespace
 			testProposal.Name = testProposalName
-			labels := map[string]string{}
-			labels[securityv1alpha1.ApprovalLabelKey] = "true"
-			testProposal.SetLabels(labels)
-
+			testProposal.SetPromotionLabel()
 			Expect(k8sClient.Create(ctx, testProposal)).To(Succeed())
 
 			for _, learningEvent := range processEvents {
@@ -388,14 +385,12 @@ var _ = Describe("Learning", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      testProposalName,
 					Namespace: testNamespace,
-					Labels: map[string]string{
-						securityv1alpha1.PromotedFromLabelKey: testProposalName,
-					},
 				},
 				Spec: securityv1alpha1.WorkloadPolicySpec{
 					Mode: "monitor",
 				},
 			}
+			Expect(workloadPolicy.SetPromotedLabel(testProposalName)).To(Succeed())
 			Expect(k8sClient.Create(ctx, workloadPolicy)).To(Succeed())
 
 			for _, learningEvent := range processEvents {

@@ -63,7 +63,7 @@ func (r *WorkloadPolicyProposalReconciler) Reconcile(
 		return ctrl.Result{}, nil
 	}
 
-	if proposal.GetLabels()[securityv1alpha1.ApprovalLabelKey] != "true" {
+	if !proposal.HasPromotionLabel() {
 		return ctrl.Result{}, nil
 	}
 
@@ -71,11 +71,11 @@ func (r *WorkloadPolicyProposalReconciler) Reconcile(
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      proposal.Name,
 			Namespace: proposal.Namespace,
-			Labels: map[string]string{
-				securityv1alpha1.PromotedFromLabelKey: proposal.Name,
-			},
 		},
 		Spec: proposal.Spec.IntoWorkloadPolicySpec(),
+	}
+	if err = policy.SetPromotedLabel(proposal.Name); err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to set promoted label: %w", err)
 	}
 
 	if err = r.Create(ctx, &policy); err != nil {

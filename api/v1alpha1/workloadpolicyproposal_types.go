@@ -11,8 +11,6 @@ const (
 	// PolicyProposalMaxExecutables defines the maximum number of executables that we can learn.
 	// This is a arbitrary number right now and can be fine-tuned or made configurable in the future.
 	PolicyProposalMaxExecutables = 100
-	ApprovalLabelKey             = "security.rancher.io/policy-ready"
-	PolicyLabelKey               = "security.rancher.io/policy"
 )
 
 // WorkloadPolicyProposalSpec defines the desired state of WorkloadPolicyProposal.
@@ -67,6 +65,23 @@ func (p *WorkloadPolicyProposal) NamespacedName() string {
 		return ""
 	}
 	return p.Namespace + "/" + p.Name
+}
+
+func (p *WorkloadPolicyProposal) SetPromotionLabel() {
+	if p == nil {
+		return
+	}
+	if p.Labels == nil {
+		p.SetLabels(map[string]string{})
+	}
+	p.Labels[ProposalPromoteLabelKey] = "true"
+}
+
+func (p *WorkloadPolicyProposal) HasPromotionLabel() bool {
+	if p == nil {
+		return false
+	}
+	return p.Labels[ProposalPromoteLabelKey] == "true"
 }
 
 func (p *WorkloadPolicyProposal) IsFull() bool {
