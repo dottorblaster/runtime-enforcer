@@ -23,7 +23,6 @@ type WorkloadPolicyProposalReconciler struct {
 }
 
 // +kubebuilder:rbac:groups=security.rancher.io,resources=workloadpolicyproposals,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=security.rancher.io,resources=workloadpolicyproposals/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=security.rancher.io,resources=workloadpolicies,verbs=get;list;watch;create;patch
 
 func (r *WorkloadPolicyProposalReconciler) Reconcile(
