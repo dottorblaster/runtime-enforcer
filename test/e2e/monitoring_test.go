@@ -2,8 +2,11 @@ package e2e_test
 
 import (
 	"context"
+	"fmt"
 	"strconv"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/types/policymode"
@@ -30,6 +33,7 @@ func getMonitoringTest() types.Feature {
 		Assess("violation appears in WorkloadPolicy status", assessMonitoringWaitForViolation).
 		Assess("acknowledge the violation via annotation", assessAcknowledgeAnnotate).
 		Assess("violation is moved to acknowledged violations", assessAcknowledgeVerify).
+		Assess("acknowledge metric appears on the OTEL collector", assessAcknowledgeMetric).
 		Teardown(teardownMonitoring).
 		Feature()
 }
@@ -202,6 +206,40 @@ func assessAcknowledgeVerify(ctx context.Context, t *testing.T, _ *envconf.Confi
 	annotationKey := v1alpha1.ViolationAcknowledgePrefix + strconv.FormatInt(violationID, 10)
 	_, annotationPresent := policyToCheck.Annotations[annotationKey]
 	assert.False(t, annotationPresent, "acknowledge annotation should be removed after processing")
+
+	return ctx
+}
+
+func assessAcknowledgeMetric(ctx context.Context, t *testing.T, config *envconf.Config) context.Context {
+	t.Log("querying OTEL collector Prometheus endpoint for acknowledge metric")
+
+	collectorPodName, err := findPodByPrefix(ctx, runtimeEnforcerNamespace, otelCollectorDeploymentName)
+	require.NoError(t, err, "should find OTEL collector pod")
+
+	localPort, stopCh, err := portForwardPod(config, runtimeEnforcerNamespace, collectorPodName, 9090)
+	require.NoError(t, err, "should port-forward to collector prometheus port")
+	defer close(stopCh)
+
+	promURL := fmt.Sprintf("http://localhost:%d/metrics", localPort)
+
+	var metricsBody string
+	require.Eventually(t, func() bool {
+		body, fetchErr := fetchURL(promURL)
+		if fetchErr != nil {
+			t.Logf("failed to fetch metrics: %v", fetchErr)
+			return false
+		}
+		metricsBody = body
+		return strings.Contains(body, "runtime_enforcer_acknowledge")
+	}, defaultOperationTimeout, 2*time.Second,
+		"runtime_enforcer_acknowledge metric should appear on the collector Prometheus endpoint",
+	)
+
+	t.Log("validating acknowledge metric labels")
+	assertMetricHasLabel(t, metricsBody, "runtime_enforcer_acknowledge", "policy_name", "test-policy")
+	assertMetricHasLabel(t, metricsBody, "runtime_enforcer_acknowledge", "k8s_namespace_name", getNamespace(ctx))
+	assertMetricHasLabel(t, metricsBody, "runtime_enforcer_acknowledge", "action", policymode.MonitorString)
+	assertMetricHasLabelKey(t, metricsBody, "runtime_enforcer_acknowledge", "node_name")
 
 	return ctx
 }
