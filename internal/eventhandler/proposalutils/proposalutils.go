@@ -59,18 +59,16 @@ func HasProposalBeenPromoted(
 	namespace, proposalName string,
 ) (bool, error) {
 	var workloadPolicies securityv1alpha1.WorkloadPolicyList
-	if err := c.List(ctx, &workloadPolicies,
+	if err := c.List(
+		ctx,
+		&workloadPolicies,
 		client.InNamespace(namespace),
 		client.MatchingLabels{
 			securityv1alpha1.PromotedFromLabelKey: proposalName,
 		},
 	); err != nil {
-		return false, fmt.Errorf("failed to list WorkloadPolicies with promoted-from label: %w", err)
+		return false, err
 	}
 
-	if len(workloadPolicies.Items) > 0 {
-		return true, nil
-	}
-
-	return false, nil
+	return len(workloadPolicies.Items) > 0, nil
 }

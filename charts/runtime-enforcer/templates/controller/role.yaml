@@ -45,7 +45,6 @@ rules:
   - security.rancher.io
   resources:
   - workloadpolicies/status
-  - workloadpolicyproposals/status
   verbs:
   - get
   - patch
