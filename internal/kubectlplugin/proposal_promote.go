@@ -91,12 +91,7 @@ func runProposalPromote(
 		)
 	}
 
-	labels := proposal.GetLabels()
-	if labels == nil {
-		labels = map[string]string{}
-	}
-
-	if labels[apiv1alpha1.ApprovalLabelKey] == "true" {
+	if proposal.HasPromotionLabel() {
 		fmt.Fprintf(
 			out,
 			"WorkloadPolicyProposal %q in namespace %q is already promoted to WorkloadPolicy.\n",
@@ -111,8 +106,7 @@ func runProposalPromote(
 		updateOptions.DryRun = []string{metav1.DryRunAll}
 	}
 
-	labels[apiv1alpha1.ApprovalLabelKey] = "true"
-	proposal.SetLabels(labels)
+	proposal.SetPromotionLabel()
 
 	if _, err = client.WorkloadPolicyProposals(opts.Namespace).
 		Update(ctx, proposal, updateOptions); err != nil {

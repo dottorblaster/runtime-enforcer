@@ -97,16 +97,9 @@ func getPromotionTest() types.Feature {
 				r := getClient(ctx)
 				proposal := ctx.Value(key("proposal")).(*v1alpha1.WorkloadPolicyProposal)
 
-				t.Log("applying the label to the policy proposal: ", proposal.Name, v1alpha1.ApprovalLabelKey)
+				t.Log("promote the policy proposal: ", proposal.Name)
 
-				labels := proposal.GetLabels()
-				if labels == nil {
-					labels = map[string]string{}
-				}
-
-				labels[v1alpha1.ApprovalLabelKey] = "true"
-
-				proposal.SetLabels(labels)
+				proposal.SetPromotionLabel()
 				err := r.Update(ctx, proposal)
 				require.NoError(t, err)
 

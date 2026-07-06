@@ -64,7 +64,7 @@ func HasProposalBeenPromoted(
 		&workloadPolicies,
 		client.InNamespace(namespace),
 		client.MatchingLabels{
-			securityv1alpha1.PromotedFromLabelKey: proposalName,
+			securityv1alpha1.PolicyPromotedFromLabelKey: proposalName,
 		},
 	); err != nil {
 		return false, err

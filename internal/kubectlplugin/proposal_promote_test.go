@@ -75,7 +75,7 @@ func TestRunProposalPromote(t *testing.T) {
 					Name:      name,
 					Namespace: ns,
 					Labels: map[string]string{
-						securityv1alpha1.ApprovalLabelKey: "true",
+						securityv1alpha1.ProposalPromoteLabelKey: "true",
 					},
 				},
 			},
@@ -112,9 +112,7 @@ func TestRunProposalPromote(t *testing.T) {
 
 			// The fake client ignores DryRun and still mutates the object, so we
 			// still assert the updated label even in dry-run mode.
-			labels := wpProposal.GetLabels()
-			require.NotNil(t, labels)
-			require.Equal(t, "true", labels[securityv1alpha1.ApprovalLabelKey])
+			require.True(t, wpProposal.HasPromotionLabel())
 			require.Contains(t, out.String(), tt.expectOutput)
 		})
 	}

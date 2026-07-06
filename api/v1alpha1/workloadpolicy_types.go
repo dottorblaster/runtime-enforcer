@@ -1,6 +1,8 @@
 package v1alpha1
 
 import (
+	"errors"
+	"fmt"
 	"slices"
 
 	"github.com/rancher-sandbox/runtime-enforcer/internal/types/policymode"
@@ -13,12 +15,6 @@ const (
 )
 
 const (
-	// PromotedFromLabelKey is set on a WorkloadPolicy when it is created by
-	// promoting a WorkloadPolicyProposal.
-	// The learning controller uses it to avoid recreating proposals for
-	// workloads that are already protected by an existing policy.
-	PromotedFromLabelKey = "workloadpolicy.security.rancher.io/promoted-from"
-
 	// MaxNodesWithIssues is the maximum number of nodes with issues to report.
 	// we don't want to overwhelm the user with too much information.
 	MaxNodesWithIssues = 20
@@ -216,6 +212,34 @@ func (wp *WorkloadPolicy) NamespacedName() string {
 		return ""
 	}
 	return wp.Namespace + "/" + wp.Name
+}
+
+func (wp *WorkloadPolicy) SetPromotedLabel(proposalName string) error {
+	if wp == nil {
+		return errors.New("WorkloadPolicy is nil")
+	}
+
+	// Valid k8s label value must be 63 characters or less.
+	// https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#syntax-and-character-set
+	// We catch here the error instead of letting the API server handle it.
+	const maxLabelValueLength = 63
+	if len(proposalName) > maxLabelValueLength {
+		return fmt.Errorf("proposalName %q is too long", proposalName)
+	}
+
+	if wp.Labels == nil {
+		wp.SetLabels(map[string]string{})
+	}
+
+	wp.Labels[PolicyPromotedFromLabelKey] = proposalName
+	return nil
+}
+
+func (wp *WorkloadPolicy) HasPromotedLabel(proposalName string) bool {
+	if wp == nil {
+		return false
+	}
+	return wp.Labels[PolicyPromotedFromLabelKey] == proposalName
 }
 
 // +kubebuilder:object:root=true

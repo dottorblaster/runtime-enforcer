@@ -282,8 +282,7 @@ func (r *LearningReconciler) reconcile(
 	if _, err = controllerutil.CreateOrUpdate(ctx, r.Client, policyProposal, func() error {
 		// We don't learn any new process if the policy proposal was promoted
 		// to an actual policy
-		labels := policyProposal.GetLabels()
-		if labels[securityv1alpha1.ApprovalLabelKey] == "true" {
+		if policyProposal.HasPromotionLabel() {
 			return nil
 		}
 
