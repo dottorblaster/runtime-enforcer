@@ -35,9 +35,7 @@ func (r *WorkloadPolicyProposalReconciler) Reconcile(
 	log.Info("workloadpolicyproposal", "req", req)
 
 	var proposal securityv1alpha1.WorkloadPolicyProposal
-	var err error
-
-	if err = r.Get(ctx, req.NamespacedName, &proposal); err != nil {
+	if err := r.Get(ctx, req.NamespacedName, &proposal); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
@@ -49,8 +47,7 @@ func (r *WorkloadPolicyProposalReconciler) Reconcile(
 	// at the same time. If a WorkloadPolicy already exists with promoted-from=<proposalName>,
 	// treat the proposal as leftover and delete it. This is eventually reconciled on the controller-runtime
 	// resync (SyncPeriod, 10 hours by default) if both the proposal and the policy are still in the cluster.
-	var alreadyPromoted bool
-	alreadyPromoted, err = proposalutils.HasProposalBeenPromoted(
+	alreadyPromoted, err := proposalutils.HasProposalBeenPromoted(
 		ctx, r.Client,
 		proposal.Namespace,
 		proposal.Name,
@@ -73,8 +70,8 @@ func (r *WorkloadPolicyProposalReconciler) Reconcile(
 
 	policy := securityv1alpha1.WorkloadPolicy{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      proposal.ObjectMeta.Name,
-			Namespace: proposal.ObjectMeta.Namespace,
+			Name:      proposal.Name,
+			Namespace: proposal.Namespace,
 			Labels: map[string]string{
 				securityv1alpha1.PromotedFromLabelKey: proposal.Name,
 			},
