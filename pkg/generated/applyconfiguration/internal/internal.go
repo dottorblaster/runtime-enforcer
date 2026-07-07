@@ -144,6 +144,9 @@ var schemaYAML = typed.YAMLObject(`types:
 - name: com.github.rancher-sandbox.runtime-enforcer.api.v1alpha1.WorkloadPolicyStatus
   map:
     fields:
+    - name: activeViolationCount
+      type:
+        scalar: numeric
     - name: failedNodes
       type:
         scalar: numeric

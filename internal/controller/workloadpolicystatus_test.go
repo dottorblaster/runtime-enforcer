@@ -10,6 +10,7 @@ import (
 	"github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/grpcexporter"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/testutil"
+	"github.com/rancher-sandbox/runtime-enforcer/internal/types/policymode"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/types/workloadkind"
 	pb "github.com/rancher-sandbox/runtime-enforcer/proto/agent/v1"
 	"github.com/stretchr/testify/require"
@@ -536,4 +537,132 @@ func TestGetViolationsByPolicy(t *testing.T) {
 		got := r.getViolationsByPolicy(context.Background(), nil)
 		require.Empty(t, got)
 	})
+}
+
+func TestClearAllowedViolations(t *testing.T) {
+	createViolationRecord := func(container, exe string) v1alpha1.ViolationRecord {
+		return v1alpha1.ViolationRecord{
+			ContainerName:  container,
+			ExecutablePath: exe,
+		}
+	}
+
+	tests := []struct {
+		name       string
+		violations []v1alpha1.ViolationRecord
+		rules      map[string]*v1alpha1.WorkloadPolicyRules
+		expected   []v1alpha1.ViolationRecord
+	}{
+		{
+			name: "drops violations for allowed executable/container pairs",
+			violations: []v1alpha1.ViolationRecord{
+				createViolationRecord("app", "/usr/bin/app"),
+				createViolationRecord("app", "/usr/bin/other"),
+				createViolationRecord("sidecar", "/usr/bin/app"),
+			},
+			rules: map[string]*v1alpha1.WorkloadPolicyRules{
+				"app": {
+					Executables: v1alpha1.WorkloadPolicyExecutables{
+						Allowed: []string{"/usr/bin/app", "/bin/sh"},
+					},
+				},
+			},
+			expected: []v1alpha1.ViolationRecord{
+				createViolationRecord("app", "/usr/bin/other"),
+				createViolationRecord("sidecar", "/usr/bin/app"),
+			},
+		},
+		{
+			name:       "nil rules leave violations untouched",
+			violations: []v1alpha1.ViolationRecord{createViolationRecord("app", "/usr/bin/app")},
+			rules:      nil,
+			expected:   []v1alpha1.ViolationRecord{createViolationRecord("app", "/usr/bin/app")},
+		},
+		{
+			name:       "empty rules leave violations untouched",
+			violations: []v1alpha1.ViolationRecord{createViolationRecord("app", "/usr/bin/app")},
+			rules:      map[string]*v1alpha1.WorkloadPolicyRules{},
+			expected:   []v1alpha1.ViolationRecord{createViolationRecord("app", "/usr/bin/app")},
+		},
+		{
+			name:       "container with nil rules does not panic",
+			violations: []v1alpha1.ViolationRecord{createViolationRecord("app", "/usr/bin/app")},
+			rules:      map[string]*v1alpha1.WorkloadPolicyRules{"app": nil},
+			expected:   []v1alpha1.ViolationRecord{createViolationRecord("app", "/usr/bin/app")},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			wp := &v1alpha1.WorkloadPolicy{
+				Spec:   v1alpha1.WorkloadPolicySpec{RulesByContainer: tt.rules},
+				Status: v1alpha1.WorkloadPolicyStatus{Violations: tt.violations},
+			}
+			got := wp.ClearAllowed()
+			require.Equal(t, tt.expected, got)
+		})
+	}
+}
+
+func TestBuildPolicyStatusClearanceFreesCapForNewViolations(t *testing.T) {
+	ns := "ns"
+	mode := policymode.MonitorString
+
+	// Fill existing violations to the cap. The first record (id=1) is for
+	// an executable that will be allowed, so it gets cleared and makes room.
+	existing := make([]v1alpha1.ViolationRecord, v1alpha1.MaxViolationRecords)
+	for i := range existing {
+		existing[i] = withID(v1alpha1.ViolationRecord{
+			Timestamp:      metav1.NewTime(time.Date(2026, 1, 1, 0, 0, i, 0, time.UTC)),
+			PodName:        fmt.Sprintf("pod-%d", i),
+			ContainerName:  "app",
+			ExecutablePath: fmt.Sprintf("/usr/bin/exe-%d", i),
+			NodeName:       "node-1",
+			Action:         "monitor",
+		}, int64(i+1))
+	}
+
+	wp := &v1alpha1.WorkloadPolicy{
+		ObjectMeta: metav1.ObjectMeta{Name: "p", Namespace: ns},
+		Spec: v1alpha1.WorkloadPolicySpec{
+			Mode: mode,
+			RulesByContainer: map[string]*v1alpha1.WorkloadPolicyRules{
+				"app": {
+					Executables: v1alpha1.WorkloadPolicyExecutables{
+						Allowed: []string{"/usr/bin/exe-0"},
+					},
+				},
+			},
+		},
+		Status: v1alpha1.WorkloadPolicyStatus{
+			ViolationCount: int64(v1alpha1.MaxViolationRecords),
+			Violations:     existing,
+		},
+	}
+
+	// Add a brand-new violation that would have been dropped if the cap had
+	// not been freed by clearing exe-0.
+	removedViolation := existing[0]
+	newViolation := v1alpha1.ViolationRecord{
+		Timestamp:      metav1.NewTime(time.Date(2026, 1, 1, 0, 1, 0, 0, time.UTC)),
+		PodName:        "pod-new",
+		ContainerName:  "app",
+		ExecutablePath: "/usr/bin/new-exe",
+		NodeName:       "node-2",
+		Action:         "monitor",
+	}
+
+	status, err := buildPolicyStatus(wp, nil, []v1alpha1.ViolationRecord{newViolation})
+	require.NoError(t, err)
+	require.Len(t, status.Violations, v1alpha1.MaxViolationRecords,
+		"list should remain at the cap after clearance + merge")
+	require.Equal(t, int64(v1alpha1.MaxViolationRecords+1), status.ViolationCount,
+		"ViolationCount must account for the new observed violation")
+	require.Equal(t, v1alpha1.MaxViolationRecords, status.ActiveViolationCount,
+		"ActiveViolationCount must equal len(Violations)")
+
+	// exe-0 should be gone, /usr/bin/new-exe should be present.
+	newViolation.ID = int64(v1alpha1.MaxViolationRecords)
+	require.Contains(t, status.Violations, newViolation)
+	require.NotContains(t, status.Violations, removedViolation)
 }

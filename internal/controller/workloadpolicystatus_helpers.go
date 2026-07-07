@@ -110,16 +110,19 @@ func buildPolicyStatus(
 	}
 	newStatus.ObservedGeneration = wp.Generation
 
+	existingViolations := wp.ClearAllowed()
+
 	// Dedupe scraped violations against the existing list, allocate ids for
 	// new records (workload name/kind are already populated by the agent),
 	// and refresh the timestamp/node on matched records. The returned int64
 	// is the updated ViolationCount, which doubles as the id allocator (the
 	// most recently allocated id is always equal to ViolationCount).
 	newStatus.Violations, newStatus.ViolationCount = resolveScrapedViolations(
-		wp.Status.Violations,
+		existingViolations,
 		scrapedViolations,
 		wp.Status.ViolationCount,
 	)
+	newStatus.ActiveViolationCount = len(newStatus.Violations)
 	return newStatus, nil
 }
 
