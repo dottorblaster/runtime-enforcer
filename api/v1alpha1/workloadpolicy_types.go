@@ -3,23 +3,8 @@ package v1alpha1
 import (
 	"errors"
 	"fmt"
-	"slices"
 
-	"github.com/rancher-sandbox/runtime-enforcer/internal/types/policymode"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-)
-
-const (
-	PolicyModeMonitor = policymode.MonitorString
-	PolicyModeProtect = policymode.ProtectString
-)
-
-const (
-	// MaxNodesWithIssues is the maximum number of nodes with issues to report.
-	// we don't want to overwhelm the user with too much information.
-	MaxNodesWithIssues = 20
-	// MaxTransitioningNodes is the maximum number of nodes transitioning to report.
-	MaxTransitioningNodes = 20
 )
 
 // Phase represents the current phase of the workload policy.
@@ -64,56 +49,6 @@ type WorkloadPolicySpec struct {
 	RulesByContainer map[string]*WorkloadPolicyRules `json:"rulesByContainer,omitempty"`
 }
 
-const MaxViolationRecords = 100
-
-// ViolationRecord holds the details of a single policy violation.
-type ViolationRecord struct {
-	// id is a per-policy unique identifier allocated by the controller
-	// when the record is first observed. It is stable across re-scrapes
-	// of the same logical violation, so consumers can refer to a single
-	// record by id (for example when correlating with external events).
-	//
-	// Stored as int64 (not uint64) for compatibility with the Kubernetes
-	// field-management machinery used by controller-runtime's test
-	// fixtures; the counter is monotonically increasing and never goes
-	// negative, so the sign bit is never set in practice.
-	ID int64 `json:"id"`
-	// timestamp is when the violation last occurred.
-	Timestamp metav1.Time `json:"timestamp"`
-	// podName is the name of the pod where the violation occurred.
-	PodName string `json:"podName"`
-	// containerName is the container where the unauthorized executable ran.
-	ContainerName string `json:"containerName"`
-	// executablePath is the path of the unauthorized executable.
-	ExecutablePath string `json:"executablePath"`
-	// nodeName is the node where the violation occurred.
-	NodeName string `json:"nodeName"`
-	// action is the enforcement action taken (monitor or protect).
-	Action string `json:"action"`
-	// workloadName is the name of the workload that owns the pod, taken
-	// from the pod's first owner reference at the time the record was
-	// first observed. Empty if the pod has no owner reference or could
-	// not be looked up.
-	WorkloadName string `json:"workloadName,omitempty"`
-	// workloadKind is the kind of the workload that owns the pod, taken
-	// from the pod's first owner reference at the time the record was
-	// first observed. Empty if the pod has no owner reference or could
-	// not be looked up.
-	WorkloadKind string `json:"workloadKind,omitempty"`
-}
-
-type AcknowledgedViolationRecord struct {
-	// violation is the violation record acknowledged by users
-	Violation ViolationRecord `json:"violation,omitempty"`
-
-	// reason is an optional field to indicate the reason this violation is acknowledged.
-	// +optional
-	Reason string `json:"reason,omitempty"`
-
-	// acknowledgedAt is the time when the violation was acknowledged
-	AcknowledgedAt metav1.Time `json:"acknowledgedAt,omitempty"`
-}
-
 type WorkloadPolicyStatus struct {
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 	// nodesWithIssues contains the status of each node with issues.
@@ -152,60 +87,6 @@ type WorkloadPolicyStatus struct {
 	// Oldest entries are dropped when the limit is reached.
 	// +optional
 	AcknowledgedViolations []AcknowledgedViolationRecord `json:"acknowledgedViolations,omitempty"`
-}
-
-func (s *WorkloadPolicyStatus) AddNodeIssue(nodeName string, issue NodeIssue) {
-	// we always increment the failure count
-	s.FailedNodes++
-
-	if s.NodesWithIssues == nil {
-		s.NodesWithIssues = make(map[string]NodeIssue, MaxNodesWithIssues)
-	}
-
-	// we store up to MaxNodesWithIssues-1, the last element will be a marker of max reached
-	if len(s.NodesWithIssues) < MaxNodesWithIssues-1 {
-		s.NodesWithIssues[nodeName] = issue
-	} else if len(s.NodesWithIssues) == MaxNodesWithIssues-1 {
-		s.NodesWithIssues[TruncationNodeString] = NodeIssue{
-			Code:    NodeIssueMaxReached,
-			Message: "Maximum number of nodes with issues reached",
-		}
-	}
-}
-
-func (wp *WorkloadPolicy) ClearAllowed() []ViolationRecord {
-	return slices.DeleteFunc(wp.Status.Violations, func(v ViolationRecord) bool {
-		rules := wp.Spec.RulesByContainer[v.ContainerName]
-		return rules != nil && slices.Contains(rules.Executables.Allowed, v.ExecutablePath)
-	})
-}
-
-func (s *WorkloadPolicyStatus) SortTransitioningNodes() {
-	if len(s.NodesTransitioning) == 0 {
-		return
-	}
-
-	// we sort the transitioning nodes because we don't want to trigger
-	// updates on the WP if only the order of transitioning nodes has changed.
-	// Note: since this list is truncated it is still possible we trigger some updates if
-	// the number of transitioning nodes is greater than MaxTransitioningNodes.
-	slices.Sort(s.NodesTransitioning)
-}
-
-func (s *WorkloadPolicyStatus) AddTransitioningNode(nodeName string) {
-	// we always increment the transitioning count
-	s.TransitioningNodes++
-
-	if s.NodesTransitioning == nil {
-		s.NodesTransitioning = make([]string, 0, MaxTransitioningNodes)
-	}
-
-	// we store up to MaxTransitioningNodes-1, the last element will be a marker of max reached
-	if len(s.NodesTransitioning) < MaxTransitioningNodes-1 {
-		s.NodesTransitioning = append(s.NodesTransitioning, nodeName)
-	} else if len(s.NodesTransitioning) == MaxTransitioningNodes-1 {
-		s.NodesTransitioning = append(s.NodesTransitioning, TruncationNodeString)
-	}
 }
 
 // +kubebuilder:object:root=true
