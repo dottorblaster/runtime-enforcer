@@ -9,7 +9,7 @@ const (
 	// MaxTransitioningNodes is the maximum number of nodes transitioning to report.
 	MaxTransitioningNodes = 20
 
-	TruncationNodeString = "..."
+	truncationString = "..."
 )
 
 func (s *WorkloadPolicyStatus) AddNodeIssue(nodeName string, issue NodeIssue) {
@@ -24,7 +24,7 @@ func (s *WorkloadPolicyStatus) AddNodeIssue(nodeName string, issue NodeIssue) {
 	if len(s.NodesWithIssues) < MaxNodesWithIssues-1 {
 		s.NodesWithIssues[nodeName] = issue
 	} else if len(s.NodesWithIssues) == MaxNodesWithIssues-1 {
-		s.NodesWithIssues[TruncationNodeString] = NodeIssue{
+		s.NodesWithIssues[truncationString] = NodeIssue{
 			Code:    NodeIssueMaxReached,
 			Message: "Maximum number of nodes with issues reached",
 		}
@@ -55,6 +55,6 @@ func (s *WorkloadPolicyStatus) AddTransitioningNode(nodeName string) {
 	if len(s.NodesTransitioning) < MaxTransitioningNodes-1 {
 		s.NodesTransitioning = append(s.NodesTransitioning, nodeName)
 	} else if len(s.NodesTransitioning) == MaxTransitioningNodes-1 {
-		s.NodesTransitioning = append(s.NodesTransitioning, TruncationNodeString)
+		s.NodesTransitioning = append(s.NodesTransitioning, truncationString)
 	}
 }

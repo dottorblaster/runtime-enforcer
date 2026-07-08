@@ -23,7 +23,7 @@ func TestAddNodeIssue(t *testing.T) {
 	require.Len(t, wp.Status.NodesWithIssues, MaxNodesWithIssues)
 	// but the failed counter should reflect the actual number of failed nodes
 	require.Equal(t, MaxNodesWithIssues+10, wp.Status.FailedNodes)
-	require.Contains(t, wp.Status.NodesWithIssues, TruncationNodeString)
+	require.Contains(t, wp.Status.NodesWithIssues, truncationString)
 }
 
 func TestAddTransitioningNode(t *testing.T) {
@@ -39,5 +39,5 @@ func TestAddTransitioningNode(t *testing.T) {
 	require.Len(t, wp.Status.NodesTransitioning, MaxTransitioningNodes)
 	// but the transitioning counter should reflect the actual number of transitioning nodes
 	require.Equal(t, MaxTransitioningNodes+12, wp.Status.TransitioningNodes)
-	require.Contains(t, wp.Status.NodesTransitioning, TruncationNodeString)
+	require.Contains(t, wp.Status.NodesTransitioning, truncationString)
 }
