@@ -7,14 +7,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const (
-	// MaxNodesWithIssues is the maximum number of nodes with issues to report.
-	// we don't want to overwhelm the user with too much information.
-	MaxNodesWithIssues = 20
-	// MaxTransitioningNodes is the maximum number of nodes transitioning to report.
-	MaxTransitioningNodes = 20
-)
-
 // Phase represents the current phase of the workload policy.
 // Possible values are:
 // - "Transitioning": the policy is in the process of changing its enforcement mode.

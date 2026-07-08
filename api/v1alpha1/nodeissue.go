@@ -9,8 +9,6 @@ const (
 	NodeIssueMissingPolicy NodeIssueCode = "MissingPolicy"
 	NodeIssuePolicyFailed  NodeIssueCode = "PolicyFailed"
 	NodeIssueMaxReached    NodeIssueCode = "MaxReached"
-
-	TruncationNodeString = "..."
 )
 
 // NodeIssue represents an issue with a node.

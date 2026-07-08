@@ -2,6 +2,16 @@ package v1alpha1
 
 import "slices"
 
+const (
+	// MaxNodesWithIssues is the maximum number of nodes with issues to report.
+	// we don't want to overwhelm the user with too much information.
+	MaxNodesWithIssues = 20
+	// MaxTransitioningNodes is the maximum number of nodes transitioning to report.
+	MaxTransitioningNodes = 20
+
+	TruncationNodeString = "..."
+)
+
 func (s *WorkloadPolicyStatus) AddNodeIssue(nodeName string, issue NodeIssue) {
 	// we always increment the failure count
 	s.FailedNodes++
