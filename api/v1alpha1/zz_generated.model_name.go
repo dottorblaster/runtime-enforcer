@@ -6,6 +6,11 @@
 package v1alpha1
 
 // OpenAPIModelName returns the OpenAPI model name for this type.
+func (in AcknowledgedViolationRecord) OpenAPIModelName() string {
+	return "com.github.rancher-sandbox.runtime-enforcer.api.v1alpha1.AcknowledgedViolationRecord"
+}
+
+// OpenAPIModelName returns the OpenAPI model name for this type.
 func (in NodeIssue) OpenAPIModelName() string {
 	return "com.github.rancher-sandbox.runtime-enforcer.api.v1alpha1.NodeIssue"
 }

@@ -118,3 +118,68 @@ Print the image pull secrets in the expected format (an array of objects with on
     {{- end }}
     {{- toYaml $imagePullSecrets }}
 {{- end }}
+
+{{/*
+Print the otel environment varilable settings.
+*/}}
+{{- define "runtime-enforcer.otel.config.env" }}
+{{- if eq .Values.telemetry.collectorStrategy "default" }}
+- name: OTEL_EXPORTER_OTLP_ENDPOINT
+  value: https://{{ include "runtime-enforcer.fullname" . }}-otel-collector.{{ .Release.Namespace }}.svc.cluster.local:4317
+- name: OTEL_EXPORTER_OTLP_PROTOCOL
+  value: grpc
+- name: OTEL_EXPORTER_OTLP_CERTIFICATE
+  value: {{ include "runtime-enforcer.grpc.certDir" . }}/ca.crt
+{{- else if eq .Values.telemetry.collectorStrategy "external" }}
+- name: OTEL_EXPORTER_OTLP_ENDPOINT
+  value: {{ .Values.telemetry.externalCollector.endpoint }}
+- name: OTEL_EXPORTER_OTLP_PROTOCOL
+  value: {{ .Values.telemetry.externalCollector.protocol }}
+{{- if .Values.telemetry.externalCollector.otelCollectorCertificateSecret }}
+- name: OTEL_EXPORTER_OTLP_CERTIFICATE
+  value: /tmp/otel-collector-certs/ca.crt
+{{- else }}
+- name: OTEL_EXPORTER_OTLP_INSECURE
+  value: "true"
+{{- end }}
+{{- if .Values.telemetry.externalCollector.otelCollectorClientCertificateSecret }}
+- name: OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE
+  value: /tmp/otel-collector-client-certs/tls.crt
+- name: OTEL_EXPORTER_OTLP_CLIENT_KEY
+  value: /tmp/otel-collector-client-certs/tls.key
+{{- end }}
+{{- end }}
+{{- end }}
+
+
+{{/*
+Print the otel volumeMounts settings
+*/}}
+{{- define "runtime-enforcer.otel.config.volumeMounts" }}
+{{- if .Values.telemetry.externalCollector.otelCollectorCertificateSecret }}
+- name: otel-collector-ca-cert
+  mountPath: /tmp/otel-collector-certs
+  readOnly: true
+{{- end }}
+{{- if .Values.telemetry.externalCollector.otelCollectorClientCertificateSecret }}
+- name: otel-collector-client-cert
+  mountPath: /tmp/otel-collector-client-certs
+  readOnly: true
+{{- end }}
+{{- end }}
+
+{{/*
+Print the otel volumes settings
+*/}}
+{{- define "runtime-enforcer.otel.config.volumes" }}
+{{- if and (eq .Values.telemetry.collectorStrategy "external") .Values.telemetry.externalCollector.otelCollectorCertificateSecret }}
+- name: otel-collector-ca-cert
+  secret:
+    secretName: {{ .Values.telemetry.externalCollector.otelCollectorCertificateSecret }}
+{{- end }}
+{{- if and (eq .Values.telemetry.collectorStrategy "external") .Values.telemetry.externalCollector.otelCollectorClientCertificateSecret }}
+- name: otel-collector-client-cert
+  secret:
+    secretName: {{ .Values.telemetry.externalCollector.otelCollectorClientCertificateSecret }}
+{{- end }}
+{{- end }}

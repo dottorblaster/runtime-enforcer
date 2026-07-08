@@ -12,6 +12,7 @@ import (
 	"github.com/rancher-sandbox/runtime-enforcer/internal/types/loglevel"
 	pb "github.com/rancher-sandbox/runtime-enforcer/proto/agent/v1"
 
+	otellog "go.opentelemetry.io/otel/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -37,12 +38,14 @@ type WorkloadPolicyStatusSync struct {
 	agentClientPool *grpcexporter.AgentClientPool
 	updateInterval  time.Duration
 	logger          logr.Logger
+	eventLogger     otellog.Logger
 }
 
 // WorkloadPolicyStatusSyncConfig holds the configuration for the WorkloadPolicyStatusSync.
 type WorkloadPolicyStatusSyncConfig struct {
 	AgentPoolConf  grpcexporter.AgentClientPoolConfig
 	UpdateInterval time.Duration
+	EventLogger    otellog.Logger
 }
 
 func NewWorkloadPolicyStatusSync(
@@ -62,6 +65,7 @@ func NewWorkloadPolicyStatusSync(
 		Client:          c,
 		agentClientPool: agentClientPool,
 		updateInterval:  config.UpdateInterval,
+		eventLogger:     config.EventLogger,
 	}, nil
 }
 
@@ -195,4 +199,34 @@ func (r *WorkloadPolicyStatusSync) getViolationsByPolicy(
 	}
 
 	return violationsByPolicy
+}
+
+func (r *WorkloadPolicyStatusSync) emitAcknowledgedViolationOtelLog(
+	ctx context.Context,
+	violation v1alpha1.ViolationRecord,
+	reason string,
+) {
+	if r.eventLogger == nil {
+		return
+	}
+
+	var rec otellog.Record
+	rec.SetEventName("policy_violation_acknowledged")
+	rec.SetSeverity(otellog.SeverityInfo)
+	rec.SetBody(otellog.StringValue("policy_violation_acknowledged"))
+	rec.SetTimestamp(time.Now())
+	rec.AddAttributes(
+		otellog.Int64("id", violation.ID),
+		otellog.String("timestamp", violation.Timestamp.UTC().Format(time.RFC3339)),
+		otellog.String("reason", reason),
+		otellog.String("k8s.pod.name", violation.PodName),
+		otellog.String("container.name", violation.ContainerName),
+		otellog.String("proc.exepath", violation.ExecutablePath),
+		otellog.String("node.name", violation.NodeName),
+		otellog.String("action", violation.Action),
+		otellog.String("workload.name", violation.WorkloadName),
+		otellog.String("workload.kind", violation.WorkloadKind),
+	)
+
+	r.eventLogger.Emit(ctx, rec)
 }

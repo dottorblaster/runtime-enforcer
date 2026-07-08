@@ -21,6 +21,29 @@ Package v1alpha1 contains API Schema definitions for the security v1alpha1 API g
 
 
 
+[id="{anchor_prefix}-github-com-rancher-sandbox-runtime-enforcer-api-v1alpha1-acknowledgedviolationrecord"]
+==== AcknowledgedViolationRecord
+
+
+
+
+
+
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-rancher-sandbox-runtime-enforcer-api-v1alpha1-workloadpolicystatus[$$WorkloadPolicyStatus$$]
+****
+
+[cols="20a,50a,15a,15a", options="header"]
+|===
+| Field | Description | Default | Validation
+| *`violation`* __xref:{anchor_prefix}-github-com-rancher-sandbox-runtime-enforcer-api-v1alpha1-violationrecord[$$ViolationRecord$$]__ | violation is the violation record acknowledged by users + |  | 
+| *`reason`* __string__ | reason is an optional field to indicate the reason this violation is acknowledged. + |  | 
+| *`acknowledgedAt`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.35/#time-v1-meta[$$Time$$]__ | acknowledgedAt is the time when the violation was acknowledged + |  | 
+|===
+
+
 [id="{anchor_prefix}-github-com-rancher-sandbox-runtime-enforcer-api-v1alpha1-nodeissue"]
 ==== NodeIssue
 
@@ -90,6 +113,7 @@ ViolationRecord holds the details of a single policy violation.
 
 .Appears In:
 ****
+- xref:{anchor_prefix}-github-com-rancher-sandbox-runtime-enforcer-api-v1alpha1-acknowledgedviolationrecord[$$AcknowledgedViolationRecord$$]
 - xref:{anchor_prefix}-github-com-rancher-sandbox-runtime-enforcer-api-v1alpha1-workloadpolicystatus[$$WorkloadPolicyStatus$$]
 ****
 
@@ -343,6 +367,9 @@ consistent and may be temporarily outdated. + |  |
 violation records. It is always equal to len(Violations) and is +
 updated in the same status write. + |  | 
 | *`violations`* __xref:{anchor_prefix}-github-com-rancher-sandbox-runtime-enforcer-api-v1alpha1-violationrecord[$$ViolationRecord$$] array__ | violations is the list of the most recent violation records (max MaxViolationRecords). +
+Oldest entries are dropped when the limit is reached. + |  | 
+| *`acknowledgedViolations`* __xref:{anchor_prefix}-github-com-rancher-sandbox-runtime-enforcer-api-v1alpha1-acknowledgedviolationrecord[$$AcknowledgedViolationRecord$$] array__ | acknowledgedViolations is the list of the most recent violation records that are acknowledged +
+by users (max MaxViolationRecords). +
 Oldest entries are dropped when the limit is reached. + |  | 
 |===
 

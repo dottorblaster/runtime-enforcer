@@ -23,6 +23,19 @@ func Parser() *typed.Parser {
 var parserOnce sync.Once
 var parser *typed.Parser
 var schemaYAML = typed.YAMLObject(`types:
+- name: com.github.rancher-sandbox.runtime-enforcer.api.v1alpha1.AcknowledgedViolationRecord
+  map:
+    fields:
+    - name: acknowledgedAt
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.Time
+    - name: reason
+      type:
+        scalar: string
+    - name: violation
+      type:
+        namedType: com.github.rancher-sandbox.runtime-enforcer.api.v1alpha1.ViolationRecord
+      default: {}
 - name: com.github.rancher-sandbox.runtime-enforcer.api.v1alpha1.NodeIssue
   map:
     fields:
@@ -144,6 +157,12 @@ var schemaYAML = typed.YAMLObject(`types:
 - name: com.github.rancher-sandbox.runtime-enforcer.api.v1alpha1.WorkloadPolicyStatus
   map:
     fields:
+    - name: acknowledgedViolations
+      type:
+        list:
+          elementType:
+            namedType: com.github.rancher-sandbox.runtime-enforcer.api.v1alpha1.AcknowledgedViolationRecord
+          elementRelationship: atomic
     - name: activeViolationCount
       type:
         scalar: numeric

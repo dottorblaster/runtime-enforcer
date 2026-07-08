@@ -102,6 +102,18 @@ type ViolationRecord struct {
 	WorkloadKind string `json:"workloadKind,omitempty"`
 }
 
+type AcknowledgedViolationRecord struct {
+	// violation is the violation record acknowledged by users
+	Violation ViolationRecord `json:"violation,omitempty"`
+
+	// reason is an optional field to indicate the reason this violation is acknowledged.
+	// +optional
+	Reason string `json:"reason,omitempty"`
+
+	// acknowledgedAt is the time when the violation was acknowledged
+	AcknowledgedAt metav1.Time `json:"acknowledgedAt,omitempty"`
+}
+
 type WorkloadPolicyStatus struct {
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 	// nodesWithIssues contains the status of each node with issues.
@@ -134,6 +146,12 @@ type WorkloadPolicyStatus struct {
 	// Oldest entries are dropped when the limit is reached.
 	// +optional
 	Violations []ViolationRecord `json:"violations,omitempty"`
+
+	// acknowledgedViolations is the list of the most recent violation records that are acknowledged
+	// by users (max MaxViolationRecords).
+	// Oldest entries are dropped when the limit is reached.
+	// +optional
+	AcknowledgedViolations []AcknowledgedViolationRecord `json:"acknowledgedViolations,omitempty"`
 }
 
 func (s *WorkloadPolicyStatus) AddNodeIssue(nodeName string, issue NodeIssue) {

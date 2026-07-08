@@ -25,6 +25,13 @@ data:
               - key: k8s.namespace.name
               - key: action
               - key: node.name
+          runtime_enforcer_acknowledge:
+            description: "Total acknowledged violations by runtime-enforcer"
+            attributes:
+              - key: policy.name
+              - key: k8s.namespace.name
+              - key: action
+              - key: node.name
     processors:
       deltatocumulative: {}
     extensions:

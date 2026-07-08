@@ -45,6 +45,7 @@ spec:
         env:
         - name: KUBERNETES_CLUSTER_DOMAIN
           value: {{ quote .Values.kubernetesClusterDomain }}
+        {{ include "runtime-enforcer.otel.config.env" . | indent 8 }}
         {{- with .Values.controller.env }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -68,29 +69,31 @@ spec:
         securityContext: {{- toYaml .Values.controller.containerSecurityContext
           | nindent 10 }}
         volumeMounts:
-          - mountPath: /tmp/k8s-webhook-server/serving-certs/
-            name: webhook-certs
-            readOnly: true
-          - name: grpc-certs
-            mountPath: {{ include "runtime-enforcer.grpc.certDir" . }}
-            readOnly: true
-      volumes:
-        - name: webhook-certs
-          csi:
-            driver: "csi.cert-manager.io"
-            readOnly: true
-            volumeAttributes:
-              csi.cert-manager.io/issuer-name: {{ include "runtime-enforcer.caIssuerName" . }}
-              csi.cert-manager.io/issuer-kind: Issuer
-              csi.cert-manager.io/dns-names: {{ include "runtime-enforcer.fullname" . }}-controller-webhook.{{ .Release.Namespace }}.svc
+        - mountPath: /tmp/k8s-webhook-server/serving-certs/
+          name: webhook-certs
+          readOnly: true
         - name: grpc-certs
-          csi:
-            driver: "csi.cert-manager.io"
-            readOnly: true
-            volumeAttributes:
-              csi.cert-manager.io/issuer-name: {{ include "runtime-enforcer.caIssuerName" . }}
-              csi.cert-manager.io/issuer-kind: Issuer
-              csi.cert-manager.io/dns-names: {{ include "runtime-enforcer.fullname" . }}-controller
+          mountPath: {{ include "runtime-enforcer.grpc.certDir" . }}
+          readOnly: true
+        {{ include "runtime-enforcer.otel.config.volumeMounts" . | indent 8 }}
+      volumes:
+      - name: webhook-certs
+        csi:
+          driver: "csi.cert-manager.io"
+          readOnly: true
+          volumeAttributes:
+            csi.cert-manager.io/issuer-name: {{ include "runtime-enforcer.caIssuerName" . }}
+            csi.cert-manager.io/issuer-kind: Issuer
+            csi.cert-manager.io/dns-names: {{ include "runtime-enforcer.fullname" . }}-controller-webhook.{{ .Release.Namespace }}.svc
+      - name: grpc-certs
+        csi:
+          driver: "csi.cert-manager.io"
+          readOnly: true
+          volumeAttributes:
+            csi.cert-manager.io/issuer-name: {{ include "runtime-enforcer.caIssuerName" . }}
+            csi.cert-manager.io/issuer-kind: Issuer
+            csi.cert-manager.io/dns-names: {{ include "runtime-enforcer.fullname" . }}-controller
+      {{ include "runtime-enforcer.otel.config.volumes" . | indent 6 }}
       securityContext: {{- toYaml .Values.controller.podSecurityContext | nindent
         8 }}
       {{- with .Values.controller.tolerations }}

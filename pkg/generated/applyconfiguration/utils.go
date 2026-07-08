@@ -16,6 +16,8 @@ import (
 func ForKind(kind schema.GroupVersionKind) interface{} {
 	switch kind {
 	// Group=security.rancher.io, Version=v1alpha1
+	case v1alpha1.SchemeGroupVersion.WithKind("AcknowledgedViolationRecord"):
+		return &apiv1alpha1.AcknowledgedViolationRecordApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("NodeIssue"):
 		return &apiv1alpha1.NodeIssueApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("ViolationRecord"):
