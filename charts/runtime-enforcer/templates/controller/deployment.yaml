@@ -45,32 +45,7 @@ spec:
         env:
         - name: KUBERNETES_CLUSTER_DOMAIN
           value: {{ quote .Values.kubernetesClusterDomain }}
-        {{- if eq .Values.telemetry.collectorStrategy "default" }}
-        - name: OTEL_EXPORTER_OTLP_ENDPOINT
-          value: https://{{ include "runtime-enforcer.fullname" . }}-otel-collector.{{ .Release.Namespace }}.svc.cluster.local:4317
-        - name: OTEL_EXPORTER_OTLP_PROTOCOL
-          value: grpc
-        - name: OTEL_EXPORTER_OTLP_CERTIFICATE
-          value: {{ include "runtime-enforcer.grpc.certDir" . }}/ca.crt
-        {{- else if eq .Values.telemetry.collectorStrategy "external" }}
-        - name: OTEL_EXPORTER_OTLP_ENDPOINT
-          value: {{ .Values.telemetry.externalCollector.endpoint }}
-        - name: OTEL_EXPORTER_OTLP_PROTOCOL
-          value: {{ .Values.telemetry.externalCollector.protocol }}
-        {{- if .Values.telemetry.externalCollector.otelCollectorCertificateSecret }}
-        - name: OTEL_EXPORTER_OTLP_CERTIFICATE
-          value: /tmp/otel-collector-certs/ca.crt
-        {{- else }}
-        - name: OTEL_EXPORTER_OTLP_INSECURE
-          value: "true"
-        {{- end }}
-        {{- if .Values.telemetry.externalCollector.otelCollectorClientCertificateSecret }}
-        - name: OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE
-          value: /tmp/otel-collector-client-certs/tls.crt
-        - name: OTEL_EXPORTER_OTLP_CLIENT_KEY
-          value: /tmp/otel-collector-client-certs/tls.key
-        {{- end }}
-        {{- end }}
+        {{ include "runtime-enforcer.otel.config.env" . | indent 8 }}
         {{- with .Values.controller.env }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -100,16 +75,7 @@ spec:
         - name: grpc-certs
           mountPath: {{ include "runtime-enforcer.grpc.certDir" . }}
           readOnly: true
-        {{- if .Values.telemetry.externalCollector.otelCollectorCertificateSecret }}
-        - name: otel-collector-ca-cert
-          mountPath: /tmp/otel-collector-certs
-          readOnly: true
-        {{- end }}
-        {{- if .Values.telemetry.externalCollector.otelCollectorClientCertificateSecret }}
-        - name: otel-collector-client-cert
-          mountPath: /tmp/otel-collector-client-certs
-          readOnly: true
-        {{- end }}
+        {{ include "runtime-enforcer.otel.config.volumeMounts" . | indent 8 }}
       volumes:
       - name: webhook-certs
         csi:
@@ -127,16 +93,7 @@ spec:
             csi.cert-manager.io/issuer-name: {{ include "runtime-enforcer.caIssuerName" . }}
             csi.cert-manager.io/issuer-kind: Issuer
             csi.cert-manager.io/dns-names: {{ include "runtime-enforcer.fullname" . }}-controller
-      {{- if and (eq .Values.telemetry.collectorStrategy "external") .Values.telemetry.externalCollector.otelCollectorCertificateSecret }}
-      - name: otel-collector-ca-cert
-        secret:
-          secretName: {{ .Values.telemetry.externalCollector.otelCollectorCertificateSecret }}
-      {{- end }}
-      {{- if and (eq .Values.telemetry.collectorStrategy "external") .Values.telemetry.externalCollector.otelCollectorClientCertificateSecret }}
-      - name: otel-collector-client-cert
-        secret:
-          secretName: {{ .Values.telemetry.externalCollector.otelCollectorClientCertificateSecret }}
-      {{- end }}
+      {{ include "runtime-enforcer.otel.config.volumes" . | indent 6 }}
       securityContext: {{- toYaml .Values.controller.podSecurityContext | nindent
         8 }}
       {{- with .Values.controller.tolerations }}
