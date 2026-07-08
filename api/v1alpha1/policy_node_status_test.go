@@ -14,12 +14,12 @@ func TestAddNodeIssue(t *testing.T) {
 		Message: "Test message",
 	}
 
-	numFailures := MaxNodesWithIssues + 10
+	numFailures := maxNodesWithIssues + 10
 	for i := range numFailures {
 		wpStatus.addNodeIssue(strconv.Itoa(i), policyStatus)
 	}
-	// now we should have just MaxNodesWithIssues
-	require.Len(t, wpStatus.NodesWithIssues, MaxNodesWithIssues)
+	// now we should have just maxNodesWithIssues
+	require.Len(t, wpStatus.NodesWithIssues, maxNodesWithIssues)
 	// but the failed counter should reflect the actual number of failed nodes
 	require.Equal(t, numFailures, wpStatus.FailedNodes)
 	// The truncation string should be present
@@ -29,13 +29,13 @@ func TestAddNodeIssue(t *testing.T) {
 func TestAddTransitioningNode(t *testing.T) {
 	wpStatus := WorkloadPolicyStatus{}
 
-	numTransitioning := MaxTransitioningNodes + 12
+	numTransitioning := maxTransitioningNodes + 12
 	for i := range numTransitioning {
 		wpStatus.addTransitioningNode(strconv.Itoa(i))
 	}
 
-	// now we should have just MaxTransitioningNodes
-	require.Len(t, wpStatus.NodesTransitioning, MaxTransitioningNodes)
+	// now we should have just maxTransitioningNodes
+	require.Len(t, wpStatus.NodesTransitioning, maxTransitioningNodes)
 	// but the transitioning counter should reflect the actual number of transitioning nodes
 	require.Equal(t, numTransitioning, wpStatus.TransitioningNodes)
 	// The truncation string should be present

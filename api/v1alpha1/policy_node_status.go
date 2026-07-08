@@ -7,11 +7,11 @@ import (
 )
 
 const (
-	// MaxNodesWithIssues is the maximum number of nodes with issues to report.
+	// maxNodesWithIssues is the maximum number of nodes with issues to report.
 	// we don't want to overwhelm the user with too much information.
-	MaxNodesWithIssues = 20
-	// MaxTransitioningNodes is the maximum number of nodes transitioning to report.
-	MaxTransitioningNodes = 20
+	maxNodesWithIssues = 20
+	// maxTransitioningNodes is the maximum number of nodes transitioning to report.
+	maxTransitioningNodes = 20
 
 	truncationString  = "..."
 	truncationMessage = "Maximum number of nodes with issues reached"
@@ -47,13 +47,13 @@ func (s *WorkloadPolicyStatus) addTransitioningNode(nodeName string) {
 	s.TransitioningNodes++
 
 	if s.NodesTransitioning == nil {
-		s.NodesTransitioning = make([]string, 0, MaxTransitioningNodes)
+		s.NodesTransitioning = make([]string, 0, maxTransitioningNodes)
 	}
 
-	// we store up to MaxTransitioningNodes-1, the last element will be a marker of max reached
-	if len(s.NodesTransitioning) < MaxTransitioningNodes-1 {
+	// we store up to maxTransitioningNodes-1, the last element will be a marker of max reached
+	if len(s.NodesTransitioning) < maxTransitioningNodes-1 {
 		s.NodesTransitioning = append(s.NodesTransitioning, nodeName)
-	} else if len(s.NodesTransitioning) == MaxTransitioningNodes-1 {
+	} else if len(s.NodesTransitioning) == maxTransitioningNodes-1 {
 		s.NodesTransitioning = append(s.NodesTransitioning, truncationString)
 	}
 }
@@ -63,13 +63,13 @@ func (s *WorkloadPolicyStatus) addNodeIssue(nodeName string, status PolicyStatus
 	s.FailedNodes++
 
 	if s.NodesWithIssues == nil {
-		s.NodesWithIssues = make(map[string]PolicyStatus, MaxNodesWithIssues)
+		s.NodesWithIssues = make(map[string]PolicyStatus, maxNodesWithIssues)
 	}
 
-	// we store up to MaxNodesWithIssues-1, the last element will be a marker of max reached
-	if len(s.NodesWithIssues) < MaxNodesWithIssues-1 {
+	// we store up to maxNodesWithIssues-1, the last element will be a marker of max reached
+	if len(s.NodesWithIssues) < maxNodesWithIssues-1 {
 		s.NodesWithIssues[nodeName] = status
-	} else if len(s.NodesWithIssues) == MaxNodesWithIssues-1 {
+	} else if len(s.NodesWithIssues) == maxNodesWithIssues-1 {
 		s.NodesWithIssues[truncationString] = PolicyStatus{
 			Code:    PolicyFailed,
 			Message: truncationMessage,
