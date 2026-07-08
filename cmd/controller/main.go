@@ -138,17 +138,17 @@ func SetupControllers(logger logr.Logger,
 	mgr manager.Manager,
 	metricsCertWatcher *certwatcher.CertWatcher,
 	webhookCertWatcher *certwatcher.CertWatcher,
-	config *Config,
+	wpStatusSyncConfig *controller.WorkloadPolicyStatusSyncConfig,
 ) error {
 	var err error
 
 	logger.Info("Setting up WorkloadPolicyStatusSync with",
-		"config", config.wpStatusSyncConfig)
+		"config", wpStatusSyncConfig)
 
 	var wpStatusSync *controller.WorkloadPolicyStatusSync
 	if wpStatusSync, err = controller.NewWorkloadPolicyStatusSync(
 		mgr.GetClient(),
-		&config.wpStatusSyncConfig,
+		wpStatusSyncConfig,
 	); err != nil {
 		return fmt.Errorf("unable to create WorkloadPolicyStatusSync: %w", err)
 	}
@@ -376,7 +376,7 @@ func main() {
 
 	config.wpStatusSyncConfig.AgentPoolConf.Logger = slog.New(slogHandler).With("component", "agent-pool")
 	if err = SetupControllers(
-		ctrlLogger, mgr, metricsCertWatcher, webhookCertWatcher, &config,
+		ctrlLogger, mgr, metricsCertWatcher, webhookCertWatcher, &config.wpStatusSyncConfig,
 	); err != nil {
 		setupLog.Error(err, "unable to setup controllers")
 		os.Exit(1)
