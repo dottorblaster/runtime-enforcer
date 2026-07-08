@@ -2,6 +2,7 @@ API rule violation: list_type_missing,github.com/rancher-sandbox/runtime-enforce
 API rule violation: list_type_missing,github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1,WorkloadPolicyStatus,AcknowledgedViolations
 API rule violation: list_type_missing,github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1,WorkloadPolicyStatus,NodesTransitioning
 API rule violation: list_type_missing,github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1,WorkloadPolicyStatus,Violations
+API rule violation: names_match,github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1,PolicyNodeStatus,PolicyStatus
 API rule violation: names_match,k8s.io/apimachinery/pkg/api/resource,Quantity,Format
 API rule violation: names_match,k8s.io/apimachinery/pkg/api/resource,Quantity,d
 API rule violation: names_match,k8s.io/apimachinery/pkg/api/resource,Quantity,i

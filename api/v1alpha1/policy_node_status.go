@@ -1,6 +1,10 @@
 package v1alpha1
 
-import "slices"
+import (
+	"fmt"
+	"slices"
+	"strings"
+)
 
 const (
 	// MaxNodesWithIssues is the maximum number of nodes with issues to report.
@@ -13,38 +17,32 @@ const (
 	truncationMessage = "Maximum number of nodes with issues reached"
 )
 
-func (s *WorkloadPolicyStatus) AddNodeIssue(nodeName string, issue NodeIssue) {
-	// we always increment the failure count
-	s.FailedNodes++
+// PolicyCode represents the status code of a policy on a node.
+type PolicyCode string
 
-	if s.NodesWithIssues == nil {
-		s.NodesWithIssues = make(map[string]NodeIssue, MaxNodesWithIssues)
-	}
+const (
+	PolicyUnknown       PolicyCode = ""
+	PolicyReady         PolicyCode = "Ready"
+	PolicyMissing       PolicyCode = "Missing"
+	PolicyFailed        PolicyCode = "Failed"
+	PolicyTransitioning PolicyCode = "Transitioning"
+)
 
-	// we store up to MaxNodesWithIssues-1, the last element will be a marker of max reached
-	if len(s.NodesWithIssues) < MaxNodesWithIssues-1 {
-		s.NodesWithIssues[nodeName] = issue
-	} else if len(s.NodesWithIssues) == MaxNodesWithIssues-1 {
-		s.NodesWithIssues[truncationString] = NodeIssue{
-			Code:    NodeIssueMaxReached,
-			Message: truncationMessage,
-		}
-	}
+// PolicyStatus represents information about a policy status on a node.
+type PolicyStatus struct {
+	// code is the policy code.
+	Code PolicyCode `json:"code,omitempty"`
+	// message is a human-readable description.
+	Message string `json:"message,omitempty"`
 }
 
-func (s *WorkloadPolicyStatus) SortTransitioningNodes() {
-	if len(s.NodesTransitioning) == 0 {
-		return
-	}
+type PolicyNodeStatus struct {
+	PolicyStatus
 
-	// we sort the transitioning nodes because we don't want to trigger
-	// updates on the WP if only the order of transitioning nodes has changed.
-	// Note: since this list is truncated it is still possible we trigger some updates if
-	// the number of transitioning nodes is greater than MaxTransitioningNodes.
-	slices.Sort(s.NodesTransitioning)
+	NodeName string `json:"nodeName,omitempty"`
 }
 
-func (s *WorkloadPolicyStatus) AddTransitioningNode(nodeName string) {
+func (s *WorkloadPolicyStatus) addTransitioningNode(nodeName string) {
 	// we always increment the transitioning count
 	s.TransitioningNodes++
 
@@ -58,4 +56,69 @@ func (s *WorkloadPolicyStatus) AddTransitioningNode(nodeName string) {
 	} else if len(s.NodesTransitioning) == MaxTransitioningNodes-1 {
 		s.NodesTransitioning = append(s.NodesTransitioning, truncationString)
 	}
+}
+
+func (s *WorkloadPolicyStatus) addNodeIssue(nodeName string, status PolicyStatus) {
+	// we always increment the failure count
+	s.FailedNodes++
+
+	if s.NodesWithIssues == nil {
+		s.NodesWithIssues = make(map[string]PolicyStatus, MaxNodesWithIssues)
+	}
+
+	// we store up to MaxNodesWithIssues-1, the last element will be a marker of max reached
+	if len(s.NodesWithIssues) < MaxNodesWithIssues-1 {
+		s.NodesWithIssues[nodeName] = status
+	} else if len(s.NodesWithIssues) == MaxNodesWithIssues-1 {
+		s.NodesWithIssues[truncationString] = PolicyStatus{
+			Code:    PolicyFailed,
+			Message: truncationMessage,
+		}
+	}
+}
+
+func (s *WorkloadPolicyStatus) ProcessPolicyNodeStatus(nodes []PolicyNodeStatus) error {
+	s.NodesWithIssues = nil
+	s.NodesTransitioning = nil
+	s.TotalNodes = len(nodes)
+	s.SuccessfulNodes = 0
+	s.FailedNodes = 0
+	s.TransitioningNodes = 0
+
+	for _, status := range nodes {
+		switch status.Code {
+		case PolicyReady:
+			s.SuccessfulNodes++
+		case PolicyTransitioning:
+			s.addTransitioningNode(status.NodeName)
+		case PolicyFailed, PolicyMissing:
+			s.addNodeIssue(status.NodeName, PolicyStatus{Code: status.Code, Message: status.Message})
+		case PolicyUnknown:
+			fallthrough
+		default:
+			return fmt.Errorf("unknown node status state %q for node %q", status.Code, status.NodeName)
+		}
+	}
+
+	// We order the slice to avoid resource status updates in case of different order
+	if len(s.NodesTransitioning) > 0 {
+		slices.SortFunc(s.NodesTransitioning, strings.Compare)
+	}
+
+	// Consistency check
+	if s.TotalNodes != s.FailedNodes+s.TransitioningNodes+s.SuccessfulNodes {
+		return fmt.Errorf("inconsistent node stats, total: %d != successful(%d)+transitioning(%d)+failed(%d)",
+			s.TotalNodes, s.SuccessfulNodes, s.TransitioningNodes, s.FailedNodes)
+	}
+
+	switch {
+	case s.SuccessfulNodes == s.TotalNodes:
+		s.Phase = Ready
+	case s.FailedNodes > 0:
+		s.Phase = Failed
+	case s.TransitioningNodes > 0:
+		s.Phase = Transitioning
+	}
+
+	return nil
 }

@@ -182,14 +182,14 @@ spec:
                 type: array
               nodesWithIssues:
                 additionalProperties:
-                  description: NodeIssue represents an issue with a node.
+                  description: PolicyStatus represents information about a policy
+                    status on a node.
                   properties:
                     code:
-                      description: code is the issue code.
+                      description: code is the policy code.
                       type: string
                     message:
-                      description: message is a human-readable description of the
-                        issue.
+                      description: message is a human-readable description.
                       type: string
                   type: object
                 description: nodesWithIssues contains the status of each node with

@@ -18,8 +18,8 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 	// Group=security.rancher.io, Version=v1alpha1
 	case v1alpha1.SchemeGroupVersion.WithKind("AcknowledgedViolationRecord"):
 		return &apiv1alpha1.AcknowledgedViolationRecordApplyConfiguration{}
-	case v1alpha1.SchemeGroupVersion.WithKind("NodeIssue"):
-		return &apiv1alpha1.NodeIssueApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("PolicyStatus"):
+		return &apiv1alpha1.PolicyStatusApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("ViolationRecord"):
 		return &apiv1alpha1.ViolationRecordApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("WorkloadPolicy"):

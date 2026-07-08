@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -10,22 +9,12 @@ import (
 	"github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/grpcexporter"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/types/loglevel"
-	pb "github.com/rancher-sandbox/runtime-enforcer/proto/agent/v1"
 
 	otellog "go.opentelemetry.io/otel/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
-
-type nodeInfo struct {
-	issue    v1alpha1.NodeIssue
-	policies map[string]*pb.PolicyStatus
-}
-
-// nodesInfoMap maps node names to their info.
-// Structure: NodeName -> Info.
-type nodesInfoMap map[string]nodeInfo
 
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
 // +kubebuilder:rbac:groups=security.rancher.io,resources=workloadpolicies,verbs=get;list;watch;create;update;patch;delete
@@ -104,60 +93,23 @@ func (r *WorkloadPolicyStatusSync) sync(
 	if err != nil {
 		return err
 	}
-	nodesInfo := make(nodesInfoMap, len(clients))
-
-	for nodeName, client := range clients {
-		if client == nil {
-			r.logger.Info("cannot get a agent client for the node", "node", nodeName)
-			nodesInfo[nodeName] = nodeInfo{
-				policies: nil,
-				issue: v1alpha1.NodeIssue{
-					Code:    v1alpha1.NodeIssuePodNotReady,
-					Message: "No agent client available",
-				},
-			}
-			continue
-		}
-
-		// by default success state
-		nodeIssue := v1alpha1.NodeIssue{
-			Code:    v1alpha1.NodeIssueNone,
-			Message: "",
-		}
-		var policies map[string]*pb.PolicyStatus
-		policies, err = client.ListPoliciesStatus(ctx)
-		if err != nil {
-			// in case of error we close the connection and we will open a new one at the next sync
-			r.agentClientPool.MarkStaleAgentClient(nodeName)
-			r.logger.Error(err, "failed to get policies status", "node", nodeName)
-			nodeIssue = v1alpha1.NodeIssue{
-				Code:    v1alpha1.NodeIssueMissingPolicy,
-				Message: fmt.Sprintf("cannot list node policies: %v", err),
-			}
-		} else if len(policies) == 0 {
-			// if there are no policies for this pod we have an error because in previous steps
-			// we checked that we have policies deployed in the cluster.
-			r.logger.Error(errors.New("empty policy list"), "No policies found", "node", nodeName)
-			nodeIssue = v1alpha1.NodeIssue{
-				Code:    v1alpha1.NodeIssueMissingPolicy,
-				Message: "empty policy list",
-			}
-		}
-		nodesInfo[nodeName] = nodeInfo{
-			policies: policies,
-			issue:    nodeIssue,
-		}
-	}
 
 	violationsByPolicy := r.getViolationsByPolicy(ctx, clients)
+	nodeStatusByPolicy := r.getNodeStatusByPolicy(ctx, clients, wpList.Items)
 
 	// Now we iterate over all WSPs and update their status based on the collected policies status from the agents
 	for _, wp := range wpList.Items {
-		if err = r.processWorkloadPolicy(ctx, &wp, nodesInfo, violationsByPolicy[wp.NamespacedName()]); err != nil {
+		policyName := wp.NamespacedName()
+		if err = r.processWorkloadPolicy(
+			ctx,
+			&wp,
+			nodeStatusByPolicy[policyName],
+			violationsByPolicy[policyName],
+		); err != nil {
 			r.logger.Error(
 				err,
 				"failed to process workload policy",
-				"policy", wp.NamespacedName(),
+				"policy", policyName,
 			)
 		}
 	}
