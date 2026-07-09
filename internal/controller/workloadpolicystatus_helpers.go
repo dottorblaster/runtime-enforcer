@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -24,6 +23,21 @@ func (r *WorkloadPolicyStatusSync) processPolicyStatus(
 	nodes []v1alpha1.PolicyNodeStatus,
 	scrapedViolations []v1alpha1.ViolationRecord,
 ) error {
+	if err := wp.Status.ProcessPolicyNodeStatus(nodes); err != nil {
+		return fmt.Errorf(
+			"failed to compute node status for policy %s: %w",
+			wp.NamespacedName(),
+			err,
+		)
+	}
+
+	// Merge scraped violations into the status.
+	// we will clear/acknowledge violations after the merge so that the status
+	// is coherent across syncs.
+	wp.Status.MergeScrapedViolations(scrapedViolations)
+
+	wp.ClearAllowed()
+
 	// This has to be called before considering new scraped violations, so we won't acknowledge future violations.
 	err := r.processAcknowledgement(ctx, wp.Annotations, &wp.Status)
 	if err != nil {
@@ -34,29 +48,8 @@ func (r *WorkloadPolicyStatusSync) processPolicyStatus(
 		)
 	}
 
-	if err = wp.Status.ProcessPolicyNodeStatus(nodes); err != nil {
-		return fmt.Errorf(
-			"failed to compute node status for policy %s: %w",
-			wp.NamespacedName(),
-			err,
-		)
-	}
-	wp.Status.ObservedGeneration = wp.Generation
-
-	existingViolations := wp.ClearAllowed()
-
-	// Dedupe scraped violations against the existing list, allocate ids for
-	// new records (workload name/kind are already populated by the agent),
-	// and refresh the timestamp/node on matched records. The returned int64
-	// is the updated ViolationCount, which doubles as the id allocator (the
-	// most recently allocated id is always equal to ViolationCount).
-	wp.Status.Violations, wp.Status.ViolationCount = resolveScrapedViolations(
-		existingViolations,
-		scrapedViolations,
-		wp.Status.ViolationCount,
-	)
-
 	wp.Status.ActiveViolationCount = len(wp.Status.Violations)
+	wp.Status.ObservedGeneration = wp.Generation
 
 	return nil
 }
@@ -156,66 +149,6 @@ func (r *WorkloadPolicyStatusSync) processWorkloadPolicy(
 		return err
 	}
 	return nil
-}
-
-// violationRecordKey is the in-memory dedup key used to recognize the same
-// logical violation across scrapes. The policy is fixed per reconcile, so
-// the remaining fields are what makes a record unique. This is the same key
-// the agent's in-memory buffer naturally keys on (policy, pod, container,
-// executable, action); the node is intentionally excluded so a violation
-// re-observed on a different node is still the same record.
-type violationRecordKey struct {
-	podName        string
-	containerName  string
-	executablePath string
-	action         string
-}
-
-func violationRecordKeyOf(r v1alpha1.ViolationRecord) violationRecordKey {
-	return violationRecordKey{
-		podName:        r.PodName,
-		containerName:  r.ContainerName,
-		executablePath: r.ExecutablePath,
-		action:         r.Action,
-	}
-}
-
-// resolveScrapedViolations merges scraped records into existing, deduping by
-// key, allocating monotonically increasing ids, and sorting by timestamp.
-func resolveScrapedViolations(
-	existing []v1alpha1.ViolationRecord,
-	scraped []v1alpha1.ViolationRecord,
-	nextViolationID int64,
-) ([]v1alpha1.ViolationRecord, int64) {
-	indexByKey := make(map[violationRecordKey]int, len(existing))
-	for i, r := range existing {
-		indexByKey[violationRecordKeyOf(r)] = i
-	}
-
-	for _, s := range scraped {
-		key := violationRecordKeyOf(s)
-		if idx, ok := indexByKey[key]; ok {
-			// Same logical record.
-			existing[idx].Timestamp = s.Timestamp
-		} else {
-			// Brand-new record.
-			s.ID = nextViolationID
-			existing = append(existing, s)
-			indexByKey[key] = len(existing) - 1
-		}
-		nextViolationID++
-	}
-
-	slices.SortStableFunc(existing, func(a, b v1alpha1.ViolationRecord) int {
-		return b.Timestamp.Time.Compare(a.Timestamp.Time)
-	})
-
-	// Trim tail (oldest entries) to keep the most recent MaxViolationRecords.
-	if len(existing) > v1alpha1.MaxViolationRecords {
-		existing = existing[:v1alpha1.MaxViolationRecords]
-	}
-
-	return existing, nextViolationID
 }
 
 func storeStatusForEachPolicy(

@@ -56,9 +56,56 @@ type AcknowledgedViolationRecord struct {
 	AcknowledgedAt metav1.Time `json:"acknowledgedAt,omitempty"`
 }
 
-func (wp *WorkloadPolicy) ClearAllowed() []ViolationRecord {
-	return slices.DeleteFunc(wp.Status.Violations, func(v ViolationRecord) bool {
+// violationRecordKey is the in-memory dedup key used to recognize the same
+// logical violation across scrapes.
+type violationRecordKey struct {
+	podName        string
+	containerName  string
+	executablePath string
+	action         string
+}
+
+func violationRecordKeyOf(r ViolationRecord) violationRecordKey {
+	return violationRecordKey{
+		podName:        r.PodName,
+		containerName:  r.ContainerName,
+		executablePath: r.ExecutablePath,
+		action:         r.Action,
+	}
+}
+
+func (wp *WorkloadPolicy) ClearAllowed() {
+	wp.Status.Violations = slices.DeleteFunc(wp.Status.Violations, func(v ViolationRecord) bool {
 		rules := wp.Spec.RulesByContainer[v.ContainerName]
 		return rules != nil && slices.Contains(rules.Executables.Allowed, v.ExecutablePath)
 	})
+}
+
+// MergeScrapedViolations dedupes scraped violations against the existing list, allocate ids for
+// new records and refresh the timestamp/node on matched records.
+func (s *WorkloadPolicyStatus) MergeScrapedViolations(scraped []ViolationRecord) {
+	indexByKey := make(map[violationRecordKey]int, len(s.Violations))
+	for i, r := range s.Violations {
+		indexByKey[violationRecordKeyOf(r)] = i
+	}
+
+	for _, v := range scraped {
+		key := violationRecordKeyOf(v)
+		if idx, ok := indexByKey[key]; ok {
+			s.Violations[idx].Timestamp = v.Timestamp
+		} else {
+			v.ID = s.ViolationCount
+			s.Violations = append(s.Violations, v)
+			indexByKey[key] = len(s.Violations) - 1
+		}
+		s.ViolationCount++
+	}
+
+	slices.SortStableFunc(s.Violations, func(a, b ViolationRecord) int {
+		return b.Timestamp.Time.Compare(a.Timestamp.Time)
+	})
+
+	if len(s.Violations) > MaxViolationRecords {
+		s.Violations = s.Violations[:MaxViolationRecords]
+	}
 }
