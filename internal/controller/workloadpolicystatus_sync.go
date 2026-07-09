@@ -94,8 +94,12 @@ func (r *WorkloadPolicyStatusSync) sync(
 		return err
 	}
 
-	violationsByPolicy := r.getViolationsByPolicy(ctx, clients)
 	nodeStatusByPolicy := r.getNodeStatusByPolicy(ctx, clients, wpList.Items)
+
+	if clients, err = r.agentClientPool.UpdatePool(ctx, r.Client); err != nil {
+		return err
+	}
+	violationsByPolicy := r.getViolationsByPolicy(ctx, clients)
 
 	// Now we iterate over all WSPs and update their status based on the collected policies status from the agents
 	for _, wp := range wpList.Items {
