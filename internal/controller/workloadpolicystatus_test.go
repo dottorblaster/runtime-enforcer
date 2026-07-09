@@ -66,174 +66,10 @@ func (c *testAgentClient) Close() error {
 	return nil
 }
 
-func makeRecord(i int) v1alpha1.ViolationRecord {
-	return v1alpha1.ViolationRecord{
-		Timestamp:      metav1.NewTime(time.Date(2026, 1, 1, 0, 0, i, 0, time.UTC)),
-		PodName:        fmt.Sprintf("pod-%d", i),
-		ContainerName:  "c",
-		ExecutablePath: "/usr/bin/test",
-		NodeName:       "node-1",
-		Action:         "monitor",
-	}
-}
-
 // withID returns a copy of r with the given id.
 func withID(r v1alpha1.ViolationRecord, id int64) v1alpha1.ViolationRecord {
 	r.ID = id
 	return r
-}
-
-func TestProcessAcknowledgement(t *testing.T) {
-	const prefix = v1alpha1.ViolationAcknowledgePrefix
-	ctx := context.Background()
-
-	tests := []struct {
-		name                       string
-		annotations                map[string]string
-		violations                 []v1alpha1.ViolationRecord
-		acknowledgedViolations     []v1alpha1.AcknowledgedViolationRecord
-		wantViolations             []v1alpha1.ViolationRecord
-		wantAcknowledgedViolations []v1alpha1.AcknowledgedViolationRecord
-		wantAnnotations            map[string]string
-	}{
-		{
-			name:                       "no annotations leaves status unchanged",
-			annotations:                map[string]string{},
-			violations:                 []v1alpha1.ViolationRecord{withID(makeRecord(1), 1)},
-			wantViolations:             []v1alpha1.ViolationRecord{withID(makeRecord(1), 1)},
-			wantAcknowledgedViolations: nil,
-			wantAnnotations:            map[string]string{},
-		},
-		{
-			name:           "single annotation matches violation",
-			annotations:    map[string]string{prefix + "1": "looks intentional"},
-			violations:     []v1alpha1.ViolationRecord{withID(makeRecord(1), 1)},
-			wantViolations: []v1alpha1.ViolationRecord{},
-			wantAcknowledgedViolations: []v1alpha1.AcknowledgedViolationRecord{
-				{Violation: withID(makeRecord(1), 1), Reason: "looks intentional"},
-			},
-			wantAnnotations: map[string]string{},
-		},
-		{
-			name: "multiple annotations match multiple violations",
-			annotations: map[string]string{
-				prefix + "1": "reason one",
-				prefix + "2": "reason two",
-			},
-			violations: []v1alpha1.ViolationRecord{
-				withID(makeRecord(1), 1),
-				withID(makeRecord(2), 2),
-			},
-			wantViolations: []v1alpha1.ViolationRecord{},
-			wantAcknowledgedViolations: []v1alpha1.AcknowledgedViolationRecord{
-				{Violation: withID(makeRecord(1), 1), Reason: "reason one"},
-				{Violation: withID(makeRecord(2), 2), Reason: "reason two"},
-			},
-			wantAnnotations: map[string]string{},
-		},
-		{
-			name: "partial match leaves unacknowledged violation in place",
-			annotations: map[string]string{
-				prefix + "1":  "acknowledged",
-				prefix + "99": "no match",
-			},
-			violations: []v1alpha1.ViolationRecord{
-				withID(makeRecord(1), 1),
-				withID(makeRecord(2), 2),
-			},
-			wantViolations: []v1alpha1.ViolationRecord{withID(makeRecord(2), 2)},
-			wantAcknowledgedViolations: []v1alpha1.AcknowledgedViolationRecord{
-				{Violation: withID(makeRecord(1), 1), Reason: "acknowledged"},
-			},
-			wantAnnotations: map[string]string{},
-		},
-		{
-			name:                       "no matching violation for annotation: key deleted, violation kept",
-			annotations:                map[string]string{prefix + "999": "unmatched"},
-			violations:                 []v1alpha1.ViolationRecord{withID(makeRecord(1), 1)},
-			wantViolations:             []v1alpha1.ViolationRecord{withID(makeRecord(1), 1)},
-			wantAcknowledgedViolations: nil,
-			wantAnnotations:            map[string]string{},
-		},
-		{
-			name:                       "malformed id: annotation key deleted but violation unchanged",
-			annotations:                map[string]string{prefix + "not-a-number": "reason"},
-			violations:                 []v1alpha1.ViolationRecord{withID(makeRecord(1), 1)},
-			wantViolations:             []v1alpha1.ViolationRecord{withID(makeRecord(1), 1)},
-			wantAcknowledgedViolations: nil,
-			wantAnnotations:            map[string]string{},
-		},
-		{
-			name:                       "unrelated annotation is preserved",
-			annotations:                map[string]string{"unrelated.io/key": "value"},
-			violations:                 []v1alpha1.ViolationRecord{withID(makeRecord(1), 1)},
-			wantViolations:             []v1alpha1.ViolationRecord{withID(makeRecord(1), 1)},
-			wantAcknowledgedViolations: nil,
-			wantAnnotations:            map[string]string{"unrelated.io/key": "value"},
-		},
-		{
-			name:        "trims acknowledged violations to MaxViolationRecords",
-			annotations: map[string]string{prefix + "1": "new ack"},
-			violations:  []v1alpha1.ViolationRecord{withID(makeRecord(1), 1)},
-			acknowledgedViolations: func() []v1alpha1.AcknowledgedViolationRecord {
-				result := make([]v1alpha1.AcknowledgedViolationRecord, v1alpha1.MaxViolationRecords)
-				for i := range result {
-					result[i] = v1alpha1.AcknowledgedViolationRecord{
-						Violation: withID(makeRecord(i+10), int64(i+10)),
-						Reason:    "pre-existing",
-					}
-				}
-				return result
-			}(),
-			wantViolations: []v1alpha1.ViolationRecord{},
-			// After appending the new ack (total=101), the oldest entry (index 0, ID=10) is
-			// dropped; remaining pre-existing entries (IDs 11..109) are followed by the new ack.
-			wantAcknowledgedViolations: func() []v1alpha1.AcknowledgedViolationRecord {
-				result := make([]v1alpha1.AcknowledgedViolationRecord, v1alpha1.MaxViolationRecords)
-				for i := range v1alpha1.MaxViolationRecords - 1 {
-					result[i] = v1alpha1.AcknowledgedViolationRecord{
-						Violation: withID(makeRecord(i+11), int64(i+11)),
-						Reason:    "pre-existing",
-					}
-				}
-				result[v1alpha1.MaxViolationRecords-1] = v1alpha1.AcknowledgedViolationRecord{
-					Violation: withID(makeRecord(1), 1),
-					Reason:    "new ack",
-				}
-				return result
-			}(),
-			wantAnnotations: map[string]string{},
-		},
-		{
-			name:                       "empty violations with annotation: acknowledged list stays empty",
-			annotations:                map[string]string{prefix + "42": "reason"},
-			violations:                 nil,
-			wantViolations:             []v1alpha1.ViolationRecord{},
-			wantAcknowledgedViolations: nil,
-			wantAnnotations:            map[string]string{},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			r := createTestWPStatusSync(t)
-			status := v1alpha1.WorkloadPolicyStatus{
-				Violations:             tt.violations,
-				AcknowledgedViolations: tt.acknowledgedViolations,
-			}
-
-			err := r.processAcknowledgement(ctx, tt.annotations, &status)
-
-			require.NoError(t, err)
-			// Zero AcknowledgedAt before comparing since it is set to time.Now() inside.
-			for i := range status.AcknowledgedViolations {
-				status.AcknowledgedViolations[i].AcknowledgedAt = metav1.Time{}
-			}
-			require.Equal(t, tt.wantViolations, status.Violations)
-			require.Equal(t, tt.wantAcknowledgedViolations, status.AcknowledgedViolations)
-			require.Equal(t, tt.wantAnnotations, tt.annotations)
-		})
-	}
 }
 
 func TestGetViolationsByPolicy(t *testing.T) {
@@ -372,7 +208,7 @@ func TestBuildPolicyStatusClearanceFreesCapForNewViolations(t *testing.T) {
 
 	r := createTestWPStatusSync(t)
 
-	err := r.processPolicyStatus(t.Context(), wp, nil, []v1alpha1.ViolationRecord{newViolation})
+	_, err := r.processPolicyStatus(wp, nil, []v1alpha1.ViolationRecord{newViolation}, metav1.NewTime(time.Now()))
 	status := wp.Status
 	require.NoError(t, err)
 	require.Len(t, status.Violations, v1alpha1.MaxViolationRecords,

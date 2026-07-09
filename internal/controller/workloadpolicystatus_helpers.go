@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
@@ -18,13 +16,13 @@ import (
 )
 
 func (r *WorkloadPolicyStatusSync) processPolicyStatus(
-	ctx context.Context,
 	wp *v1alpha1.WorkloadPolicy,
 	nodes []v1alpha1.PolicyNodeStatus,
 	scrapedViolations []v1alpha1.ViolationRecord,
-) error {
+	now metav1.Time,
+) ([]v1alpha1.AcknowledgedViolationRecord, error) {
 	if err := wp.Status.ProcessPolicyNodeStatus(nodes); err != nil {
-		return fmt.Errorf(
+		return nil, fmt.Errorf(
 			"failed to compute node status for policy %s: %w",
 			wp.NamespacedName(),
 			err,
@@ -38,78 +36,11 @@ func (r *WorkloadPolicyStatusSync) processPolicyStatus(
 
 	wp.ClearAllowed()
 
-	// This has to be called before considering new scraped violations, so we won't acknowledge future violations.
-	err := r.processAcknowledgement(ctx, wp.Annotations, &wp.Status)
-	if err != nil {
-		return fmt.Errorf(
-			"failed to process acknowledgement for policy %s: %w",
-			wp.NamespacedName(),
-			err,
-		)
-	}
+	acknowledged := wp.AcknowledgeViolationsFromAnnotations(now)
 
 	wp.Status.ActiveViolationCount = len(wp.Status.Violations)
 	wp.Status.ObservedGeneration = wp.Generation
-
-	return nil
-}
-
-// processAcknowledgement handles the acknowledge annotations, remove the annotations in place, and return the updated status.
-//
-//nolint:unparam // keep returning error for code consistency
-func (r *WorkloadPolicyStatusSync) processAcknowledgement(
-	ctx context.Context,
-	annotations map[string]string,
-	status *v1alpha1.WorkloadPolicyStatus,
-) error {
-	acknowledges := make(map[int64]string, len(annotations))
-
-	// Find all valid annotations.
-	for k, v := range annotations {
-		if idStr, found := strings.CutPrefix(k, v1alpha1.ViolationAcknowledgePrefix); found {
-			delete(annotations, k)
-			id, err := strconv.ParseInt(idStr, 10, 64)
-			if err != nil {
-				r.logger.Error(err, "failed to convert acknowledge id",
-					"annotation", k,
-				)
-				continue
-			}
-			acknowledges[id] = v
-		}
-	}
-
-	// Filter status.Violations
-	violationResult := make([]v1alpha1.ViolationRecord, 0, len(status.Violations))
-	for _, violation := range status.Violations {
-		if reason, found := acknowledges[violation.ID]; found {
-			status.AcknowledgedViolations = append(
-				status.AcknowledgedViolations,
-				v1alpha1.AcknowledgedViolationRecord{
-					Violation:      violation,
-					Reason:         reason,
-					AcknowledgedAt: metav1.NewTime(time.Now()),
-				},
-			)
-			delete(acknowledges, violation.ID)
-			r.emitAcknowledgedViolationOtelLog(ctx, violation, reason)
-		} else {
-			violationResult = append(violationResult, violation)
-		}
-	}
-	status.Violations = violationResult
-
-	if len(acknowledges) > 0 {
-		r.logger.Info("no matching violations for ID in acknowledgements",
-			"acknowledges", acknowledges,
-		)
-	}
-
-	// Trim front (oldest entries) to keep the most recent MaxViolationRecords.
-	if len(status.AcknowledgedViolations) > v1alpha1.MaxViolationRecords {
-		status.AcknowledgedViolations = status.AcknowledgedViolations[len(status.AcknowledgedViolations)-v1alpha1.MaxViolationRecords:]
-	}
-	return nil
+	return acknowledged, nil
 }
 
 // processWorkloadPolicy updates the wp.status and wp.annotation in order to acknowledge a violation.
@@ -123,9 +54,13 @@ func (r *WorkloadPolicyStatusSync) processWorkloadPolicy(
 	patchBase := client.MergeFrom(wp.DeepCopy())
 	newPolicy := wp.DeepCopy()
 
-	err := r.processPolicyStatus(ctx, newPolicy, nodes, scrapedViolations)
+	acknowledged, err := r.processPolicyStatus(newPolicy, nodes, scrapedViolations, metav1.NewTime(time.Now()))
 	if err != nil {
 		return err
+	}
+
+	for _, ack := range acknowledged {
+		r.emitAcknowledgedViolationOtelLog(ctx, ack.Violation, ack.Reason)
 	}
 
 	r.logger.V(loglevel.VerbosityDebug).Info("updating",
