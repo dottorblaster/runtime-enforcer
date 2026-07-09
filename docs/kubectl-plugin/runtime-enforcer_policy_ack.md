@@ -1,11 +1,17 @@
-## runtime-enforcer policy
+## runtime-enforcer policy ack
 
-Manage WorkloadPolicy
+Acknowledge a WorkloadPolicy violation
+
+```
+runtime-enforcer policy ack POLICY_NAME <violation-id> [--reason <reason>] [flags]
+```
 
 ### Options
 
 ```
-  -h, --help   help for policy
+      --dry-run         Show what would happen without making any changes
+  -h, --help            help for ack
+      --reason string   Reason for acknowledging the violation. If omitted, you will be prompted
 ```
 
 ### Options inherited from parent commands
@@ -34,11 +40,5 @@ Manage WorkloadPolicy
 
 ### SEE ALSO
 
-* [runtime-enforcer](runtime-enforcer.md)	 - 
-* [runtime-enforcer policy ack](runtime-enforcer_policy_ack.md)	 - Acknowledge a WorkloadPolicy violation
-* [runtime-enforcer policy allow](runtime-enforcer_policy_allow.md)	 - allow executables for a WorkloadPolicy container
-* [runtime-enforcer policy deny](runtime-enforcer_policy_deny.md)	 - deny executables for a WorkloadPolicy container
-* [runtime-enforcer policy monitor](runtime-enforcer_policy_monitor.md)	 - Set WorkloadPolicy mode to monitor
-* [runtime-enforcer policy protect](runtime-enforcer_policy_protect.md)	 - Set WorkloadPolicy mode to protect
-* [runtime-enforcer policy show](runtime-enforcer_policy_show.md)	 - Show WorkloadPolicy information
+* [runtime-enforcer policy](runtime-enforcer_policy.md)	 - Manage WorkloadPolicy
 

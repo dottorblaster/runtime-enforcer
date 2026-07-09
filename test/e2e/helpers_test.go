@@ -154,7 +154,6 @@ func waitForWorkloadPolicyStatusToBeUpdated(
 // Opensuse deployment helpers
 ////////////////////
 
-//nolint:unparam // we want to keep the flexibility to support different policy name.
 func withPolicy(policyName string) decoder.DecodeOption {
 	return decoder.MutateOption(func(obj k8s.Object) error {
 		deployment := obj.(*appsv1.Deployment)
