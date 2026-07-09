@@ -77,13 +77,17 @@ func (s *WorkloadPolicyStatus) addNodeIssue(nodeName string, status PolicyStatus
 	}
 }
 
-func (s *WorkloadPolicyStatus) ProcessPolicyNodeStatus(nodes []PolicyNodeStatus) error {
+func (s *WorkloadPolicyStatus) resetPolicyNodeStatus(totalNodes int) {
 	s.NodesWithIssues = nil
 	s.NodesTransitioning = nil
-	s.TotalNodes = len(nodes)
+	s.TotalNodes = totalNodes
 	s.SuccessfulNodes = 0
 	s.FailedNodes = 0
 	s.TransitioningNodes = 0
+}
+
+func (s *WorkloadPolicyStatus) ProcessPolicyNodeStatus(nodes []PolicyNodeStatus) error {
+	s.resetPolicyNodeStatus(len(nodes))
 
 	for _, status := range nodes {
 		switch status.Code {
