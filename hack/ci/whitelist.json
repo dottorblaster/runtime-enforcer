@@ -10,6 +10,11 @@
     "component": "controller"
   },
   {
+    "level": "ERROR",
+    "msg": "failed to scrape violations",
+    "component": "controller"
+  },
+  {
     "level": "WARN",
     "msg": "error during NRI plugin execution, retrying...",
     "component": "nri-handler"

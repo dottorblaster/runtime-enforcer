@@ -11,8 +11,13 @@ func (in AcknowledgedViolationRecord) OpenAPIModelName() string {
 }
 
 // OpenAPIModelName returns the OpenAPI model name for this type.
-func (in NodeIssue) OpenAPIModelName() string {
-	return "com.github.rancher-sandbox.runtime-enforcer.api.v1alpha1.NodeIssue"
+func (in PolicyNodeStatus) OpenAPIModelName() string {
+	return "com.github.rancher-sandbox.runtime-enforcer.api.v1alpha1.PolicyNodeStatus"
+}
+
+// OpenAPIModelName returns the OpenAPI model name for this type.
+func (in PolicyStatus) OpenAPIModelName() string {
+	return "com.github.rancher-sandbox.runtime-enforcer.api.v1alpha1.PolicyStatus"
 }
 
 // OpenAPIModelName returns the OpenAPI model name for this type.

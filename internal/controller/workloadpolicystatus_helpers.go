@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strconv"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
+	"github.com/rancher-sandbox/runtime-enforcer/internal/grpcexporter"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/types/loglevel"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/types/policymode"
 	pb "github.com/rancher-sandbox/runtime-enforcer/proto/agent/v1"
@@ -16,98 +18,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func convertToPolicyMode(mode string) pb.PolicyMode {
-	switch mode {
-	case policymode.ProtectString:
-		return pb.PolicyMode_POLICY_MODE_PROTECT
-	case policymode.MonitorString:
-		return pb.PolicyMode_POLICY_MODE_MONITOR
-	default:
-		panic(fmt.Sprintf("unhandled policy mode: %v", mode))
-	}
-}
-
-func processNodeStatus(
-	status *v1alpha1.WorkloadPolicyStatus,
-	nodesInfo nodesInfoMap,
-	expectedMode pb.PolicyMode,
-	wpNamespacedName string,
-) error {
-	// reset related fields
-	status.NodesWithIssues = nil
-	status.TotalNodes = len(nodesInfo)
-	status.SuccessfulNodes = 0
-	status.FailedNodes = 0
-	status.TransitioningNodes = 0
-	status.NodesTransitioning = nil
-
-	for nodeName, nodeInfo := range nodesInfo {
-		// If we previously detected that the policy is not deployed on this node, we can skip it.
-		if nodeInfo.issue.Code != v1alpha1.NodeIssueNone {
-			status.AddNodeIssue(nodeName, nodeInfo.issue)
-			continue
-		}
-
-		policies := nodeInfo.policies
-		if len(policies) == 0 {
-			// This should be impossible since we check policies != 0 in the sync method before calling this one.
-			return fmt.Errorf("no policies found for node '%s'", nodeName)
-		}
-
-		policyStatus, ok := policies[wpNamespacedName]
-		if !ok || policyStatus == nil {
-			status.AddNodeIssue(nodeName, v1alpha1.NodeIssue{
-				Code:    v1alpha1.NodeIssueMissingPolicy,
-				Message: "policy not present on the node",
-			})
-			continue
-		}
-
-		switch policyStatus.GetState() {
-		case pb.PolicyState_POLICY_STATE_READY:
-			if policyStatus.GetMode() == expectedMode {
-				status.SuccessfulNodes++
-				break
-			}
-			status.AddTransitioningNode(nodeName)
-		case pb.PolicyState_POLICY_STATE_ERROR:
-			msg := policyStatus.GetMessage()
-			if msg == "" {
-				msg = "policy is in error state"
-			}
-			status.AddNodeIssue(nodeName, v1alpha1.NodeIssue{
-				Code:    v1alpha1.NodeIssuePolicyFailed,
-				Message: msg,
-			})
-		case pb.PolicyState_POLICY_STATE_UNSPECIFIED:
-		default:
-			return fmt.Errorf("unknown policy state '%s' for node '%s'",
-				policyStatus.GetState().String(), nodeName)
-		}
-	}
-
-	if status.TotalNodes != status.FailedNodes+status.TransitioningNodes+status.SuccessfulNodes {
-		return fmt.Errorf("inconsistent node stats, total: %d != successful(%d)+transitioning(%d)+failed(%d)",
-			status.TotalNodes, status.SuccessfulNodes, status.TransitioningNodes, status.FailedNodes)
-	}
-
-	status.SortTransitioningNodes()
-
-	switch {
-	case status.SuccessfulNodes == status.TotalNodes:
-		status.Phase = v1alpha1.Ready
-	case status.FailedNodes > 0:
-		status.Phase = v1alpha1.Failed
-	case status.TransitioningNodes > 0:
-		status.Phase = v1alpha1.Transitioning
-	}
-	return nil
-}
-
 func (r *WorkloadPolicyStatusSync) processPolicyStatus(
 	ctx context.Context,
 	wp *v1alpha1.WorkloadPolicy,
-	nodesInfo nodesInfoMap,
+	nodes []v1alpha1.PolicyNodeStatus,
 	scrapedViolations []v1alpha1.ViolationRecord,
 ) error {
 	// This has to be called before considering new scraped violations, so we won't acknowledge future violations.
@@ -120,8 +34,7 @@ func (r *WorkloadPolicyStatusSync) processPolicyStatus(
 		)
 	}
 
-	err = processNodeStatus(&wp.Status, nodesInfo, convertToPolicyMode(wp.Spec.Mode), wp.NamespacedName())
-	if err != nil {
+	if err = wp.Status.ProcessPolicyNodeStatus(nodes); err != nil {
 		return fmt.Errorf(
 			"failed to compute node status for policy %s: %w",
 			wp.NamespacedName(),
@@ -211,13 +124,13 @@ func (r *WorkloadPolicyStatusSync) processAcknowledgement(
 func (r *WorkloadPolicyStatusSync) processWorkloadPolicy(
 	ctx context.Context,
 	wp *v1alpha1.WorkloadPolicy,
-	nodesInfo nodesInfoMap,
+	nodes []v1alpha1.PolicyNodeStatus,
 	scrapedViolations []v1alpha1.ViolationRecord,
 ) error {
 	patchBase := client.MergeFrom(wp.DeepCopy())
 	newPolicy := wp.DeepCopy()
 
-	err := r.processPolicyStatus(ctx, newPolicy, nodesInfo, scrapedViolations)
+	err := r.processPolicyStatus(ctx, newPolicy, nodes, scrapedViolations)
 	if err != nil {
 		return err
 	}
@@ -303,4 +216,136 @@ func resolveScrapedViolations(
 	}
 
 	return existing, nextViolationID
+}
+
+func storeStatusForEachPolicy(
+	nodeStatusByPolicy map[string][]v1alpha1.PolicyNodeStatus,
+	policies []v1alpha1.WorkloadPolicy,
+	nodeStatus v1alpha1.PolicyNodeStatus,
+) {
+	// Store the node status for the given policy
+	for _, policy := range policies {
+		policyNamespacedName := policy.NamespacedName()
+		nodeStatusByPolicy[policyNamespacedName] = append(
+			nodeStatusByPolicy[policyNamespacedName],
+			nodeStatus,
+		)
+	}
+}
+
+func (r *WorkloadPolicyStatusSync) getNodeStatusByPolicy(
+	ctx context.Context,
+	clients map[string]grpcexporter.AgentClientAPI,
+	policies []v1alpha1.WorkloadPolicy,
+) map[string][]v1alpha1.PolicyNodeStatus {
+	nodeStatusByPolicy := make(map[string][]v1alpha1.PolicyNodeStatus, len(policies))
+	for _, policy := range policies {
+		nodeStatusByPolicy[policy.NamespacedName()] = make([]v1alpha1.PolicyNodeStatus, 0, len(clients))
+	}
+
+	for nodeName, client := range clients {
+		if client == nil {
+			r.logger.Info("cannot get a agent client for the node", "node", nodeName)
+			storeStatusForEachPolicy(nodeStatusByPolicy, policies, v1alpha1.PolicyNodeStatus{
+				NodeName: nodeName,
+				PolicyStatus: v1alpha1.PolicyStatus{
+					Code:    v1alpha1.PolicyMissing,
+					Message: "No agent client available",
+				},
+			})
+			continue
+		}
+
+		nodePolicies, err := client.ListPoliciesStatus(ctx)
+		if err != nil {
+			r.agentClientPool.MarkStaleAgentClient(nodeName)
+			r.logger.Error(err, "failed to get policies status", "node", nodeName)
+			storeStatusForEachPolicy(nodeStatusByPolicy, policies, v1alpha1.PolicyNodeStatus{
+				NodeName: nodeName,
+				PolicyStatus: v1alpha1.PolicyStatus{
+					Code:    v1alpha1.PolicyMissing,
+					Message: "failed to get policies status",
+				},
+			})
+			continue
+		}
+
+		if len(nodePolicies) == 0 {
+			r.logger.Error(errors.New("empty policy list"), "No policies found", "node", nodeName)
+			storeStatusForEachPolicy(nodeStatusByPolicy, policies, v1alpha1.PolicyNodeStatus{
+				NodeName: nodeName,
+				PolicyStatus: v1alpha1.PolicyStatus{
+					Code:    v1alpha1.PolicyMissing,
+					Message: "no policies found on the node",
+				},
+			})
+			continue
+		}
+
+		for _, policy := range policies {
+			policyNamespacedName := policy.NamespacedName()
+			nodeStatus := v1alpha1.PolicyNodeStatus{NodeName: nodeName}
+
+			if nodeStatus.Code, nodeStatus.Message, err = policyNodeStatus(
+				policy.Spec.Mode,
+				nodePolicies[policyNamespacedName],
+			); err != nil {
+				r.logger.Error(
+					err,
+					"failed to get policy node status",
+					"node",
+					nodeName,
+					"policy",
+					policyNamespacedName,
+				)
+				continue
+			}
+
+			nodeStatusByPolicy[policyNamespacedName] = append(
+				nodeStatusByPolicy[policyNamespacedName],
+				nodeStatus,
+			)
+		}
+	}
+
+	return nodeStatusByPolicy
+}
+
+func policyNodeStatus(
+	expectedMode string,
+	policyStatus *pb.PolicyStatus,
+) (v1alpha1.PolicyCode, string, error) {
+	if policyStatus == nil {
+		return v1alpha1.PolicyUnknown, "", errors.New("policy status is nil")
+	}
+
+	policyModeMatchesExpected := func(mode pb.PolicyMode, expectedMode string) bool {
+		switch expectedMode {
+		case policymode.ProtectString:
+			return mode == pb.PolicyMode_POLICY_MODE_PROTECT
+		case policymode.MonitorString:
+			return mode == pb.PolicyMode_POLICY_MODE_MONITOR
+		default:
+			return false
+		}
+	}
+
+	switch policyStatus.GetState() {
+	case pb.PolicyState_POLICY_STATE_READY:
+		if policyModeMatchesExpected(policyStatus.GetMode(), expectedMode) {
+			return v1alpha1.PolicyReady, "", nil
+		}
+		return v1alpha1.PolicyTransitioning, "", nil
+	case pb.PolicyState_POLICY_STATE_ERROR:
+		msg := policyStatus.GetMessage()
+		if msg == "" {
+			msg = "policy is in error state"
+		}
+		return v1alpha1.PolicyFailed, msg, nil
+	case pb.PolicyState_POLICY_STATE_UNSPECIFIED:
+		fallthrough
+	default:
+		return v1alpha1.PolicyUnknown, "", fmt.Errorf("unknown policy state %q",
+			policyStatus.GetState().String())
+	}
 }

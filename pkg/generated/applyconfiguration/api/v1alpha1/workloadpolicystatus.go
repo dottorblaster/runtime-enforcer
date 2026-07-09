@@ -11,7 +11,7 @@ import (
 type WorkloadPolicyStatusApplyConfiguration struct {
 	ObservedGeneration *int64 `json:"observedGeneration,omitempty"`
 	// nodesWithIssues contains the status of each node with issues.
-	NodesWithIssues map[string]NodeIssueApplyConfiguration `json:"nodesWithIssues,omitempty"`
+	NodesWithIssues map[string]PolicyStatusApplyConfiguration `json:"nodesWithIssues,omitempty"`
 	// totalNodes is the total number of nodes the policy is applied to.
 	TotalNodes *int `json:"totalNodes,omitempty"`
 	// successfulNodes is the number of nodes where the policy is successfully enforced.
@@ -61,9 +61,9 @@ func (b *WorkloadPolicyStatusApplyConfiguration) WithObservedGeneration(value in
 // and returns the receiver, so that objects can be build by chaining "With" function invocations.
 // If called multiple times, the entries provided by each call will be put on the NodesWithIssues field,
 // overwriting an existing map entries in NodesWithIssues field with the same key.
-func (b *WorkloadPolicyStatusApplyConfiguration) WithNodesWithIssues(entries map[string]NodeIssueApplyConfiguration) *WorkloadPolicyStatusApplyConfiguration {
+func (b *WorkloadPolicyStatusApplyConfiguration) WithNodesWithIssues(entries map[string]PolicyStatusApplyConfiguration) *WorkloadPolicyStatusApplyConfiguration {
 	if b.NodesWithIssues == nil && len(entries) > 0 {
-		b.NodesWithIssues = make(map[string]NodeIssueApplyConfiguration, len(entries))
+		b.NodesWithIssues = make(map[string]PolicyStatusApplyConfiguration, len(entries))
 	}
 	for k, v := range entries {
 		b.NodesWithIssues[k] = v

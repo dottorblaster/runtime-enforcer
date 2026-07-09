@@ -6,27 +6,27 @@ import (
 	apiv1alpha1 "github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
 )
 
-// NodeIssueApplyConfiguration represents a declarative configuration of the NodeIssue type for use
+// PolicyStatusApplyConfiguration represents a declarative configuration of the PolicyStatus type for use
 // with apply.
 //
-// NodeIssue represents an issue with a node.
-type NodeIssueApplyConfiguration struct {
-	// code is the issue code.
-	Code *apiv1alpha1.NodeIssueCode `json:"code,omitempty"`
-	// message is a human-readable description of the issue.
+// PolicyStatus represents information about a policy status on a node.
+type PolicyStatusApplyConfiguration struct {
+	// code is the policy code.
+	Code *apiv1alpha1.PolicyCode `json:"code,omitempty"`
+	// message is a human-readable description.
 	Message *string `json:"message,omitempty"`
 }
 
-// NodeIssueApplyConfiguration constructs a declarative configuration of the NodeIssue type for use with
+// PolicyStatusApplyConfiguration constructs a declarative configuration of the PolicyStatus type for use with
 // apply.
-func NodeIssue() *NodeIssueApplyConfiguration {
-	return &NodeIssueApplyConfiguration{}
+func PolicyStatus() *PolicyStatusApplyConfiguration {
+	return &PolicyStatusApplyConfiguration{}
 }
 
 // WithCode sets the Code field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Code field is set to the value of the last call.
-func (b *NodeIssueApplyConfiguration) WithCode(value apiv1alpha1.NodeIssueCode) *NodeIssueApplyConfiguration {
+func (b *PolicyStatusApplyConfiguration) WithCode(value apiv1alpha1.PolicyCode) *PolicyStatusApplyConfiguration {
 	b.Code = &value
 	return b
 }
@@ -34,7 +34,7 @@ func (b *NodeIssueApplyConfiguration) WithCode(value apiv1alpha1.NodeIssueCode) 
 // WithMessage sets the Message field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Message field is set to the value of the last call.
-func (b *NodeIssueApplyConfiguration) WithMessage(value string) *NodeIssueApplyConfiguration {
+func (b *PolicyStatusApplyConfiguration) WithMessage(value string) *PolicyStatusApplyConfiguration {
 	b.Message = &value
 	return b
 }

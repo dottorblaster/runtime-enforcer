@@ -52,7 +52,7 @@ type WorkloadPolicySpec struct {
 type WorkloadPolicyStatus struct {
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 	// nodesWithIssues contains the status of each node with issues.
-	NodesWithIssues map[string]NodeIssue `json:"nodesWithIssues,omitempty"`
+	NodesWithIssues map[string]PolicyStatus `json:"nodesWithIssues,omitempty"`
 	// totalNodes is the total number of nodes the policy is applied to.
 	TotalNodes int `json:"totalNodes,omitempty"`
 	// successfulNodes is the number of nodes where the policy is successfully enforced.
