@@ -1,22 +1,21 @@
-package v1alpha1_test
+package v1alpha1
 
 import (
 	"strconv"
 	"testing"
 
-	"github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestWorkloadPolicyProposalNamespacedName(t *testing.T) {
 	t.Run("nil proposal returns empty string", func(t *testing.T) {
-		var p *v1alpha1.WorkloadPolicyProposal
+		var p *WorkloadPolicyProposal
 		require.Empty(t, p.NamespacedName())
 	})
 
 	t.Run("returns namespace/name", func(t *testing.T) {
-		p := &v1alpha1.WorkloadPolicyProposal{
+		p := &WorkloadPolicyProposal{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: "test-namespace",
 				Name:      "test-name",
@@ -39,19 +38,19 @@ func TestWorkloadPolicyProposalIsFull(t *testing.T) {
 		},
 		{
 			name:           "proposal below max is not full",
-			executables:    v1alpha1.PolicyProposalMaxExecutables - 1,
+			executables:    policyProposalMaxExecutables - 1,
 			expectedIsFull: false,
 		},
 		{
 			name:           "proposal at max is full",
-			executables:    v1alpha1.PolicyProposalMaxExecutables,
+			executables:    policyProposalMaxExecutables,
 			expectedIsFull: true,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			p := &v1alpha1.WorkloadPolicyProposal{}
+			p := &WorkloadPolicyProposal{}
 			for i := range tc.executables {
 				p.AddProcess("container", "/bin/exe"+strconv.Itoa(i))
 			}
@@ -118,7 +117,7 @@ func TestWorkloadPolicyProposalAddProcess(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			p := &v1alpha1.WorkloadPolicyProposal{}
+			p := &WorkloadPolicyProposal{}
 			for _, call := range tc.calls {
 				p.AddProcess(call.containerName, call.executable)
 			}
