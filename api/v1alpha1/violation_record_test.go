@@ -251,7 +251,7 @@ func TestClearAllowedViolations(t *testing.T) {
 				Spec:   WorkloadPolicySpec{RulesByContainer: tt.rules},
 				Status: WorkloadPolicyStatus{Violations: tt.violations},
 			}
-			wp.ClearAllowed()
+			wp.clearAllowedViolations()
 			require.Equal(t, tt.expected, wp.Status.Violations)
 		})
 	}

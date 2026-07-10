@@ -76,7 +76,7 @@ func (r ViolationRecord) key() violationRecordKey {
 	}
 }
 
-func (wp *WorkloadPolicy) ClearAllowed() {
+func (wp *WorkloadPolicy) clearAllowedViolations() {
 	wp.Status.Violations = slices.DeleteFunc(wp.Status.Violations, func(v ViolationRecord) bool {
 		rules := wp.Spec.RulesByContainer[v.ContainerName]
 		return rules != nil && slices.Contains(rules.Executables.Allowed, v.ExecutablePath)

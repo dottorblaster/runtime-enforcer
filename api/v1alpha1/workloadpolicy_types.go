@@ -170,7 +170,7 @@ func (wp *WorkloadPolicy) RecomputeStatus(
 
 	// Stale violations are violations for binaries that
 	// are now in the spec.
-	wp.ClearAllowed()
+	wp.clearAllowedViolations()
 
 	// Acknowledge any violations that have been acknowledged
 	acknowledged := wp.AcknowledgeViolationsFromAnnotations(metav1.Time{Time: now})
