@@ -59,10 +59,6 @@ func (r *WorkloadPolicyStatusSync) processWorkloadPolicy(
 		return err
 	}
 
-	for _, ack := range acknowledged {
-		r.emitAcknowledgedViolationOtelLog(ctx, ack.Violation, ack.Reason)
-	}
-
 	r.logger.V(loglevel.VerbosityDebug).Info("updating",
 		"policy", newPolicy.NamespacedName(),
 		"annotations", newPolicy.Annotations,
@@ -77,6 +73,12 @@ func (r *WorkloadPolicyStatusSync) processWorkloadPolicy(
 	err = r.Status().Patch(ctx, newPolicy.DeepCopy(), patchBase)
 	if err != nil {
 		return err
+	}
+
+	// Only if the status update was successful we emit the logs.
+	// In this way we won't send duplicate logs in case of retries
+	for _, ack := range acknowledged {
+		r.emitAcknowledgedViolationOtelLog(ctx, ack.Violation, ack.Reason)
 	}
 
 	err = r.Patch(ctx, newPolicy.DeepCopy(), patchBase)
