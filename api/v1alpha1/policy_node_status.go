@@ -86,7 +86,7 @@ func (s *WorkloadPolicyStatus) resetPolicyNodeStatus(totalNodes int) {
 	s.TransitioningNodes = 0
 }
 
-func (s *WorkloadPolicyStatus) ProcessPolicyNodeStatus(nodes []PolicyNodeStatus) error {
+func (s *WorkloadPolicyStatus) processPolicyNodeStatus(nodes []PolicyNodeStatus) error {
 	s.resetPolicyNodeStatus(len(nodes))
 
 	for _, status := range nodes {

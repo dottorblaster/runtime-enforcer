@@ -155,7 +155,7 @@ func (wp *WorkloadPolicy) RecomputeStatus(
 		return nil, errors.New("WorkloadPolicy is nil")
 	}
 
-	if err := wp.Status.ProcessPolicyNodeStatus(nodes); err != nil {
+	if err := wp.Status.processPolicyNodeStatus(nodes); err != nil {
 		return nil, fmt.Errorf(
 			"failed to compute node status for policy %s: %w",
 			wp.NamespacedName(),
