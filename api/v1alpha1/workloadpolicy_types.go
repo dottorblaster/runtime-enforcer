@@ -78,13 +78,13 @@ type WorkloadPolicyStatus struct {
 	// updated in the same status write.
 	// +optional
 	ActiveViolationCount int `json:"activeViolationCount,omitempty"`
-	// violations is the list of the most recent violation records (max MaxViolationRecords).
+	// violations is the list of the most recent violation records (max maxViolationRecords).
 	// Oldest entries are dropped when the limit is reached.
 	// +optional
 	Violations []ViolationRecord `json:"violations,omitempty"`
 
 	// acknowledgedViolations is the list of the most recent violation records that are acknowledged
-	// by users (max MaxViolationRecords).
+	// by users (max maxViolationRecords).
 	// Oldest entries are dropped when the limit is reached.
 	// +optional
 	AcknowledgedViolations []AcknowledgedViolationRecord `json:"acknowledgedViolations,omitempty"`

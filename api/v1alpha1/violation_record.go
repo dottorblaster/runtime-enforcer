@@ -8,7 +8,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const MaxViolationRecords = 100
+const maxViolationRecords = 100
 
 // ViolationRecord holds the details of a single policy violation.
 type ViolationRecord struct {
@@ -112,8 +112,8 @@ func (s *WorkloadPolicyStatus) MergeScrapedViolations(scraped []ViolationRecord)
 		return b.Timestamp.Time.Compare(a.Timestamp.Time)
 	})
 
-	if len(s.Violations) > MaxViolationRecords {
-		s.Violations = s.Violations[:MaxViolationRecords]
+	if len(s.Violations) > maxViolationRecords {
+		s.Violations = s.Violations[:maxViolationRecords]
 	}
 }
 
@@ -185,8 +185,8 @@ func (wp *WorkloadPolicy) AcknowledgeViolationsFromAnnotations(now metav1.Time) 
 		return b.AcknowledgedAt.Time.Compare(a.AcknowledgedAt.Time)
 	})
 
-	if len(wp.Status.AcknowledgedViolations) > MaxViolationRecords {
-		wp.Status.AcknowledgedViolations = wp.Status.AcknowledgedViolations[:MaxViolationRecords]
+	if len(wp.Status.AcknowledgedViolations) > maxViolationRecords {
+		wp.Status.AcknowledgedViolations = wp.Status.AcknowledgedViolations[:maxViolationRecords]
 	}
 	return ackToReturn
 }
