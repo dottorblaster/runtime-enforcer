@@ -94,7 +94,12 @@ func (s *WorkloadPolicyStatus) MergeScrapedViolations(scraped []ViolationRecord)
 	for _, v := range scraped {
 		key := v.key()
 		if idx, ok := indexByKey[key]; ok {
-			s.Violations[idx].Timestamp = v.Timestamp
+			// We need to overwrite the timestamp only if it is newer.
+			// if in a same batch we have multiple occurrences of the violation
+			// we just need to store the one with the highest timestamp.
+			if v.Timestamp.Time.After(s.Violations[idx].Timestamp.Time) {
+				s.Violations[idx].Timestamp = v.Timestamp
+			}
 		} else {
 			v.ID = s.ViolationCount
 			s.Violations = append(s.Violations, v)
