@@ -20,6 +20,11 @@ func (r ViolationRecord) withPodName(name string) ViolationRecord {
 	return r
 }
 
+func (r ViolationRecord) withNodeName(name string) ViolationRecord {
+	r.NodeName = name
+	return r
+}
+
 func (r ViolationRecord) withContainerName(name string) ViolationRecord {
 	r.ContainerName = name
 	return r

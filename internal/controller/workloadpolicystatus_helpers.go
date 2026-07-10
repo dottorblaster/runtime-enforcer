@@ -11,37 +11,8 @@ import (
 	"github.com/rancher-sandbox/runtime-enforcer/internal/types/loglevel"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/types/policymode"
 	pb "github.com/rancher-sandbox/runtime-enforcer/proto/agent/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
-
-func (r *WorkloadPolicyStatusSync) processPolicyStatus(
-	wp *v1alpha1.WorkloadPolicy,
-	nodes []v1alpha1.PolicyNodeStatus,
-	scrapedViolations []v1alpha1.ViolationRecord,
-	now metav1.Time,
-) ([]v1alpha1.AcknowledgedViolationRecord, error) {
-	if err := wp.Status.ProcessPolicyNodeStatus(nodes); err != nil {
-		return nil, fmt.Errorf(
-			"failed to compute node status for policy %s: %w",
-			wp.NamespacedName(),
-			err,
-		)
-	}
-
-	// Merge scraped violations into the status.
-	// we will clear/acknowledge violations after the merge so that the status
-	// is coherent across syncs.
-	wp.Status.MergeScrapedViolations(scrapedViolations)
-
-	wp.ClearAllowed()
-
-	acknowledged := wp.AcknowledgeViolationsFromAnnotations(now)
-
-	wp.Status.ActiveViolationCount = len(wp.Status.Violations)
-	wp.Status.ObservedGeneration = wp.Generation
-	return acknowledged, nil
-}
 
 // processWorkloadPolicy updates the wp.status and wp.annotation in order to acknowledge a violation.
 // NOTE: agent side ignores annotation changes and status change via predicate.GenerationChangedPredicate{}.
@@ -54,7 +25,7 @@ func (r *WorkloadPolicyStatusSync) processWorkloadPolicy(
 	patchBase := client.MergeFrom(wp.DeepCopy())
 	newPolicy := wp.DeepCopy()
 
-	acknowledged, err := r.processPolicyStatus(newPolicy, nodes, scrapedViolations, metav1.NewTime(time.Now()))
+	acknowledged, err := newPolicy.RecomputeStatus(nodes, scrapedViolations, time.Now())
 	if err != nil {
 		return err
 	}

@@ -3,6 +3,7 @@ package v1alpha1
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -143,6 +144,40 @@ func (wp *WorkloadPolicy) HasPromotedLabel(proposalName string) bool {
 		return false
 	}
 	return wp.Labels[PolicyPromotedFromLabelKey] == proposalName
+}
+
+func (wp *WorkloadPolicy) RecomputeStatus(
+	nodes []PolicyNodeStatus,
+	scrapedViolations []ViolationRecord,
+	now time.Time,
+) ([]AcknowledgedViolationRecord, error) {
+	if wp == nil {
+		return nil, errors.New("WorkloadPolicy is nil")
+	}
+
+	if err := wp.Status.ProcessPolicyNodeStatus(nodes); err != nil {
+		return nil, fmt.Errorf(
+			"failed to compute node status for policy %s: %w",
+			wp.NamespacedName(),
+			err,
+		)
+	}
+
+	// Merge scraped violations into the status.
+	// we will clear/acknowledge violations after the merge so that the status
+	// is coherent across syncs.
+	wp.Status.MergeScrapedViolations(scrapedViolations)
+
+	// Stale violations are violations for binaries that
+	// are now in the spec.
+	wp.ClearAllowed()
+
+	// Acknowledge any violations that have been acknowledged
+	acknowledged := wp.AcknowledgeViolationsFromAnnotations(metav1.Time{Time: now})
+
+	wp.Status.ActiveViolationCount = len(wp.Status.Violations)
+	wp.Status.ObservedGeneration = wp.Generation
+	return acknowledged, nil
 }
 
 // +kubebuilder:object:root=true
