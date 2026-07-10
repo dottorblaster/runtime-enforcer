@@ -86,7 +86,7 @@ spec:
               acknowledgedViolations:
                 description: |-
                   acknowledgedViolations is the list of the most recent violation records that are acknowledged
-                  by users (max MaxViolationRecords).
+                  by users (max maxViolationRecords).
                   Oldest entries are dropped when the limit is reached.
                 items:
                   properties:
@@ -224,7 +224,7 @@ spec:
                 type: integer
               violations:
                 description: |-
-                  violations is the list of the most recent violation records (max MaxViolationRecords).
+                  violations is the list of the most recent violation records (max maxViolationRecords).
                   Oldest entries are dropped when the limit is reached.
                 items:
                   description: ViolationRecord holds the details of a single policy

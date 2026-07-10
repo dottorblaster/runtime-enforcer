@@ -651,7 +651,7 @@ func schema_rancher_sandbox_runtime_enforcer_api_v1alpha1_WorkloadPolicyStatus(r
 					},
 					"violations": {
 						SchemaProps: spec.SchemaProps{
-							Description: "violations is the list of the most recent violation records (max MaxViolationRecords). Oldest entries are dropped when the limit is reached.",
+							Description: "violations is the list of the most recent violation records (max maxViolationRecords). Oldest entries are dropped when the limit is reached.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -665,7 +665,7 @@ func schema_rancher_sandbox_runtime_enforcer_api_v1alpha1_WorkloadPolicyStatus(r
 					},
 					"acknowledgedViolations": {
 						SchemaProps: spec.SchemaProps{
-							Description: "acknowledgedViolations is the list of the most recent violation records that are acknowledged by users (max MaxViolationRecords). Oldest entries are dropped when the limit is reached.",
+							Description: "acknowledgedViolations is the list of the most recent violation records that are acknowledged by users (max maxViolationRecords). Oldest entries are dropped when the limit is reached.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
