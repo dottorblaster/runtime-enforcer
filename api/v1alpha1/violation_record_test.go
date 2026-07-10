@@ -186,7 +186,7 @@ func TestMergeScrapedViolations(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.initialStatus.MergeScrapedViolations(tt.scraped)
+			tt.initialStatus.mergeScrapedViolations(tt.scraped)
 			require.Equal(t, tt.expectedStatus, tt.initialStatus)
 		})
 	}

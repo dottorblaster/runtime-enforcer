@@ -166,7 +166,7 @@ func (wp *WorkloadPolicy) RecomputeStatus(
 	// Merge scraped violations into the status.
 	// we will clear/acknowledge violations after the merge so that the status
 	// is coherent across syncs.
-	wp.Status.MergeScrapedViolations(scrapedViolations)
+	wp.Status.mergeScrapedViolations(scrapedViolations)
 
 	// Stale violations are violations for binaries that
 	// are now in the spec.

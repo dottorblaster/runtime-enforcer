@@ -83,9 +83,9 @@ func (wp *WorkloadPolicy) clearAllowedViolations() {
 	})
 }
 
-// MergeScrapedViolations dedupes scraped violations against the existing list, allocate ids for
+// mergeScrapedViolations dedupes scraped violations against the existing list, allocate ids for
 // new records and refresh the timestamp/node on matched records.
-func (s *WorkloadPolicyStatus) MergeScrapedViolations(scraped []ViolationRecord) {
+func (s *WorkloadPolicyStatus) mergeScrapedViolations(scraped []ViolationRecord) {
 	indexByKey := make(map[violationRecordKey]int, len(s.Violations))
 	for i, r := range s.Violations {
 		indexByKey[r.key()] = i
