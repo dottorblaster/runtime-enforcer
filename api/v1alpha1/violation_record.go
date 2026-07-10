@@ -8,7 +8,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const MaxViolationRecords = 100
+const maxViolationRecords = 100
 
 // ViolationRecord holds the details of a single policy violation.
 type ViolationRecord struct {
@@ -76,16 +76,16 @@ func (r ViolationRecord) key() violationRecordKey {
 	}
 }
 
-func (wp *WorkloadPolicy) ClearAllowed() {
+func (wp *WorkloadPolicy) clearAllowedViolations() {
 	wp.Status.Violations = slices.DeleteFunc(wp.Status.Violations, func(v ViolationRecord) bool {
 		rules := wp.Spec.RulesByContainer[v.ContainerName]
 		return rules != nil && slices.Contains(rules.Executables.Allowed, v.ExecutablePath)
 	})
 }
 
-// MergeScrapedViolations dedupes scraped violations against the existing list, allocate ids for
+// mergeScrapedViolations dedupes scraped violations against the existing list, allocate ids for
 // new records and refresh the timestamp/node on matched records.
-func (s *WorkloadPolicyStatus) MergeScrapedViolations(scraped []ViolationRecord) {
+func (s *WorkloadPolicyStatus) mergeScrapedViolations(scraped []ViolationRecord) {
 	indexByKey := make(map[violationRecordKey]int, len(s.Violations))
 	for i, r := range s.Violations {
 		indexByKey[r.key()] = i
@@ -94,7 +94,12 @@ func (s *WorkloadPolicyStatus) MergeScrapedViolations(scraped []ViolationRecord)
 	for _, v := range scraped {
 		key := v.key()
 		if idx, ok := indexByKey[key]; ok {
-			s.Violations[idx].Timestamp = v.Timestamp
+			// We need to overwrite the timestamp only if it is newer.
+			// if in a same batch we have multiple occurrences of the violation
+			// we just need to store the one with the highest timestamp.
+			if v.Timestamp.Time.After(s.Violations[idx].Timestamp.Time) {
+				s.Violations[idx].Timestamp = v.Timestamp
+			}
 		} else {
 			v.ID = s.ViolationCount
 			s.Violations = append(s.Violations, v)
@@ -107,12 +112,12 @@ func (s *WorkloadPolicyStatus) MergeScrapedViolations(scraped []ViolationRecord)
 		return b.Timestamp.Time.Compare(a.Timestamp.Time)
 	})
 
-	if len(s.Violations) > MaxViolationRecords {
-		s.Violations = s.Violations[:MaxViolationRecords]
+	if len(s.Violations) > maxViolationRecords {
+		s.Violations = s.Violations[:maxViolationRecords]
 	}
 }
 
-func (wp *WorkloadPolicy) AcknowledgeViolationsFromAnnotations(now metav1.Time) []AcknowledgedViolationRecord {
+func (wp *WorkloadPolicy) acknowledgeViolationsFromAnnotations(now metav1.Time) []AcknowledgedViolationRecord {
 	annotations := wp.GetAnnotations()
 	// No annotations -> no violations to acknowledge
 	if len(annotations) == 0 {
@@ -180,8 +185,8 @@ func (wp *WorkloadPolicy) AcknowledgeViolationsFromAnnotations(now metav1.Time) 
 		return b.AcknowledgedAt.Time.Compare(a.AcknowledgedAt.Time)
 	})
 
-	if len(wp.Status.AcknowledgedViolations) > MaxViolationRecords {
-		wp.Status.AcknowledgedViolations = wp.Status.AcknowledgedViolations[:MaxViolationRecords]
+	if len(wp.Status.AcknowledgedViolations) > maxViolationRecords {
+		wp.Status.AcknowledgedViolations = wp.Status.AcknowledgedViolations[:maxViolationRecords]
 	}
 	return ackToReturn
 }

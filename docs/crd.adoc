@@ -369,10 +369,10 @@ consistent and may be temporarily outdated. + |  |
 | *`activeViolationCount`* __integer__ | activeViolationCount is the number of currently active (non-cleared) +
 violation records. It is always equal to len(Violations) and is +
 updated in the same status write. + |  | 
-| *`violations`* __xref:{anchor_prefix}-github-com-rancher-sandbox-runtime-enforcer-api-v1alpha1-violationrecord[$$ViolationRecord$$] array__ | violations is the list of the most recent violation records (max MaxViolationRecords). +
+| *`violations`* __xref:{anchor_prefix}-github-com-rancher-sandbox-runtime-enforcer-api-v1alpha1-violationrecord[$$ViolationRecord$$] array__ | violations is the list of the most recent violation records (max maxViolationRecords). +
 Oldest entries are dropped when the limit is reached. + |  | 
 | *`acknowledgedViolations`* __xref:{anchor_prefix}-github-com-rancher-sandbox-runtime-enforcer-api-v1alpha1-acknowledgedviolationrecord[$$AcknowledgedViolationRecord$$] array__ | acknowledgedViolations is the list of the most recent violation records that are acknowledged +
-by users (max MaxViolationRecords). +
+by users (max maxViolationRecords). +
 Oldest entries are dropped when the limit is reached. + |  | 
 |===
 

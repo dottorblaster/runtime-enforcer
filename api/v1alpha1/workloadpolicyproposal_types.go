@@ -8,9 +8,9 @@ import (
 )
 
 const (
-	// PolicyProposalMaxExecutables defines the maximum number of executables that we can learn.
+	// policyProposalMaxExecutables defines the maximum number of executables that we can learn.
 	// This is a arbitrary number right now and can be fine-tuned or made configurable in the future.
-	PolicyProposalMaxExecutables = 100
+	policyProposalMaxExecutables = 100
 )
 
 // WorkloadPolicyProposalSpec defines the desired state of WorkloadPolicyProposal.
@@ -85,7 +85,7 @@ func (p *WorkloadPolicyProposal) HasPromotionLabel() bool {
 }
 
 func (p *WorkloadPolicyProposal) IsFull() bool {
-	return p.getExecutablesLength() >= PolicyProposalMaxExecutables
+	return p.getExecutablesLength() >= policyProposalMaxExecutables
 }
 
 func (p *WorkloadPolicyProposal) AddProcess(containerName string, executable string) {

@@ -108,7 +108,7 @@ func TestProcessPolicyNodeStatus(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			wpStatus := WorkloadPolicyStatus{}
-			wpStatus.ProcessPolicyNodeStatus(tt.nodes)
+			wpStatus.processPolicyNodeStatus(tt.nodes)
 			require.Equal(t, tt.expected, wpStatus)
 		})
 	}
