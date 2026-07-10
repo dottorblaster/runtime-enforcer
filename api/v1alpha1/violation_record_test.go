@@ -55,28 +55,28 @@ func TestViolationRecordKeyOf(t *testing.T) {
 
 	// If the timestamp changes the key should not change
 	require.Equal(t,
-		violationRecordKeyOf(baseViolation),
-		violationRecordKeyOf(baseViolation.withTimestamp(baseTS.Add(time.Minute))))
+		baseViolation.key(),
+		baseViolation.withTimestamp(baseTS.Add(time.Minute)).key())
 
 	// different executable -> different keys
 	require.NotEqual(t,
-		violationRecordKeyOf(baseViolation.withExecutable("/x")),
-		violationRecordKeyOf(baseViolation.withExecutable("/y")))
+		baseViolation.withExecutable("/x").key(),
+		baseViolation.withExecutable("/y").key())
 
 	// different pod name -> different keys
 	require.NotEqual(t,
-		violationRecordKeyOf(baseViolation.withPodName("pod-a")),
-		violationRecordKeyOf(baseViolation.withPodName("pod-b")))
+		baseViolation.withPodName("pod-a").key(),
+		baseViolation.withPodName("pod-b").key())
 
 	// different container name -> different keys
 	require.NotEqual(t,
-		violationRecordKeyOf(baseViolation.withContainerName("c")),
-		violationRecordKeyOf(baseViolation.withContainerName("d")))
+		baseViolation.withContainerName("c").key(),
+		baseViolation.withContainerName("d").key())
 
 	// different action -> different keys
 	require.NotEqual(t,
-		violationRecordKeyOf(baseViolation.withAction("monitor")),
-		violationRecordKeyOf(baseViolation.withAction("protect")))
+		baseViolation.withAction("monitor").key(),
+		baseViolation.withAction("protect").key())
 }
 
 func TestMergeScrapedViolations(t *testing.T) {
@@ -248,6 +248,147 @@ func TestClearAllowedViolations(t *testing.T) {
 			}
 			wp.ClearAllowed()
 			require.Equal(t, tt.expected, wp.Status.Violations)
+		})
+	}
+}
+
+func TestAcknowledgeViolationsFromAnnotations(t *testing.T) {
+	now := metav1.NewTime(time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC))
+
+	newViolation := func(id int64) ViolationRecord {
+		return ViolationRecord{
+			ID:             id,
+			Timestamp:      metav1.NewTime(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)),
+			PodName:        fmt.Sprintf("pod-%d", id),
+			ContainerName:  fmt.Sprintf("container-%d", id),
+			ExecutablePath: fmt.Sprintf("/usr/bin/exe-%d", id),
+			NodeName:       fmt.Sprintf("node-%d", id),
+			Action:         "monitor",
+		}
+	}
+
+	newAck := func(id int64, reason string, at metav1.Time) AcknowledgedViolationRecord {
+		return AcknowledgedViolationRecord{
+			Violation: newViolation(id), Reason: reason, AcknowledgedAt: at}
+	}
+
+	tests := []struct {
+		name             string
+		annotations      map[string]string
+		violations       []ViolationRecord
+		acknowledged     []AcknowledgedViolationRecord
+		wantAnnotations  map[string]string
+		wantViolations   []ViolationRecord
+		wantAcknowledged []AcknowledgedViolationRecord
+		wantReturned     []AcknowledgedViolationRecord
+	}{
+		{
+			name:            "unrelated_annotations",
+			annotations:     map[string]string{"unrelated.io/key": "value"},
+			violations:      []ViolationRecord{newViolation(1)},
+			wantAnnotations: map[string]string{"unrelated.io/key": "value"},
+			wantViolations:  []ViolationRecord{newViolation(1)},
+		},
+		{
+			name: "multiple_annotations_match_multiple_violations",
+			annotations: map[string]string{
+				ViolationAcknowledgePrefix + "1": "reason one",
+				ViolationAcknowledgePrefix + "2": "reason two",
+			},
+			violations: []ViolationRecord{
+				newViolation(1),
+				newViolation(2),
+			},
+			wantAnnotations: map[string]string{},
+			wantViolations:  []ViolationRecord{},
+			wantAcknowledged: []AcknowledgedViolationRecord{
+				newAck(1, "reason one", now),
+				newAck(2, "reason two", now),
+			},
+			wantReturned: []AcknowledgedViolationRecord{
+				newAck(1, "reason one", now),
+				newAck(2, "reason two", now),
+			},
+		},
+		{
+			name: "partial_match_leaves_unacknowledged_violation",
+			annotations: map[string]string{
+				ViolationAcknowledgePrefix + "1": "acknowledged",
+				// we will leave both annotations untouched
+				ViolationAcknowledgePrefix + "999":    "no match",
+				ViolationAcknowledgePrefix + "random": "wrong key",
+			},
+			violations: []ViolationRecord{newViolation(1)},
+			// This policy already has an acknowledged violation, that should remain untouched
+			acknowledged: []AcknowledgedViolationRecord{newAck(2, "acknowledged", now)},
+			wantAnnotations: map[string]string{
+				ViolationAcknowledgePrefix + "999":    "no match",
+				ViolationAcknowledgePrefix + "random": "wrong key",
+			},
+			wantViolations: []ViolationRecord{},
+			wantAcknowledged: []AcknowledgedViolationRecord{
+				newAck(2, "acknowledged", now),
+				newAck(1, "acknowledged", now),
+			},
+			wantReturned: []AcknowledgedViolationRecord{
+				newAck(1, "acknowledged", now),
+			},
+		},
+		{
+			name: "acknowledge_with_empty_violations",
+			annotations: map[string]string{
+				ViolationAcknowledgePrefix + "1": "reason",
+			},
+			wantAnnotations: map[string]string{ViolationAcknowledgePrefix + "1": "reason"},
+		},
+		{
+			name: "trims_acknowledged_violations_to_MaxViolationRecords",
+			annotations: map[string]string{
+				ViolationAcknowledgePrefix + "101": "acknowledged",
+			},
+			violations: []ViolationRecord{newViolation(101)},
+			// This policy already has an acknowledged violation, that should remain untouched
+			acknowledged: func() []AcknowledgedViolationRecord {
+				r := make([]AcknowledgedViolationRecord, MaxViolationRecords)
+				for i := range r {
+					r[i] = newAck(int64(i), "acknowledged", now)
+				}
+				return r
+			}(),
+			wantAnnotations: map[string]string{},
+			wantViolations:  []ViolationRecord{},
+			wantAcknowledged: func() []AcknowledgedViolationRecord {
+				r := make([]AcknowledgedViolationRecord, MaxViolationRecords+1)
+				for i := range r {
+					r[i] = newAck(int64(i), "acknowledged", now)
+				}
+				r[MaxViolationRecords] = newAck(101, "acknowledged", now)
+				slices.SortFunc(r, func(a, b AcknowledgedViolationRecord) int {
+					return b.AcknowledgedAt.Time.Compare(a.AcknowledgedAt.Time)
+				})
+				return r[:MaxViolationRecords]
+			}(),
+			wantReturned: []AcknowledgedViolationRecord{
+				newAck(101, "acknowledged", now),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			wp := &WorkloadPolicy{
+				ObjectMeta: metav1.ObjectMeta{Annotations: tt.annotations},
+				Status: WorkloadPolicyStatus{
+					Violations:             tt.violations,
+					AcknowledgedViolations: tt.acknowledged,
+				},
+			}
+
+			returned := wp.AcknowledgeViolationsFromAnnotations(now)
+
+			require.Equal(t, tt.wantAnnotations, wp.GetAnnotations())
+			require.ElementsMatch(t, tt.wantViolations, wp.Status.Violations)
+			require.ElementsMatch(t, tt.wantAcknowledged, wp.Status.AcknowledgedViolations)
+			require.ElementsMatch(t, tt.wantReturned, returned)
 		})
 	}
 }

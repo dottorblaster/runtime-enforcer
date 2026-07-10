@@ -2,6 +2,8 @@ package v1alpha1
 
 import (
 	"slices"
+	"strconv"
+	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -65,7 +67,7 @@ type violationRecordKey struct {
 	action         string
 }
 
-func violationRecordKeyOf(r ViolationRecord) violationRecordKey {
+func (r ViolationRecord) key() violationRecordKey {
 	return violationRecordKey{
 		podName:        r.PodName,
 		containerName:  r.ContainerName,
@@ -86,11 +88,11 @@ func (wp *WorkloadPolicy) ClearAllowed() {
 func (s *WorkloadPolicyStatus) MergeScrapedViolations(scraped []ViolationRecord) {
 	indexByKey := make(map[violationRecordKey]int, len(s.Violations))
 	for i, r := range s.Violations {
-		indexByKey[violationRecordKeyOf(r)] = i
+		indexByKey[r.key()] = i
 	}
 
 	for _, v := range scraped {
-		key := violationRecordKeyOf(v)
+		key := v.key()
 		if idx, ok := indexByKey[key]; ok {
 			s.Violations[idx].Timestamp = v.Timestamp
 		} else {
@@ -108,4 +110,78 @@ func (s *WorkloadPolicyStatus) MergeScrapedViolations(scraped []ViolationRecord)
 	if len(s.Violations) > MaxViolationRecords {
 		s.Violations = s.Violations[:MaxViolationRecords]
 	}
+}
+
+func (wp *WorkloadPolicy) AcknowledgeViolationsFromAnnotations(now metav1.Time) []AcknowledgedViolationRecord {
+	annotations := wp.GetAnnotations()
+	// No annotations -> no violations to acknowledge
+	if len(annotations) == 0 {
+		return nil
+	}
+
+	type annotationInfo struct {
+		annotationKey string
+		reason        string
+	}
+
+	acknowledges := make(map[int64]annotationInfo, len(annotations))
+
+	for k, reason := range annotations {
+		idStr, found := strings.CutPrefix(k, ViolationAcknowledgePrefix)
+		if !found {
+			continue
+		}
+
+		id, err := strconv.ParseInt(idStr, 10, 64)
+		// we could add a validating webhook that validates the annotation format and
+		// that a corresponding violation with that ID exists.
+		// For now we simplify ignore the annotation if there is no a int after the prefix
+		// and we will leave the annotation untouched.
+		if err != nil {
+			continue
+		}
+
+		acknowledges[id] = annotationInfo{
+			annotationKey: k,
+			reason:        reason,
+		}
+	}
+
+	if len(acknowledges) == 0 {
+		return nil
+	}
+
+	if wp.Status.AcknowledgedViolations == nil {
+		wp.Status.AcknowledgedViolations = make([]AcknowledgedViolationRecord, 0)
+	}
+
+	ackToReturn := make([]AcknowledgedViolationRecord, 0)
+
+	wp.Status.Violations = slices.DeleteFunc(wp.Status.Violations, func(v ViolationRecord) bool {
+		info, ok := acknowledges[v.ID]
+		if !ok {
+			return false
+		}
+		// we remove the annotation from the resource
+		delete(annotations, info.annotationKey)
+
+		newAcknowledgement := AcknowledgedViolationRecord{
+			Violation:      v,
+			Reason:         info.reason,
+			AcknowledgedAt: now,
+		}
+		ackToReturn = append(ackToReturn, newAcknowledgement)
+		wp.Status.AcknowledgedViolations = append(wp.Status.AcknowledgedViolations, newAcknowledgement)
+		return true
+	})
+
+	// we order them so that we always truncate the oldest.
+	slices.SortStableFunc(wp.Status.AcknowledgedViolations, func(a, b AcknowledgedViolationRecord) int {
+		return b.AcknowledgedAt.Time.Compare(a.AcknowledgedAt.Time)
+	})
+
+	if len(wp.Status.AcknowledgedViolations) > MaxViolationRecords {
+		wp.Status.AcknowledgedViolations = wp.Status.AcknowledgedViolations[:MaxViolationRecords]
+	}
+	return ackToReturn
 }
