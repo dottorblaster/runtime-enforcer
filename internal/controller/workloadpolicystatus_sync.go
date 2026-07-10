@@ -159,14 +159,14 @@ func (r *WorkloadPolicyStatusSync) getViolationsByPolicy(
 
 func (r *WorkloadPolicyStatusSync) emitAcknowledgedViolationOtelLog(
 	ctx context.Context,
-	violation v1alpha1.ViolationRecord,
-	reason string,
+	ack v1alpha1.AcknowledgedViolationRecord,
 ) {
 	if r.eventLogger == nil {
 		return
 	}
 
 	var rec otellog.Record
+	violation := ack.Violation
 	rec.SetEventName("policy_violation_acknowledged")
 	rec.SetSeverity(otellog.SeverityInfo)
 	rec.SetBody(otellog.StringValue("policy_violation_acknowledged"))
@@ -174,7 +174,7 @@ func (r *WorkloadPolicyStatusSync) emitAcknowledgedViolationOtelLog(
 	rec.AddAttributes(
 		otellog.Int64("id", violation.ID),
 		otellog.String("timestamp", violation.Timestamp.UTC().Format(time.RFC3339)),
-		otellog.String("reason", reason),
+		otellog.String("reason", ack.Reason),
 		otellog.String("k8s.pod.name", violation.PodName),
 		otellog.String("container.name", violation.ContainerName),
 		otellog.String("proc.exepath", violation.ExecutablePath),

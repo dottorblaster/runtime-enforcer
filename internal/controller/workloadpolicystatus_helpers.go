@@ -78,7 +78,7 @@ func (r *WorkloadPolicyStatusSync) processWorkloadPolicy(
 	// Only if the status update was successful we emit the logs.
 	// In this way we won't send duplicate logs in case of retries
 	for _, ack := range acknowledged {
-		r.emitAcknowledgedViolationOtelLog(ctx, ack.Violation, ack.Reason)
+		r.emitAcknowledgedViolationOtelLog(ctx, ack)
 	}
 
 	err = r.Patch(ctx, newPolicy.DeepCopy(), patchBase)
