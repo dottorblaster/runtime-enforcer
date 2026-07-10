@@ -638,6 +638,7 @@ func schema_rancher_sandbox_runtime_enforcer_api_v1alpha1_WorkloadPolicyStatus(r
 					"violationCount": {
 						SchemaProps: spec.SchemaProps{
 							Description: "violationCount is the total number of unique violation records ever observed for this policy, including those that have already been trimmed out of Violations or cleared because the executable was later added to an allowlist. It is not guaranteed to be strongly consistent and may be temporarily outdated.",
+							Default:     0,
 							Type:        []string{"integer"},
 							Format:      "int64",
 						},
@@ -645,6 +646,7 @@ func schema_rancher_sandbox_runtime_enforcer_api_v1alpha1_WorkloadPolicyStatus(r
 					"activeViolationCount": {
 						SchemaProps: spec.SchemaProps{
 							Description: "activeViolationCount is the number of currently active (non-cleared) violation records. It is always equal to len(Violations) and is updated in the same status write.",
+							Default:     0,
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},

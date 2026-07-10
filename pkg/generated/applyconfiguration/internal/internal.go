@@ -166,6 +166,7 @@ var schemaYAML = typed.YAMLObject(`types:
     - name: activeViolationCount
       type:
         scalar: numeric
+      default: 0
     - name: failedNodes
       type:
         scalar: numeric
@@ -198,6 +199,7 @@ var schemaYAML = typed.YAMLObject(`types:
     - name: violationCount
       type:
         scalar: numeric
+      default: 0
     - name: violations
       type:
         list:
