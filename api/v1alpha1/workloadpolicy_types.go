@@ -173,7 +173,7 @@ func (wp *WorkloadPolicy) RecomputeStatus(
 	wp.clearAllowedViolations()
 
 	// Acknowledge any violations that have been acknowledged
-	acknowledged := wp.AcknowledgeViolationsFromAnnotations(metav1.Time{Time: now})
+	acknowledged := wp.acknowledgeViolationsFromAnnotations(metav1.Time{Time: now})
 
 	wp.Status.ActiveViolationCount = len(wp.Status.Violations)
 	wp.Status.ObservedGeneration = wp.Generation

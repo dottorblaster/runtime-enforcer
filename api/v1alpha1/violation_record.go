@@ -117,7 +117,7 @@ func (s *WorkloadPolicyStatus) mergeScrapedViolations(scraped []ViolationRecord)
 	}
 }
 
-func (wp *WorkloadPolicy) AcknowledgeViolationsFromAnnotations(now metav1.Time) []AcknowledgedViolationRecord {
+func (wp *WorkloadPolicy) acknowledgeViolationsFromAnnotations(now metav1.Time) []AcknowledgedViolationRecord {
 	annotations := wp.GetAnnotations()
 	// No annotations -> no violations to acknowledge
 	if len(annotations) == 0 {

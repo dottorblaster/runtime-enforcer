@@ -388,7 +388,7 @@ func TestAcknowledgeViolationsFromAnnotations(t *testing.T) {
 				},
 			}
 
-			returned := wp.AcknowledgeViolationsFromAnnotations(now)
+			returned := wp.acknowledgeViolationsFromAnnotations(now)
 
 			require.Equal(t, tt.wantAnnotations, wp.GetAnnotations())
 			require.ElementsMatch(t, tt.wantViolations, wp.Status.Violations)
