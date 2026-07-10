@@ -67,7 +67,7 @@ type violationRecordKey struct {
 	action         string
 }
 
-func (r ViolationRecord) getKey() violationRecordKey {
+func (r ViolationRecord) key() violationRecordKey {
 	return violationRecordKey{
 		podName:        r.PodName,
 		containerName:  r.ContainerName,
@@ -88,11 +88,11 @@ func (wp *WorkloadPolicy) ClearAllowed() {
 func (s *WorkloadPolicyStatus) MergeScrapedViolations(scraped []ViolationRecord) {
 	indexByKey := make(map[violationRecordKey]int, len(s.Violations))
 	for i, r := range s.Violations {
-		indexByKey[r.getKey()] = i
+		indexByKey[r.key()] = i
 	}
 
 	for _, v := range scraped {
-		key := v.getKey()
+		key := v.key()
 		if idx, ok := indexByKey[key]; ok {
 			s.Violations[idx].Timestamp = v.Timestamp
 		} else {

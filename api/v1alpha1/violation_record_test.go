@@ -55,28 +55,28 @@ func TestViolationRecordKeyOf(t *testing.T) {
 
 	// If the timestamp changes the key should not change
 	require.Equal(t,
-		baseViolation.getKey(),
-		baseViolation.withTimestamp(baseTS.Add(time.Minute)).getKey())
+		baseViolation.key(),
+		baseViolation.withTimestamp(baseTS.Add(time.Minute)).key())
 
 	// different executable -> different keys
 	require.NotEqual(t,
-		baseViolation.withExecutable("/x").getKey(),
-		baseViolation.withExecutable("/y").getKey())
+		baseViolation.withExecutable("/x").key(),
+		baseViolation.withExecutable("/y").key())
 
 	// different pod name -> different keys
 	require.NotEqual(t,
-		baseViolation.withPodName("pod-a").getKey(),
-		baseViolation.withPodName("pod-b").getKey())
+		baseViolation.withPodName("pod-a").key(),
+		baseViolation.withPodName("pod-b").key())
 
 	// different container name -> different keys
 	require.NotEqual(t,
-		baseViolation.withContainerName("c").getKey(),
-		baseViolation.withContainerName("d").getKey())
+		baseViolation.withContainerName("c").key(),
+		baseViolation.withContainerName("d").key())
 
 	// different action -> different keys
 	require.NotEqual(t,
-		baseViolation.withAction("monitor").getKey(),
-		baseViolation.withAction("protect").getKey())
+		baseViolation.withAction("monitor").key(),
+		baseViolation.withAction("protect").key())
 }
 
 func TestMergeScrapedViolations(t *testing.T) {
