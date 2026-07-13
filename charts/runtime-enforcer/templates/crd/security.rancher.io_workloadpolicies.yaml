@@ -26,6 +26,12 @@ spec:
     - jsonPath: .status.phase
       name: Status
       type: string
+    - jsonPath: .status.activeViolationCount
+      name: Active Violations
+      type: string
+    - jsonPath: .status.violationCount
+      name: Total Violations
+      type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -165,6 +171,7 @@ spec:
                   type: object
                 type: array
               activeViolationCount:
+                default: 0
                 description: |-
                   activeViolationCount is the number of currently active (non-cleared)
                   violation records. It is always equal to len(Violations) and is
@@ -214,6 +221,7 @@ spec:
                   is transitioning mode.
                 type: integer
               violationCount:
+                default: 0
                 description: |-
                   violationCount is the total number of unique violation records
                   ever observed for this policy, including those that have already

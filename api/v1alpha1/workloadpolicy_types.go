@@ -71,13 +71,15 @@ type WorkloadPolicyStatus struct {
 	// been trimmed out of Violations or cleared because the executable
 	// was later added to an allowlist. It is not guaranteed to be strongly
 	// consistent and may be temporarily outdated.
+	// +kubebuilder:default=0
 	// +optional
-	ViolationCount int64 `json:"violationCount,omitempty"`
+	ViolationCount int64 `json:"violationCount"`
 	// activeViolationCount is the number of currently active (non-cleared)
 	// violation records. It is always equal to len(Violations) and is
 	// updated in the same status write.
+	// +kubebuilder:default=0
 	// +optional
-	ActiveViolationCount int `json:"activeViolationCount,omitempty"`
+	ActiveViolationCount int `json:"activeViolationCount"`
 	// violations is the list of the most recent violation records (max maxViolationRecords).
 	// Oldest entries are dropped when the limit is reached.
 	// +optional
@@ -94,6 +96,8 @@ type WorkloadPolicyStatus struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Mode",type=string,JSONPath=`.spec.mode`
 // +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.phase`
+// +kubebuilder:printcolumn:name="Active Violations",type=string,JSONPath=`.status.activeViolationCount`
+// +kubebuilder:printcolumn:name="Total Violations",type=string,JSONPath=`.status.violationCount`
 // +kubebuilder:resource:categories={rancher-security},singular="workloadpolicy",path="workloadpolicies",scope="Namespaced",shortName={wp}
 // +kubebuilder:metadata:annotations="helm.sh/resource-policy=keep"
 // +genclient

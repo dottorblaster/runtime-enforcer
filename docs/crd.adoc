@@ -365,10 +365,10 @@ Required: \{} +
 ever observed for this policy, including those that have already +
 been trimmed out of Violations or cleared because the executable +
 was later added to an allowlist. It is not guaranteed to be strongly +
-consistent and may be temporarily outdated. + |  | 
+consistent and may be temporarily outdated. + | 0 | 
 | *`activeViolationCount`* __integer__ | activeViolationCount is the number of currently active (non-cleared) +
 violation records. It is always equal to len(Violations) and is +
-updated in the same status write. + |  | 
+updated in the same status write. + | 0 | 
 | *`violations`* __xref:{anchor_prefix}-github-com-rancher-sandbox-runtime-enforcer-api-v1alpha1-violationrecord[$$ViolationRecord$$] array__ | violations is the list of the most recent violation records (max maxViolationRecords). +
 Oldest entries are dropped when the limit is reached. + |  | 
 | *`acknowledgedViolations`* __xref:{anchor_prefix}-github-com-rancher-sandbox-runtime-enforcer-api-v1alpha1-acknowledgedviolationrecord[$$AcknowledgedViolationRecord$$] array__ | acknowledgedViolations is the list of the most recent violation records that are acknowledged +
