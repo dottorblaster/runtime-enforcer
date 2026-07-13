@@ -27,7 +27,7 @@ func TestUpdateCgTrackerMap(t *testing.T) {
 	expectedMap := map[uint64]uint64{
 		cgroup1: cgroup1,
 	}
-	err = updateCgTrackerMap(testutil.NewTestLogger(t), cgTrackerMap, cgroup1, "")
+	err = UpdateCgTrackerMap(testutil.NewTestLogger(t), cgTrackerMap, cgroup1, "")
 	require.NoError(t, err)
 	require.Equal(t, expectedMap, dumpMap(cgTrackerMap))
 
@@ -65,7 +65,7 @@ func TestUpdateCgTrackerMap(t *testing.T) {
 		expectedNestedCgroup3: cgroup1,
 	}
 
-	err = updateCgTrackerMap(testutil.NewTestLogger(t), cgTrackerMap, cgroup1, tempDir)
+	err = UpdateCgTrackerMap(testutil.NewTestLogger(t), cgTrackerMap, cgroup1, tempDir)
 	require.NoError(t, err)
 	require.Equal(t, expectedMap, dumpMap(cgTrackerMap))
 }
