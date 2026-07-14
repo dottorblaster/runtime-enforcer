@@ -177,16 +177,32 @@ func BenchmarkPluginStartContainer(b *testing.B) {
 	maps := setupBenchMaps(b)
 	pod := testPodSandbox()
 	ctx := b.Context()
+	cgRoot := cgroups.GetCgroupResolutionPrefix()
 
 	b.ResetTimer()
 	for i := range b.N {
 		b.StopTimer()
 		p := newBenchPlugin(b, maps)
 		container := benchContainer(b, pod, fmt.Sprintf("start-container-%d", i))
+
+		cgroupPath := filepath.Join(cgRoot, container.GetLinux().GetCgroupsPath())
+		cgID, err := cgroups.GetCgroupIDFromPath(cgroupPath)
+		if err != nil {
+			b.Fatalf("resolve cgroup ID: %v", err)
+		}
+
 		b.StartTimer()
 
-		if err := p.StartContainer(ctx, pod, container); err != nil {
+		if err = p.StartContainer(ctx, pod, container); err != nil {
 			b.Fatalf("StartContainer: %v", err)
+		}
+
+		// Clean up the cgroup tracker entry to prevent map exhaustion.
+		// The BPF tg_cgtracker_cgroup_release tracepoint would do this
+		// in production, but no BPF programs are loaded in this test.
+		b.StopTimer()
+		if err = maps.cgTracker.Delete(&cgID); err != nil {
+			b.Fatalf("delete cgroup tracker entry: %v", err)
 		}
 	}
 }
