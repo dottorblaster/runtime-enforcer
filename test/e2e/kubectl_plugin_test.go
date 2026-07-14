@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"os/exec"
+	"strconv"
 	"testing"
 	"time"
 
@@ -303,6 +304,7 @@ func getKubectlPluginSmokeTest() types.Feature {
 
 				return ctx
 			}).
+		Assess("kubectl plugin acknowledges a violation", assessKubectlPluginAck(policyName, containerName)).
 		Teardown(func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
 			deleteOpensuseDeployment(ctx, t)
 			r := getClient(ctx)
@@ -315,4 +317,65 @@ func getKubectlPluginSmokeTest() types.Feature {
 			_ = r.Delete(ctx, &policy)
 			return ctx
 		}).Feature()
+}
+
+func assessKubectlPluginAck(policyName, containerName string) features.Func {
+	return func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
+		deleteOpensuseDeployment(ctx, t)
+		createAndWaitOpensuseDeployment(ctx, t, withPolicy(policyName))
+		podName, err := findOpensuseDeploymentPod(ctx)
+		require.NoError(t, err)
+
+		t.Log("executing disallowed command to trigger a violation")
+		requireExecAllowedInCurrentNamespace(
+			ctx,
+			t,
+			podName,
+			containerName,
+			[]string{"/usr/bin/sh", "-c", "/usr/bin/zypper refresh"},
+		)
+
+		r := getClient(ctx)
+		policy := &v1alpha1.WorkloadPolicy{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      policyName,
+				Namespace: getNamespace(ctx),
+			},
+		}
+
+		var violationID int64
+		err = wait.For(conditions.New(r).ResourceMatch(policy, func(obj k8s.Object) bool {
+			wp, ok := obj.(*v1alpha1.WorkloadPolicy)
+			if !ok {
+				return false
+			}
+			for _, v := range wp.Status.Violations {
+				if v.ExecutablePath == "/usr/bin/zypper" && v.PodName == podName {
+					violationID = v.ID
+					return true
+				}
+			}
+			return false
+		}), wait.WithTimeout(defaultOperationTimeout))
+		require.NoError(t, err, "violation should appear in WorkloadPolicy status")
+
+		temp := "./../../bin/kubectl-runtime_enforcer policy ack " +
+			policyName + " " + strconv.FormatInt(violationID, 10) +
+			" --reason " + strconv.Quote("e2e kubectl plugin acknowledgement") +
+			" --namespace " + getNamespace(ctx)
+		cmd := exec.Command("bash", "-c", temp)
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+		err = cmd.Run()
+
+		require.NoError(t, err, "plugin command should succeed")
+		t.Logf("stdout: %s", stdout.String())
+		t.Logf("stderr: %s", stderr.String())
+
+		assert.Contains(t, stdout.String(), "Successfully acknowledged violation")
+		assert.Contains(t, stdout.String(), policyName)
+
+		return ctx
+	}
 }

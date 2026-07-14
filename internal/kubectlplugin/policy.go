@@ -17,6 +17,7 @@ func newPolicyCmd(deps commonCmdDeps) *cobra.Command {
 	cmd.AddCommand(newPolicyShowCmd(deps))
 	cmd.AddCommand(newPolicyExecAllowCmd(deps))
 	cmd.AddCommand(newPolicyExecDenyCmd(deps))
+	cmd.AddCommand(newPolicyAckCmd(deps))
 
 	return cmd
 }
