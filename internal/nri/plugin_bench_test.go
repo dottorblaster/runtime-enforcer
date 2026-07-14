@@ -55,7 +55,7 @@ func newBenchPlugin(b *testing.B, maps *benchMaps) *plugin {
 	b.Helper()
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelWarn,
+		Level: slog.LevelDebug,
 	})).With("component", "nri-plugin")
 
 	// The NRI benchmark path never attaches a policy, so these are never invoked.
