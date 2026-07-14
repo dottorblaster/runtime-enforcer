@@ -132,6 +132,23 @@ func benchContainer(b *testing.B, pod *api.PodSandbox, name string) *api.Contain
 	}
 }
 
+// benchTrackerCleanup returns a function that deletes the container's entry
+// from the cgroup tracker map (no BPF programs loaded in benchmarks).
+func benchTrackerCleanup(b *testing.B, maps *benchMaps, container *api.Container) func() {
+	b.Helper()
+
+	cgRoot := cgroups.GetCgroupResolutionPrefix()
+	cgroupPath := filepath.Join(cgRoot, container.GetLinux().GetCgroupsPath())
+	cgID, err := cgroups.GetCgroupIDFromPath(cgroupPath)
+	require.NoError(b, err, "resolve cgroup ID")
+
+	return func() {
+		if err = maps.cgTracker.Delete(&cgID); err != nil {
+			b.Fatalf("delete cgroup tracker entry: %v", err)
+		}
+	}
+}
+
 func buildSyncFixtures(b *testing.B, numPods, containersPerPod int) ([]*api.PodSandbox, []*api.Container) {
 	b.Helper()
 
@@ -183,11 +200,15 @@ func BenchmarkPluginStartContainer(b *testing.B) {
 		b.StopTimer()
 		p := newBenchPlugin(b, maps)
 		container := benchContainer(b, pod, fmt.Sprintf("start-container-%d", i))
+		cleanup := benchTrackerCleanup(b, maps, container)
 		b.StartTimer()
 
 		if err := p.StartContainer(ctx, pod, container); err != nil {
 			b.Fatalf("StartContainer: %v", err)
 		}
+
+		b.StopTimer()
+		cleanup()
 	}
 }
 
@@ -201,6 +222,8 @@ func BenchmarkPluginRemoveContainer(b *testing.B) {
 		b.StopTimer()
 		p := newBenchPlugin(b, maps)
 		container := benchContainer(b, pod, fmt.Sprintf("remove-container-%d", i))
+		cleanup := benchTrackerCleanup(b, maps, container)
+
 		if err := p.StartContainer(ctx, pod, container); err != nil {
 			b.Fatalf("seed StartContainer: %v", err)
 		}
@@ -209,5 +232,8 @@ func BenchmarkPluginRemoveContainer(b *testing.B) {
 		if err := p.RemoveContainer(ctx, pod, container); err != nil {
 			b.Fatalf("RemoveContainer: %v", err)
 		}
+
+		b.StopTimer()
+		cleanup()
 	}
 }
