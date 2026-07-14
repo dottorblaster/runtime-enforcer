@@ -6,7 +6,7 @@ import (
 	"io"
 	"time"
 
-	apiv1alpha1 "github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
+	"github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
 	securityclient "github.com/rancher-sandbox/runtime-enforcer/pkg/generated/clientset/versioned/typed/api/v1alpha1"
 	"github.com/spf13/cobra"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -157,7 +157,7 @@ func waitForWorkloadPolicy(
 	ctx context.Context,
 	client securityclient.SecurityV1alpha1Interface,
 	namespace, name string,
-) (*apiv1alpha1.WorkloadPolicy, error) {
+) (*v1alpha1.WorkloadPolicy, error) {
 	ticker := time.NewTicker(defaultPollInterval)
 	defer ticker.Stop()
 

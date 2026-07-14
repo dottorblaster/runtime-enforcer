@@ -8,7 +8,7 @@ import (
 	"slices"
 	"strings"
 
-	apiv1alpha1 "github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
+	"github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/podworkload"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/types/policymode"
 	securityclient "github.com/rancher-sandbox/runtime-enforcer/pkg/generated/clientset/versioned/typed/api/v1alpha1"
@@ -131,17 +131,17 @@ func collectPolicyProtectionRows(
 
 func buildWorkloadProtectionRows(
 	pods []corev1.Pod,
-	workloadPolicies []apiv1alpha1.WorkloadPolicy,
+	workloadPolicies []v1alpha1.WorkloadPolicy,
 ) []workloadProtectionRow {
 	// we need to use policy namespace+name to have a unique key.
-	policyByNamespacedName := make(map[types.NamespacedName]apiv1alpha1.WorkloadPolicy, len(workloadPolicies))
+	policyByNamespacedName := make(map[types.NamespacedName]v1alpha1.WorkloadPolicy, len(workloadPolicies))
 	for _, policy := range workloadPolicies {
 		policyByNamespacedName[types.NamespacedName{Namespace: policy.Namespace, Name: policy.Name}] = policy
 	}
 
 	rowsByKey := map[types.NamespacedName]workloadProtectionRow{}
 	for _, pod := range pods {
-		policyName := pod.Labels[apiv1alpha1.PolicyLabelKey]
+		policyName := pod.Labels[v1alpha1.PolicyLabelKey]
 		// if there is no policy label we don't consider the pod
 		if policyName == "" {
 			continue

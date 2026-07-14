@@ -8,8 +8,6 @@ import (
 	"github.com/rancher-sandbox/runtime-enforcer/internal/types/policymode"
 	securityclient "github.com/rancher-sandbox/runtime-enforcer/pkg/generated/clientset/versioned/typed/api/v1alpha1"
 	"github.com/spf13/cobra"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/kubectl/pkg/util/completion"
 )
 
@@ -88,17 +86,9 @@ func runPolicyModeSet(
 	opts *policyModeOptions,
 	out io.Writer,
 ) error {
-	policy, err := client.WorkloadPolicies(opts.Namespace).Get(ctx, opts.PolicyName, metav1.GetOptions{})
+	policy, err := getWorkloadPolicy(ctx, client, opts.Namespace, opts.PolicyName)
 	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return fmt.Errorf("workloadpolicy %q not found in namespace %q", opts.PolicyName, opts.Namespace)
-		}
-		return fmt.Errorf(
-			"failed to get WorkloadPolicy %q in namespace %q: %w",
-			opts.PolicyName,
-			opts.Namespace,
-			err,
-		)
+		return err
 	}
 
 	currentMode := policy.Spec.Mode
@@ -115,7 +105,6 @@ func runPolicyModeSet(
 		return nil
 	}
 
-	updateOptions := metav1.UpdateOptions{}
 	if opts.DryRun {
 		fmt.Fprintf(
 			out,
@@ -124,26 +113,12 @@ func runPolicyModeSet(
 			policy.Namespace,
 			targetMode,
 		)
-		updateOptions.DryRun = []string{metav1.DryRunAll}
 	}
 
 	policy.Spec.Mode = targetMode
 
-	if _, err = client.WorkloadPolicies(opts.Namespace).
-		Update(ctx, policy, updateOptions); err != nil {
-		if apierrors.IsConflict(err) {
-			return fmt.Errorf(
-				"WorkloadPolicy %q in namespace %q was modified concurrently",
-				policy.Name,
-				policy.Namespace,
-			)
-		}
-		return fmt.Errorf(
-			"failed to update WorkloadPolicy %q in namespace %q: %w",
-			policy.Name,
-			policy.Namespace,
-			err,
-		)
+	if err = updateWorkloadPolicy(ctx, client, opts.Namespace, policy, opts.DryRun); err != nil {
+		return err
 	}
 
 	fmt.Fprintf(
