@@ -5,7 +5,7 @@ import (
 	"context"
 	"testing"
 
-	apiv1alpha1 "github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
+	"github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
 	fakeclient "github.com/rancher-sandbox/runtime-enforcer/pkg/generated/clientset/versioned/fake"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -73,15 +73,15 @@ func TestRunPolicyExec(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			policy := &apiv1alpha1.WorkloadPolicy{
+			policy := &v1alpha1.WorkloadPolicy{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      name,
 					Namespace: ns,
 				},
-				Spec: apiv1alpha1.WorkloadPolicySpec{
-					RulesByContainer: map[string]*apiv1alpha1.WorkloadPolicyRules{
+				Spec: v1alpha1.WorkloadPolicySpec{
+					RulesByContainer: map[string]*v1alpha1.WorkloadPolicyRules{
 						"app": {
-							Executables: apiv1alpha1.WorkloadPolicyExecutables{
+							Executables: v1alpha1.WorkloadPolicyExecutables{
 								Allowed: append([]string(nil), tt.initialList...),
 							},
 						},
@@ -126,28 +126,28 @@ func TestRunPolicyExec(t *testing.T) {
 func TestCompletePolicyExecValidArgs(t *testing.T) {
 	t.Parallel()
 
-	testWorkloadPolicy := &apiv1alpha1.WorkloadPolicy{
+	testWorkloadPolicy := &v1alpha1.WorkloadPolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-policy",
 			Namespace: "test",
 		},
-		Spec: apiv1alpha1.WorkloadPolicySpec{
-			RulesByContainer: map[string]*apiv1alpha1.WorkloadPolicyRules{
+		Spec: v1alpha1.WorkloadPolicySpec{
+			RulesByContainer: map[string]*v1alpha1.WorkloadPolicyRules{
 				"app": {
-					Executables: apiv1alpha1.WorkloadPolicyExecutables{
+					Executables: v1alpha1.WorkloadPolicyExecutables{
 						Allowed: []string{"/bin/ls", "/bin/cat"},
 					},
 				},
 				"db": {
-					Executables: apiv1alpha1.WorkloadPolicyExecutables{
+					Executables: v1alpha1.WorkloadPolicyExecutables{
 						Allowed: []string{"/bin/ps", "/bin/top"},
 					},
 				},
 			},
 		},
-		Status: apiv1alpha1.WorkloadPolicyStatus{
+		Status: v1alpha1.WorkloadPolicyStatus{
 			ObservedGeneration: 1,
-			Violations: []apiv1alpha1.ViolationRecord{
+			Violations: []v1alpha1.ViolationRecord{
 				{
 					ContainerName:  "app",
 					ExecutablePath: "/bin/mv",
@@ -160,19 +160,19 @@ func TestCompletePolicyExecValidArgs(t *testing.T) {
 		},
 	}
 
-	emptyWorkloadPolicy := &apiv1alpha1.WorkloadPolicy{
+	emptyWorkloadPolicy := &v1alpha1.WorkloadPolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-policy",
 			Namespace: "test",
 		},
-		Spec:   apiv1alpha1.WorkloadPolicySpec{},
-		Status: apiv1alpha1.WorkloadPolicyStatus{},
+		Spec:   v1alpha1.WorkloadPolicySpec{},
+		Status: v1alpha1.WorkloadPolicyStatus{},
 	}
 
 	tests := []struct {
 		name              string
 		action            policyExecAction
-		policy            *apiv1alpha1.WorkloadPolicy
+		policy            *v1alpha1.WorkloadPolicy
 		args              []string
 		expectedCompletes []string
 	}{

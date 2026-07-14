@@ -5,8 +5,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
 	securityclient "github.com/rancher-sandbox/runtime-enforcer/pkg/generated/clientset/versioned/typed/api/v1alpha1"
 	"github.com/spf13/cobra"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/kubernetes"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -139,4 +142,55 @@ func withRuntimeEnforcerAndCoreClient(
 	defer cancel()
 
 	return subcommand(ctx, securityClient, kubeClient.CoreV1())
+}
+
+func getWorkloadPolicy(
+	ctx context.Context,
+	client securityclient.SecurityV1alpha1Interface,
+	namespace, name string,
+) (*v1alpha1.WorkloadPolicy, error) {
+	policy, err := client.WorkloadPolicies(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, fmt.Errorf("workloadpolicy %q not found in namespace %q", name, namespace)
+		}
+		return nil, fmt.Errorf(
+			"failed to get WorkloadPolicy %q in namespace %q: %w",
+			name,
+			namespace,
+			err,
+		)
+	}
+	return policy, nil
+}
+
+func updateWorkloadPolicy(
+	ctx context.Context,
+	client securityclient.SecurityV1alpha1Interface,
+	namespace string,
+	policy *v1alpha1.WorkloadPolicy,
+	dryRun bool,
+) error {
+	updateOptions := metav1.UpdateOptions{}
+	if dryRun {
+		updateOptions.DryRun = []string{metav1.DryRunAll}
+	}
+
+	if _, err := client.WorkloadPolicies(namespace).Update(ctx, policy, updateOptions); err != nil {
+		if apierrors.IsConflict(err) {
+			return fmt.Errorf(
+				"WorkloadPolicy %q in namespace %q was modified concurrently",
+				policy.Name,
+				policy.Namespace,
+			)
+		}
+		return fmt.Errorf(
+			"failed to update WorkloadPolicy %q in namespace %q: %w",
+			policy.Name,
+			policy.Namespace,
+			err,
+		)
+	}
+
+	return nil
 }

@@ -10,11 +10,9 @@ import (
 	"strconv"
 	"strings"
 
-	apiv1alpha1 "github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
+	"github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
 	securityclient "github.com/rancher-sandbox/runtime-enforcer/pkg/generated/clientset/versioned/typed/api/v1alpha1"
 	"github.com/spf13/cobra"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/kubectl/pkg/util/completion"
 )
 
@@ -117,7 +115,7 @@ func runPolicyAck(
 	stdout, stderr io.Writer,
 ) error {
 	var reason string
-	var violation apiv1alpha1.ViolationRecord
+	var violation v1alpha1.ViolationRecord
 
 	policy, err := getWorkloadPolicy(ctx, client, opts.Namespace, opts.PolicyName)
 	if err != nil {
@@ -149,7 +147,7 @@ func runPolicyAck(
 		printPolicyAckDryRun(stdout, opts, policy, violation, annotationKey, reason)
 	}
 
-	if err = updateAckWorkloadPolicy(ctx, client, opts.Namespace, policy, opts.DryRun); err != nil {
+	if err = updateWorkloadPolicy(ctx, client, opts.Namespace, policy, opts.DryRun); err != nil {
 		return err
 	}
 
@@ -168,28 +166,8 @@ func runPolicyAck(
 	return nil
 }
 
-func getWorkloadPolicy(
-	ctx context.Context,
-	client securityclient.SecurityV1alpha1Interface,
-	namespace, name string,
-) (*apiv1alpha1.WorkloadPolicy, error) {
-	policy, err := client.WorkloadPolicies(namespace).Get(ctx, name, metav1.GetOptions{})
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil, fmt.Errorf("workloadpolicy %q not found in namespace %q", name, namespace)
-		}
-		return nil, fmt.Errorf(
-			"failed to get WorkloadPolicy %q in namespace %q: %w",
-			name,
-			namespace,
-			err,
-		)
-	}
-	return policy, nil
-}
-
 func applyAckAnnotation(
-	policy *apiv1alpha1.WorkloadPolicy,
+	policy *v1alpha1.WorkloadPolicy,
 	violationID int64,
 	reason string,
 ) (string, bool) {
@@ -210,8 +188,8 @@ func applyAckAnnotation(
 func printPolicyAckDryRun(
 	out io.Writer,
 	opts *policyAckOptions,
-	policy *apiv1alpha1.WorkloadPolicy,
-	violation apiv1alpha1.ViolationRecord,
+	policy *v1alpha1.WorkloadPolicy,
+	violation v1alpha1.ViolationRecord,
 	annotationKey, reason string,
 ) {
 	fmt.Fprintf(
@@ -229,37 +207,6 @@ func printPolicyAckDryRun(
 		violation.ContainerName,
 		violation.PodName,
 	)
-}
-
-func updateAckWorkloadPolicy(
-	ctx context.Context,
-	client securityclient.SecurityV1alpha1Interface,
-	namespace string,
-	policy *apiv1alpha1.WorkloadPolicy,
-	dryRun bool,
-) error {
-	updateOptions := metav1.UpdateOptions{}
-	if dryRun {
-		updateOptions.DryRun = []string{metav1.DryRunAll}
-	}
-
-	if _, err := client.WorkloadPolicies(namespace).Update(ctx, policy, updateOptions); err != nil {
-		if apierrors.IsConflict(err) {
-			return fmt.Errorf(
-				"WorkloadPolicy %q in namespace %q was modified concurrently",
-				policy.Name,
-				policy.Namespace,
-			)
-		}
-		return fmt.Errorf(
-			"failed to update WorkloadPolicy %q in namespace %q: %w",
-			policy.Name,
-			policy.Namespace,
-			err,
-		)
-	}
-
-	return nil
 }
 
 func resolveAckReason(opts *policyAckOptions, in io.Reader, errOut io.Writer) (string, error) {
@@ -284,19 +231,19 @@ func resolveAckReason(opts *policyAckOptions, in io.Reader, errOut io.Writer) (s
 	return reason, nil
 }
 
-func findViolationByID(violations []apiv1alpha1.ViolationRecord, id int64) (apiv1alpha1.ViolationRecord, error) {
+func findViolationByID(violations []v1alpha1.ViolationRecord, id int64) (v1alpha1.ViolationRecord, error) {
 	for _, violation := range violations {
 		if violation.ID == id {
 			return violation, nil
 		}
 	}
 
-	return apiv1alpha1.ViolationRecord{}, fmt.Errorf(
+	return v1alpha1.ViolationRecord{}, fmt.Errorf(
 		"violation id %d not found in status.violations",
 		id,
 	)
 }
 
 func violationAcknowledgeAnnotationKey(id int64) string {
-	return apiv1alpha1.ViolationAcknowledgePrefix + strconv.FormatInt(id, 10)
+	return v1alpha1.ViolationAcknowledgePrefix + strconv.FormatInt(id, 10)
 }

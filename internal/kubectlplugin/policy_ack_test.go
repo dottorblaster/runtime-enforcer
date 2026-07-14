@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	apiv1alpha1 "github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
+	"github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
 	fakeclient "github.com/rancher-sandbox/runtime-enforcer/pkg/generated/clientset/versioned/fake"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -22,15 +22,15 @@ func TestRunPolicyAck(t *testing.T) {
 		name = "test-policy"
 	)
 
-	makePolicy := func(annotations map[string]string) *apiv1alpha1.WorkloadPolicy {
-		return &apiv1alpha1.WorkloadPolicy{
+	makePolicy := func(annotations map[string]string) *v1alpha1.WorkloadPolicy {
+		return &v1alpha1.WorkloadPolicy{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        name,
 				Namespace:   ns,
 				Annotations: annotations,
 			},
-			Status: apiv1alpha1.WorkloadPolicyStatus{
-				Violations: []apiv1alpha1.ViolationRecord{
+			Status: v1alpha1.WorkloadPolicyStatus{
+				Violations: []v1alpha1.ViolationRecord{
 					{
 						ID:             1,
 						ContainerName:  "app",
@@ -50,7 +50,7 @@ func TestRunPolicyAck(t *testing.T) {
 
 	tests := []struct {
 		name           string
-		policy         *apiv1alpha1.WorkloadPolicy
+		policy         *v1alpha1.WorkloadPolicy
 		violationID    int64
 		reason         string
 		reasonSet      bool
@@ -191,30 +191,30 @@ func TestRunPolicyAck(t *testing.T) {
 func TestCompletePolicyAckValidArgs(t *testing.T) {
 	t.Parallel()
 
-	testWorkloadPolicy := &apiv1alpha1.WorkloadPolicy{
+	testWorkloadPolicy := &v1alpha1.WorkloadPolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-policy",
 			Namespace: "test",
 		},
-		Status: apiv1alpha1.WorkloadPolicyStatus{
-			Violations: []apiv1alpha1.ViolationRecord{
+		Status: v1alpha1.WorkloadPolicyStatus{
+			Violations: []v1alpha1.ViolationRecord{
 				{ID: 1, ContainerName: "app", ExecutablePath: "/bin/mv"},
 				{ID: 2, ContainerName: "app", ExecutablePath: "/bin/ls"},
 			},
 		},
 	}
 
-	emptyWorkloadPolicy := &apiv1alpha1.WorkloadPolicy{
+	emptyWorkloadPolicy := &v1alpha1.WorkloadPolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-policy",
 			Namespace: "test",
 		},
-		Status: apiv1alpha1.WorkloadPolicyStatus{},
+		Status: v1alpha1.WorkloadPolicyStatus{},
 	}
 
 	tests := []struct {
 		name              string
-		policy            *apiv1alpha1.WorkloadPolicy
+		policy            *v1alpha1.WorkloadPolicy
 		args              []string
 		expectedCompletes []string
 	}{

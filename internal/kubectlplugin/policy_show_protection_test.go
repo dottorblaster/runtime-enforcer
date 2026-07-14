@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	apiv1alpha1 "github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
+	"github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/types/policymode"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/types/workloadkind"
 	"github.com/stretchr/testify/require"
@@ -36,7 +36,7 @@ func TestBuildWorkloadProtectionRows(t *testing.T) {
 	tests := []struct {
 		name     string
 		pods     []corev1.Pod
-		policies []apiv1alpha1.WorkloadPolicy
+		policies []v1alpha1.WorkloadPolicy
 		expected []workloadProtectionRow
 	}{
 		{
@@ -47,8 +47,8 @@ func TestBuildWorkloadProtectionRows(t *testing.T) {
 						Name:      "opensuse-deployment-6469c647b5-2ftx7",
 						Namespace: namespaceA,
 						Labels: map[string]string{
-							apiv1alpha1.PolicyLabelKey: policyName,
-							podTemplateHashLabel:       "6469c647b5",
+							v1alpha1.PolicyLabelKey: policyName,
+							podTemplateHashLabel:    "6469c647b5",
 						},
 					},
 				},
@@ -57,17 +57,17 @@ func TestBuildWorkloadProtectionRows(t *testing.T) {
 						Name:      "opensuse-deployment-6469c647b5-tjssz",
 						Namespace: namespaceA,
 						Labels: map[string]string{
-							apiv1alpha1.PolicyLabelKey: policyName,
-							podTemplateHashLabel:       "6469c647b5",
+							v1alpha1.PolicyLabelKey: policyName,
+							podTemplateHashLabel:    "6469c647b5",
 						},
 					},
 				},
 			},
-			policies: []apiv1alpha1.WorkloadPolicy{
+			policies: []v1alpha1.WorkloadPolicy{
 				{
 					ObjectMeta: metav1.ObjectMeta{Name: policyName, Namespace: namespaceA},
-					Spec:       apiv1alpha1.WorkloadPolicySpec{Mode: policymode.ProtectString},
-					Status:     apiv1alpha1.WorkloadPolicyStatus{Phase: apiv1alpha1.Ready},
+					Spec:       v1alpha1.WorkloadPolicySpec{Mode: policymode.ProtectString},
+					Status:     v1alpha1.WorkloadPolicyStatus{Phase: v1alpha1.Ready},
 				},
 			},
 			expected: []workloadProtectionRow{
@@ -76,7 +76,7 @@ func TestBuildWorkloadProtectionRows(t *testing.T) {
 					Kind:     workloadkind.Deployment.String(),
 					Policy:   policyName,
 					Mode:     modeToUpper(policymode.ProtectString),
-					Status:   string(apiv1alpha1.Ready),
+					Status:   string(v1alpha1.Ready),
 				},
 			},
 		},
@@ -88,8 +88,8 @@ func TestBuildWorkloadProtectionRows(t *testing.T) {
 						Name:      "opensuse-deployment-6469c647b5-2ftx7",
 						Namespace: namespaceA,
 						Labels: map[string]string{
-							apiv1alpha1.PolicyLabelKey: policyName,
-							podTemplateHashLabel:       "6469c647b5",
+							v1alpha1.PolicyLabelKey: policyName,
+							podTemplateHashLabel:    "6469c647b5",
 						},
 					},
 				},
@@ -113,7 +113,7 @@ func TestBuildWorkloadProtectionRows(t *testing.T) {
 						Name:      "pod-a",
 						Namespace: namespaceA,
 						Labels: map[string]string{
-							apiv1alpha1.PolicyLabelKey: policyName,
+							v1alpha1.PolicyLabelKey: policyName,
 						},
 					},
 				},
@@ -122,21 +122,21 @@ func TestBuildWorkloadProtectionRows(t *testing.T) {
 						Name:      "pod-b",
 						Namespace: namespaceB,
 						Labels: map[string]string{
-							apiv1alpha1.PolicyLabelKey: policyName,
+							v1alpha1.PolicyLabelKey: policyName,
 						},
 					},
 				},
 			},
-			policies: []apiv1alpha1.WorkloadPolicy{
+			policies: []v1alpha1.WorkloadPolicy{
 				{
 					ObjectMeta: metav1.ObjectMeta{Name: policyName, Namespace: namespaceA},
-					Spec:       apiv1alpha1.WorkloadPolicySpec{Mode: policymode.MonitorString},
-					Status:     apiv1alpha1.WorkloadPolicyStatus{Phase: apiv1alpha1.Ready},
+					Spec:       v1alpha1.WorkloadPolicySpec{Mode: policymode.MonitorString},
+					Status:     v1alpha1.WorkloadPolicyStatus{Phase: v1alpha1.Ready},
 				},
 				{
 					ObjectMeta: metav1.ObjectMeta{Name: policyName, Namespace: namespaceB},
-					Spec:       apiv1alpha1.WorkloadPolicySpec{Mode: policymode.ProtectString},
-					Status:     apiv1alpha1.WorkloadPolicyStatus{Phase: apiv1alpha1.Failed},
+					Spec:       v1alpha1.WorkloadPolicySpec{Mode: policymode.ProtectString},
+					Status:     v1alpha1.WorkloadPolicyStatus{Phase: v1alpha1.Failed},
 				},
 			},
 			expected: []workloadProtectionRow{
@@ -145,14 +145,14 @@ func TestBuildWorkloadProtectionRows(t *testing.T) {
 					Kind:     workloadkind.Pod.String(),
 					Policy:   policyName,
 					Mode:     modeToUpper(policymode.MonitorString),
-					Status:   string(apiv1alpha1.Ready),
+					Status:   string(v1alpha1.Ready),
 				},
 				{
 					Workload: types.NamespacedName{Namespace: namespaceB, Name: "pod-b"}.String(),
 					Kind:     workloadkind.Pod.String(),
 					Policy:   policyName,
 					Mode:     modeToUpper(policymode.ProtectString),
-					Status:   string(apiv1alpha1.Failed),
+					Status:   string(v1alpha1.Failed),
 				},
 			},
 		},
@@ -176,7 +176,7 @@ func TestRenderPolicyProtection(t *testing.T) {
 		Kind:     workloadkind.Deployment.String(),
 		Policy:   policyName,
 		Mode:     modeToUpper(policymode.ProtectString),
-		Status:   string(apiv1alpha1.Ready),
+		Status:   string(v1alpha1.Ready),
 	}}
 
 	t.Run("validate json", func(t *testing.T) {
@@ -192,7 +192,7 @@ func TestRenderPolicyProtection(t *testing.T) {
 		require.Equal(t, policyName, decoded[0]["policy"])
 		require.Equal(t, workloadkind.Deployment.String(), decoded[0]["kind"])
 		require.Equal(t, modeToUpper(policymode.ProtectString), decoded[0]["mode"])
-		require.Equal(t, string(apiv1alpha1.Ready), decoded[0]["status"])
+		require.Equal(t, string(v1alpha1.Ready), decoded[0]["status"])
 	})
 
 	t.Run("validate table", func(t *testing.T) {
@@ -211,6 +211,6 @@ func TestRenderPolicyProtection(t *testing.T) {
 		require.Contains(t, output, policyName)
 		require.Contains(t, output, workloadkind.Deployment.String())
 		require.Contains(t, output, modeToUpper(policymode.ProtectString))
-		require.Contains(t, output, string(apiv1alpha1.Ready))
+		require.Contains(t, output, string(v1alpha1.Ready))
 	})
 }

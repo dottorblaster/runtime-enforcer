@@ -8,11 +8,9 @@ import (
 	"slices"
 	"strconv"
 
-	apiv1alpha1 "github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
+	"github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
 	securityclient "github.com/rancher-sandbox/runtime-enforcer/pkg/generated/clientset/versioned/typed/api/v1alpha1"
 	"github.com/spf13/cobra"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/completion"
 )
@@ -168,17 +166,9 @@ func runPolicyExec(
 	opts *policyExecOptions,
 	out io.Writer,
 ) error {
-	policy, err := client.WorkloadPolicies(opts.Namespace).Get(ctx, opts.PolicyName, metav1.GetOptions{})
+	policy, err := getWorkloadPolicy(ctx, client, opts.Namespace, opts.PolicyName)
 	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return fmt.Errorf("workloadpolicy %q not found in namespace %q", opts.PolicyName, opts.Namespace)
-		}
-		return fmt.Errorf(
-			"failed to get WorkloadPolicy %q in namespace %q: %w",
-			opts.PolicyName,
-			opts.Namespace,
-			err,
-		)
+		return err
 	}
 
 	changed, err := applyExecutablesToPolicy(policy.Spec.RulesByContainer, opts)
@@ -214,7 +204,7 @@ func runPolicyExec(
 		)
 	}
 
-	if err = updateWorkloadPolicy(ctx, client, opts, policy); err != nil {
+	if err = updateWorkloadPolicy(ctx, client, opts.Namespace, policy, opts.DryRun); err != nil {
 		return err
 	}
 
@@ -229,7 +219,7 @@ func runPolicyExec(
 }
 
 func applyExecutablesToPolicy(
-	rulesByContainer map[string]*apiv1alpha1.WorkloadPolicyRules,
+	rulesByContainer map[string]*v1alpha1.WorkloadPolicyRules,
 	opts *policyExecOptions,
 ) (bool, error) {
 	if rulesByContainer == nil {
@@ -242,7 +232,7 @@ func applyExecutablesToPolicy(
 	}
 
 	if rules == nil {
-		rules = &apiv1alpha1.WorkloadPolicyRules{}
+		rules = &v1alpha1.WorkloadPolicyRules{}
 		rulesByContainer[opts.ContainerName] = rules
 	}
 
@@ -294,35 +284,4 @@ func denyExecutables(executables []string, denied []string) ([]string, bool) {
 	}
 
 	return newExecutables, changed
-}
-
-func updateWorkloadPolicy(
-	ctx context.Context,
-	client securityclient.SecurityV1alpha1Interface,
-	opts *policyExecOptions,
-	policy *apiv1alpha1.WorkloadPolicy,
-) error {
-	updateOptions := metav1.UpdateOptions{}
-	if opts.DryRun {
-		updateOptions.DryRun = []string{metav1.DryRunAll}
-	}
-
-	if _, err := client.WorkloadPolicies(opts.Namespace).
-		Update(ctx, policy, updateOptions); err != nil {
-		if apierrors.IsConflict(err) {
-			return fmt.Errorf(
-				"WorkloadPolicy %q in namespace %q was modified concurrently",
-				policy.Name,
-				policy.Namespace,
-			)
-		}
-		return fmt.Errorf(
-			"failed to update WorkloadPolicy %q in namespace %q: %w",
-			policy.Name,
-			policy.Namespace,
-			err,
-		)
-	}
-
-	return nil
 }
