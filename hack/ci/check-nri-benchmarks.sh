@@ -81,7 +81,7 @@ write_baseline_file() {
     echo "# NRI callback benchmark baseline (ns/op)."
     echo "# commit: ${commit}"
     echo "# captured: ${captured}"
-    echo "# tolerance: ±${BENCH_TOLERANCE_PERCENT}% — update after intentional performance changes (CI captures commit and datetime)."
+    echo "# tolerance: +${BENCH_TOLERANCE_PERCENT}% — update after intentional performance changes (only fails if slower than baseline)."
     for bench_name in "${bench_names[@]}"; do
       local observed_ns="${observed_ns_per_op[$bench_name]:-}"
       if [[ -z "$observed_ns" ]]; then
@@ -113,7 +113,6 @@ read_baseline_file() {
 # for regression detection. One run per PR is enough since CI runs this on every PR.
 check_against_baseline() {
   local failed=0
-  local min_factor=$((100 - BENCH_TOLERANCE_PERCENT))
   local max_factor=$((100 + BENCH_TOLERANCE_PERCENT))
 
   for bench_name in "${bench_names[@]}"; do
@@ -132,16 +131,16 @@ check_against_baseline() {
       continue
     fi
 
-    local min_ns=$((baseline_ns * min_factor / 100))
+    # Only guard against regressions (too slow); running faster than baseline is fine.
     local max_ns=$((baseline_ns * max_factor / 100))
 
-    if (( observed_ns < min_ns || observed_ns > max_ns )); then
-      echo "benchmark ${bench_name} outside ±${BENCH_TOLERANCE_PERCENT}% of baseline: observed ${observed_ns} ns/op, baseline ${baseline_ns} ns/op (allowed ${min_ns}-${max_ns} ns/op)" >&2
+    if (( observed_ns > max_ns )); then
+      echo "benchmark ${bench_name} exceeded +${BENCH_TOLERANCE_PERCENT}% of baseline: observed ${observed_ns} ns/op, baseline ${baseline_ns} ns/op (max ${max_ns} ns/op)" >&2
       failed=1
       continue
     fi
 
-    echo "benchmark ${bench_name}: ${observed_ns} ns/op (baseline ${baseline_ns} ns/op, ±${BENCH_TOLERANCE_PERCENT}% → ${min_ns}-${max_ns} ns/op)"
+    echo "benchmark ${bench_name}: ${observed_ns} ns/op (baseline ${baseline_ns} ns/op, +${BENCH_TOLERANCE_PERCENT}% → max ${max_ns} ns/op)"
   done
 
   if (( failed != 0 )); then
