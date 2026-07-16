@@ -49,7 +49,7 @@ data:
           receivers: [otlp]
           exporters: [count, debug]
         metrics:
-          receivers: [count]
+          receivers: [count, otlp]
           processors: [deltatocumulative]
           exporters: [prometheus]
 {{- end }}

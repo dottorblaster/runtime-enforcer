@@ -10,7 +10,9 @@ import (
 	"github.com/rancher-sandbox/runtime-enforcer/internal/grpcexporter"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/types/loglevel"
 
+	"go.opentelemetry.io/otel/attribute"
 	otellog "go.opentelemetry.io/otel/log"
+	"go.opentelemetry.io/otel/metric"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -24,17 +26,19 @@ import (
 type WorkloadPolicyStatusSync struct {
 	client.Client
 
-	agentClientPool *grpcexporter.AgentClientPool
-	updateInterval  time.Duration
-	logger          logr.Logger
-	eventLogger     otellog.Logger
+	agentClientPool       *grpcexporter.AgentClientPool
+	updateInterval        time.Duration
+	logger                logr.Logger
+	eventLogger           otellog.Logger
+	activeViolationsGauge metric.Int64Gauge
 }
 
 // WorkloadPolicyStatusSyncConfig holds the configuration for the WorkloadPolicyStatusSync.
 type WorkloadPolicyStatusSyncConfig struct {
-	AgentPoolConf  grpcexporter.AgentClientPoolConfig
-	UpdateInterval time.Duration
-	EventLogger    otellog.Logger
+	AgentPoolConf         grpcexporter.AgentClientPoolConfig
+	UpdateInterval        time.Duration
+	EventLogger           otellog.Logger
+	ActiveViolationsGauge metric.Int64Gauge
 }
 
 func NewWorkloadPolicyStatusSync(
@@ -51,10 +55,11 @@ func NewWorkloadPolicyStatusSync(
 	}
 
 	return &WorkloadPolicyStatusSync{
-		Client:          c,
-		agentClientPool: agentClientPool,
-		updateInterval:  config.UpdateInterval,
-		eventLogger:     config.EventLogger,
+		Client:                c,
+		agentClientPool:       agentClientPool,
+		updateInterval:        config.UpdateInterval,
+		eventLogger:           config.EventLogger,
+		activeViolationsGauge: config.ActiveViolationsGauge,
 	}, nil
 }
 
@@ -114,6 +119,18 @@ func (r *WorkloadPolicyStatusSync) sync(
 				err,
 				"failed to process workload policy",
 				"policy", policyName,
+			)
+			continue
+		}
+
+		if r.activeViolationsGauge != nil {
+			r.activeViolationsGauge.Record(
+				ctx,
+				int64(wp.Status.ActiveViolationCount),
+				metric.WithAttributes(
+					attribute.String("policy.name", wp.Name),
+					attribute.String("k8s.namespace.name", wp.Namespace),
+				),
 			)
 		}
 	}
