@@ -173,10 +173,10 @@ Some notes on this proposal:
 == WorkloadPolicy (monitor mode)
 
 This proposal looks reasonable for our Deployment, so the next step is converting it into a definitive policy.
-To do that, we label the `WorkloadPolicyProposal` with the `security.rancher.io/policy-ready` label set to `true`.
+To do that, we label the `WorkloadPolicyProposal` with the `security.rancher.io/promote` label set to `true`.
 
 ```bash
-kubectl label workloadpolicyproposals.security.rancher.io deploy-opensuse-deployment security.rancher.io/policy-ready=true
+kubectl label workloadpolicyproposals.security.rancher.io deploy-opensuse-deployment security.rancher.io/promote=true
 ```
 
 You can also use the kubectl plugin to perform the same step:
