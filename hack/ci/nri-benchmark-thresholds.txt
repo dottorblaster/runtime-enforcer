@@ -1,4 +1,4 @@
 # NRI callback benchmark baseline (ns/op).
 BenchmarkPluginSynchronize 16629755
 BenchmarkPluginStartContainer 30000
-BenchmarkPluginRemoveContainer 15714
+BenchmarkPluginRemoveContainer 22035
