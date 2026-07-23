@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -33,8 +34,10 @@ import (
 	"github.com/rancher-sandbox/runtime-enforcer/internal/customloggers/httpserverlogger"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/events"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/grpcexporter"
+	"github.com/rancher-sandbox/runtime-enforcer/internal/metrics"
 
 	otellog "go.opentelemetry.io/otel/log"
+	"go.opentelemetry.io/otel/metric"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -295,26 +298,65 @@ func getMetricsServerOptions(logger *slog.Logger, config *Config) (*certwatcher.
 	return metricsCertWatcher, metricsServerOptions
 }
 
-func setupOtel(ctx context.Context, slogger *slog.Logger, config *Config) (func(context.Context) error, error) {
-	var err error
-	var eventShutdown func(context.Context) error
-	if config.otlpEndpoint != "" {
-		var eventLogger otellog.Logger
-		eventLogger, eventShutdown, err = events.Init(
-			ctx,
-			config.otlpEndpoint,
-			config.otlpCACert,
-			config.otlpClientCert,
-			config.otlpClientKey,
-			config.otlpProtocol,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to initialize otel: %w", err)
-		}
-		config.wpStatusSyncConfig.EventLogger = eventLogger
-		slogger.InfoContext(ctx, "OTLP telemetry enabled", "endpoint", config.otlpEndpoint)
+func setupOtel(
+	ctx context.Context,
+	slogger *slog.Logger,
+	config *Config,
+) (func(context.Context) error, error) {
+	if config.otlpEndpoint == "" {
+		return func(context.Context) error { return nil }, nil
 	}
-	return eventShutdown, nil
+
+	var err error
+	var eventShutdown, metricShutdown func(context.Context) error
+	var eventLogger otellog.Logger
+	var activeViolationsGauge metric.Int64Gauge
+	var shutdowns []func(context.Context) error
+
+	eventLogger, eventShutdown, err = events.Init(
+		ctx,
+		config.otlpEndpoint,
+		config.otlpCACert,
+		config.otlpClientCert,
+		config.otlpClientKey,
+		config.otlpProtocol,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize otel logs: %w", err)
+	}
+	config.wpStatusSyncConfig.EventLogger = eventLogger
+	shutdowns = append(shutdowns, eventShutdown)
+
+	activeViolationsGauge, metricShutdown, err = metrics.Init(
+		ctx,
+		config.otlpEndpoint,
+		config.otlpCACert,
+		config.otlpClientCert,
+		config.otlpClientKey,
+		config.otlpProtocol,
+		config.wpStatusSyncConfig.UpdateInterval,
+	)
+	if err != nil {
+		_ = eventShutdown(ctx)
+		return nil, fmt.Errorf("failed to initialize otel metrics: %w", err)
+	}
+	config.wpStatusSyncConfig.ActiveViolationsGauge = activeViolationsGauge
+	shutdowns = append(shutdowns, metricShutdown)
+
+	slogger.InfoContext(ctx, "OTLP telemetry enabled", "endpoint", config.otlpEndpoint)
+
+	return func(shutdownCtx context.Context) error {
+		var errs error
+		for _, shutdown := range shutdowns {
+			if shutdown == nil {
+				continue
+			}
+			if shutdownErr := shutdown(shutdownCtx); shutdownErr != nil {
+				errs = errors.Join(errs, shutdownErr)
+			}
+		}
+		return errs
+	}, nil
 }
 
 func main() {
@@ -366,9 +408,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	var eventShutdown func(context.Context) error
+	var otelShutdown func(context.Context) error
 
-	eventShutdown, err = setupOtel(ctx, slogger, &config)
+	otelShutdown, err = setupOtel(ctx, slogger, &config)
 	if err != nil {
 		setupLog.Error(err, "failed to setup otel")
 		os.Exit(1)
@@ -404,9 +446,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	if eventShutdown != nil {
-		if err = eventShutdown(ctx); err != nil {
-			slogger.ErrorContext(ctx, "failed to shutdown violation event pipeline", "error", err)
+	if otelShutdown != nil {
+		if err = otelShutdown(ctx); err != nil {
+			slogger.ErrorContext(ctx, "failed to shutdown otel telemetry pipeline", "error", err)
 		}
 	}
 }

@@ -15,6 +15,11 @@
     "component": "controller"
   },
   {
+    "level": "ERROR",
+    "msg": "failed to export active violations metrics",
+    "component": "controller"
+  },
+  {
     "level": "WARN",
     "msg": "error during NRI plugin execution, retrying...",
     "component": "nri-handler"

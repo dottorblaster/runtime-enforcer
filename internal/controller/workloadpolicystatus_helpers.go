@@ -15,6 +15,7 @@ import (
 )
 
 // processWorkloadPolicy updates the wp.status and wp.annotation in order to acknowledge a violation.
+// On success, *wp is replaced with the patched policy. On failure, *wp is left unchanged.
 // NOTE: agent side ignores annotation changes and status change via predicate.GenerationChangedPredicate{}.
 func (r *WorkloadPolicyStatusSync) processWorkloadPolicy(
 	ctx context.Context,
@@ -56,6 +57,7 @@ func (r *WorkloadPolicyStatusSync) processWorkloadPolicy(
 	if err != nil {
 		return err
 	}
+	*wp = *newPolicy
 	return nil
 }
 

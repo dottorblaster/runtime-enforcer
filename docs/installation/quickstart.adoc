@@ -109,6 +109,13 @@ Once violations occur, you will see a counter like:
 runtime_enforcer_violations_total{action="monitor",k8s_namespace_name="default",node_name="node-1",policy_name="deploy-opensuse-deployment"} 1
 ```
 
+Alongside it, the controller exports a gauge of the current number of unresolved
+violations per policy, taken from `status.activeViolationCount`:
+
+```
+runtime_enforcer_active_violations{k8s_namespace_name="default",policy_name="deploy-opensuse-deployment"} 1
+```
+
 === Summary
 
 At this point, Runtime-Enforcer is up and running. You're now ready to write some policies.

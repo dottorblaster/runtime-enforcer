@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -21,6 +22,7 @@ import (
 	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/transport/spdy"
 	"sigs.k8s.io/e2e-framework/klient/k8s"
+	"sigs.k8s.io/e2e-framework/klient/k8s/resources"
 	"sigs.k8s.io/e2e-framework/klient/wait"
 	"sigs.k8s.io/e2e-framework/klient/wait/conditions"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
@@ -163,6 +165,7 @@ func getOtelCollectorTest() types.Feature {
 				assertMetricHasLabel(t, metricsBody, "runtime_enforcer_violations", "action", policymode.MonitorString)
 				// node_name is set dynamically; just verify the label is present.
 				assertMetricHasLabelKey(t, metricsBody, "runtime_enforcer_violations", "node_name")
+				assertActiveViolationsGauge(ctx, t, r, promURL, policyToCheck)
 				return ctx
 			}).
 		Teardown(func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
@@ -171,6 +174,69 @@ func getOtelCollectorTest() types.Feature {
 			deleteAndWaitWP(ctx, t, policy)
 			return ctx
 		}).Feature()
+}
+
+// assertActiveViolationsGauge verifies the runtime_enforcer_active_violations
+// gauge exported through the collector matches the policy's current
+// status.activeViolationCount and stays bounded to {policy, namespace} labels.
+func assertActiveViolationsGauge(
+	ctx context.Context,
+	t *testing.T,
+	r *resources.Resources,
+	promURL string,
+	policy *v1alpha1.WorkloadPolicy,
+) {
+	t.Helper()
+	const metricName = "runtime_enforcer_active_violations"
+
+	t.Log("validating runtime_enforcer_active_violations gauge matches status.activeViolationCount")
+	var body string
+	require.Eventually(t, func() bool {
+		fetched, fetchErr := fetchURL(promURL)
+		if fetchErr != nil {
+			return false
+		}
+		body = fetched
+
+		current := &v1alpha1.WorkloadPolicy{}
+		if getErr := r.Get(ctx, policy.GetName(), policy.GetNamespace(), current); getErr != nil {
+			return false
+		}
+		want := current.Status.ActiveViolationCount
+
+		expectedPolicy := fmt.Sprintf(`policy_name="%s"`, policy.GetName())
+		expectedNS := fmt.Sprintf(`k8s_namespace_name="%s"`, policy.GetNamespace())
+
+		var got float64
+		ok := false
+		for line := range strings.SplitSeq(body, "\n") {
+			if !strings.HasPrefix(line, metricName) || !strings.Contains(line, expectedPolicy) ||
+				!strings.Contains(line, expectedNS) {
+				continue
+			}
+			fields := strings.Fields(line)
+			if len(fields) < 2 {
+				continue
+			}
+			value, err := strconv.ParseFloat(fields[len(fields)-1], 64)
+			if err != nil {
+				continue
+			}
+			got = value
+			ok = true
+			break
+		}
+
+		return ok && got == float64(want)
+	}, defaultOperationTimeout, 2*time.Second,
+		"runtime_enforcer_active_violations should match status.activeViolationCount",
+	)
+
+	assertMetricHasLabel(t, body, metricName, "policy_name", policy.GetName())
+	assertMetricHasLabel(t, body, metricName, "k8s_namespace_name", policy.GetNamespace())
+	assertMetricHasNoLabelKey(t, body, metricName, "k8s_pod_name")
+	assertMetricHasNoLabelKey(t, body, metricName, "container_name")
+	assertMetricHasNoLabelKey(t, body, metricName, "proc_exepath")
 }
 
 // portForwardPod creates a port-forward to a pod and returns the local port,
@@ -294,4 +360,19 @@ func assertMetricHasLabelKey(t *testing.T, body, metricName, labelKey string) {
 	}
 	assert.Failf(t, "metric label key not found",
 		"expected metric %q to have label key %q", metricName, labelKey)
+}
+
+// assertMetricHasNoLabelKey checks that no sample line for the given metric
+// carries the given label key.
+func assertMetricHasNoLabelKey(t *testing.T, body, metricName, labelKey string) {
+	t.Helper()
+
+	needle := labelKey + `="`
+	for line := range strings.SplitSeq(body, "\n") {
+		if strings.HasPrefix(line, metricName) && strings.Contains(line, needle) {
+			assert.Failf(t, "unexpected metric label key",
+				"metric %q must not carry label key %q, found line: %s", metricName, labelKey, line)
+			return
+		}
+	}
 }
