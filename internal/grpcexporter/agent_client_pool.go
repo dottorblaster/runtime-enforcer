@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"strings"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -33,21 +33,6 @@ type AgentClientPool struct {
 	logger        *slog.Logger
 }
 
-func convertLabelStringToSelector(labelString string) (map[string]string, error) {
-	agentLabelSelector := make(map[string]string)
-	labels := strings.SplitSeq(labelString, ",")
-	for label := range labels {
-		parts := strings.Split(label, "=")
-		if len(parts) != 2 { //nolint:mnd // label is composed of 2 parts
-			return nil, fmt.Errorf("label should be in the format 'key=value': %s. Invalid selector %s",
-				label,
-				labelString)
-		}
-		agentLabelSelector[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
-	}
-	return agentLabelSelector, nil
-}
-
 func getNamespace() (string, error) {
 	const namespaceNamePath = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 	// Get the agent namespace from the system.
@@ -64,7 +49,7 @@ func getNamespace() (string, error) {
 }
 
 func NewAgentClientPool(poolConf AgentClientPoolConfig) (*AgentClientPool, error) {
-	labelSelector, err := convertLabelStringToSelector(poolConf.LabelSelectorString)
+	labelSelector, err := labels.ConvertSelectorToLabelsMap(poolConf.LabelSelectorString)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert agent label selector: %w", err)
 	}
