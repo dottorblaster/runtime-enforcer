@@ -65,7 +65,7 @@ func NewWorkloadPolicyStatusSync(
 
 func (r *WorkloadPolicyStatusSync) Start(ctx context.Context) error {
 	r.logger = log.FromContext(ctx).WithName("WorkloadPolicyStatusSync")
-	r.logger.Info("Starting with", "interval", r.updateInterval)
+	r.logger.Info("Starting with", "interval", r.updateInterval.String())
 	for {
 		select {
 		case <-ctx.Done():
