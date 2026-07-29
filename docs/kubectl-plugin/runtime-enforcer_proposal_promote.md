@@ -13,8 +13,9 @@ runtime-enforcer proposal promote PROPOSAL_NAME [flags]
 ### Options
 
 ```
-      --dry-run   Show what would happen without making any changes
-  -h, --help      help for promote
+      --dry-run       Show what would happen without making any changes
+  -h, --help          help for promote
+      --mode string   Policy mode for the promoted WorkloadPolicy (monitor or protect) (default "monitor")
 ```
 
 ### Options inherited from parent commands

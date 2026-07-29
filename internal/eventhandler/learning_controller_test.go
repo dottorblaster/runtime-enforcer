@@ -7,6 +7,7 @@ import (
 	securityv1alpha1 "github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/eventhandler"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/eventscraper"
+	"github.com/rancher-sandbox/runtime-enforcer/internal/types/policymode"
 	"golang.org/x/sync/errgroup"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
@@ -332,7 +333,7 @@ var _ = Describe("Learning", func() {
 			testProposal := proposal.DeepCopy()
 			testProposal.Namespace = testNamespace
 			testProposal.Name = testProposalName
-			testProposal.SetPromotionLabel()
+			testProposal.SetPromotionLabel(policymode.MonitorString)
 			Expect(k8sClient.Create(ctx, testProposal)).To(Succeed())
 
 			for _, learningEvent := range processEvents {

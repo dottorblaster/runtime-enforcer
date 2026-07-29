@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
+	"github.com/rancher-sandbox/runtime-enforcer/internal/types/policymode"
 	securityclient "github.com/rancher-sandbox/runtime-enforcer/pkg/generated/clientset/versioned/typed/api/v1alpha1"
 	"github.com/spf13/cobra"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -18,6 +19,7 @@ type proposalPromoteOptions struct {
 	commonOptions
 
 	ProposalName string
+	Mode         string
 }
 
 func newProposalPromoteCmdValidArgsFunction(
@@ -40,6 +42,7 @@ func newProposalPromoteCmdValidArgsFunction(
 func newProposalPromoteCmd(deps commonCmdDeps) *cobra.Command {
 	opts := &proposalPromoteOptions{
 		commonOptions: newCommonOptions(deps),
+		Mode:          policymode.MonitorString,
 	}
 
 	cmd := &cobra.Command{
@@ -55,6 +58,12 @@ func newProposalPromoteCmd(deps commonCmdDeps) *cobra.Command {
 
 	// Plugin-specific flags
 	cmd.Flags().BoolVar(&opts.DryRun, "dry-run", false, "Show what would happen without making any changes")
+	cmd.Flags().StringVar(
+		&opts.Mode,
+		"mode",
+		policymode.MonitorString,
+		fmt.Sprintf("Policy mode for the promoted WorkloadPolicy (%s or %s)", policymode.MonitorString, policymode.ProtectString),
+	)
 
 	return cmd
 }
@@ -78,6 +87,15 @@ func runProposalPromote(
 	opts *proposalPromoteOptions,
 	out io.Writer,
 ) error {
+	if !policymode.IsValid(opts.Mode) {
+		return fmt.Errorf(
+			"invalid mode %q: must be %q or %q",
+			opts.Mode,
+			policymode.MonitorString,
+			policymode.ProtectString,
+		)
+	}
+
 	proposal, err := client.WorkloadPolicyProposals(opts.Namespace).Get(ctx, opts.ProposalName, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -91,7 +109,7 @@ func runProposalPromote(
 		)
 	}
 
-	if proposal.HasPromotionLabel() {
+	if hasPromotionLabel, _ := proposal.HasPromotionLabel(); hasPromotionLabel {
 		fmt.Fprintf(
 			out,
 			"WorkloadPolicyProposal %q in namespace %q is already promoted to WorkloadPolicy.\n",
@@ -106,7 +124,7 @@ func runProposalPromote(
 		updateOptions.DryRun = []string{metav1.DryRunAll}
 	}
 
-	proposal.SetPromotionLabel()
+	proposal.SetPromotionLabel(opts.Mode)
 
 	if _, err = client.WorkloadPolicyProposals(opts.Namespace).
 		Update(ctx, proposal, updateOptions); err != nil {

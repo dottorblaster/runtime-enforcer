@@ -99,7 +99,7 @@ func getPromotionTest() types.Feature {
 
 				t.Log("promote the policy proposal: ", proposal.Name)
 
-				proposal.SetPromotionLabel()
+				proposal.SetPromotionLabel(policymode.MonitorString)
 				err := r.Update(ctx, proposal)
 				require.NoError(t, err)
 

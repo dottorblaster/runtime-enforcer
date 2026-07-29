@@ -4,9 +4,83 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/rancher-sandbox/runtime-enforcer/internal/types/policymode"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+func TestWorkloadPolicyProposalPromotionLabel(t *testing.T) {
+	t.Run("nil proposal", func(t *testing.T) {
+		var p *WorkloadPolicyProposal
+		has, mode := p.HasPromotionLabel()
+		require.False(t, has)
+		require.Empty(t, mode)
+		p.SetPromotionLabel(policymode.MonitorString)
+	})
+
+	t.Run("missing label", func(t *testing.T) {
+		p := &WorkloadPolicyProposal{}
+		has, mode := p.HasPromotionLabel()
+		require.False(t, has)
+		require.Empty(t, mode)
+	})
+
+	tests := []struct {
+		name       string
+		labelValue string
+		wantHas    bool
+		wantMode   string
+	}{
+		{
+			name:       "true alias maps to monitor",
+			labelValue: ProposalPromoteLabelTrueAlias,
+			wantHas:    true,
+			wantMode:   policymode.MonitorString,
+		},
+		{
+			name:       "monitor",
+			labelValue: policymode.MonitorString,
+			wantHas:    true,
+			wantMode:   policymode.MonitorString,
+		},
+		{
+			name:       "protect",
+			labelValue: policymode.ProtectString,
+			wantHas:    true,
+			wantMode:   policymode.ProtectString,
+		},
+		{
+			name:       "unsupported value is ignored",
+			labelValue: "invalid",
+			wantHas:    false,
+			wantMode:   "",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			p := &WorkloadPolicyProposal{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						ProposalPromoteLabelKey: tc.labelValue,
+					},
+				},
+			}
+			has, mode := p.HasPromotionLabel()
+			require.Equal(t, tc.wantHas, has)
+			require.Equal(t, tc.wantMode, mode)
+		})
+	}
+
+	t.Run("SetPromotionLabel sets mode", func(t *testing.T) {
+		p := &WorkloadPolicyProposal{}
+		p.SetPromotionLabel(policymode.ProtectString)
+		has, mode := p.HasPromotionLabel()
+		require.True(t, has)
+		require.Equal(t, policymode.ProtectString, p.Labels[ProposalPromoteLabelKey])
+		require.Equal(t, policymode.ProtectString, mode)
+	})
+}
 
 func TestWorkloadPolicyProposalNamespacedName(t *testing.T) {
 	t.Run("nil proposal returns empty string", func(t *testing.T) {
