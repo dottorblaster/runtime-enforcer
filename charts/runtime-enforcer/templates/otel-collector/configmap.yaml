@@ -20,6 +20,8 @@ data:
         logs:
           runtime_enforcer_violations:
             description: "Total policy violations detected by runtime-enforcer"
+            conditions:
+              - 'body == "policy_violation"'
             attributes:
               - key: policy.name
               - key: k8s.namespace.name
@@ -27,6 +29,8 @@ data:
               - key: node.name
           runtime_enforcer_acknowledge:
             description: "Total acknowledged violations by runtime-enforcer"
+            conditions:
+              - 'body == "policy_violation_acknowledged"'
             attributes:
               - key: policy.name
               - key: k8s.namespace.name

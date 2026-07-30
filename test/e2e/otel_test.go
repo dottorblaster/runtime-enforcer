@@ -362,6 +362,42 @@ func assertMetricHasLabelKey(t *testing.T, body, metricName, labelKey string) {
 		"expected metric %q to have label key %q", metricName, labelKey)
 }
 
+// metricValue returns the value of the first sample line for the given metric
+// carrying the label key=value pair, or false if there is none.
+func metricValue(body, metricName, labelKey, labelValue string) (float64, bool) {
+	expected := fmt.Sprintf(`%s="%s"`, labelKey, labelValue)
+	for line := range strings.SplitSeq(body, "\n") {
+		if !strings.HasPrefix(line, metricName) || !strings.Contains(line, expected) {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			continue
+		}
+		v, err := strconv.ParseFloat(fields[len(fields)-1], 64)
+		if err != nil {
+			continue
+		}
+		return v, true
+	}
+	return 0, false
+}
+
+// assertMetricValue checks that the sample selected by the label key=value pair
+// equals the expected value.
+func assertMetricValue(t *testing.T, body, metricName, labelKey, labelValue string, expected float64) {
+	t.Helper()
+
+	v, ok := metricValue(body, metricName, labelKey, labelValue)
+	if !ok {
+		assert.Failf(t, "metric sample not found",
+			"expected metric %q with label %s=%q to be present", metricName, labelKey, labelValue)
+		return
+	}
+	assert.InDeltaf(t, expected, v, 0.0001,
+		"metric %q with label %s=%q should equal %v", metricName, labelKey, labelValue, expected)
+}
+
 // assertMetricHasNoLabelKey checks that no sample line for the given metric
 // carries the given label key.
 func assertMetricHasNoLabelKey(t *testing.T, body, metricName, labelKey string) {

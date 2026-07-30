@@ -241,6 +241,11 @@ func assessAcknowledgeMetric(ctx context.Context, t *testing.T, config *envconf.
 	assertMetricHasLabel(t, metricsBody, "runtime_enforcer_acknowledge", "action", policymode.MonitorString)
 	assertMetricHasLabelKey(t, metricsBody, "runtime_enforcer_acknowledge", "node_name")
 
+	// We acknowledged one violation once, so the counter must be exactly 1.
+	// If the count connector also counted policy_violation logs it would be
+	// higher, which is what keeps the two metrics apart.
+	assertMetricValue(t, metricsBody, "runtime_enforcer_acknowledge", "policy_name", "test-policy", 1)
+
 	return ctx
 }
 
