@@ -362,6 +362,47 @@ func assertMetricHasLabelKey(t *testing.T, body, metricName, labelKey string) {
 		"expected metric %q to have label key %q", metricName, labelKey)
 }
 
+// metricValue returns the value of the first sample line for the given metric
+// carrying the label key=value pair, or false if there is none. The lines it
+// parses are Prometheus exposition format, e.g.
+//
+//	runtime_enforcer_acknowledge_total{policy_name="test-policy",action="monitor"} 1
+//	runtime_enforcer_violations_total{policy_name="test-policy",action="monitor"} 4.2e+07
+//
+// Sample values are always float-typed there (large counters use scientific
+// notation), so we parse them as float64.
+func metricValue(body, metricName, labelKey, labelValue string) (float64, bool) {
+	expected := fmt.Sprintf(`%s="%s"`, labelKey, labelValue)
+	for line := range strings.SplitSeq(body, "\n") {
+		if !strings.HasPrefix(line, metricName) || !strings.Contains(line, expected) {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			continue
+		}
+		v, err := strconv.ParseFloat(fields[len(fields)-1], 64)
+		if err != nil {
+			continue
+		}
+		return v, true
+	}
+	return 0, false
+}
+
+// assertMetricValue checks that the sample selected by the label key=value pair
+// equals the expected value.
+func assertMetricValue(t *testing.T, body, metricName, labelKey, labelValue string, expected float64) {
+	t.Helper()
+
+	v, ok := metricValue(body, metricName, labelKey, labelValue)
+	require.Truef(t, ok,
+		"expected metric %q with label %s=%q to be present, body:\n%s",
+		metricName, labelKey, labelValue, body)
+	assert.InDeltaf(t, expected, v, 0.0001,
+		"metric %q with label %s=%q should equal %v", metricName, labelKey, labelValue, expected)
+}
+
 // assertMetricHasNoLabelKey checks that no sample line for the given metric
 // carries the given label key.
 func assertMetricHasNoLabelKey(t *testing.T, body, metricName, labelKey string) {
