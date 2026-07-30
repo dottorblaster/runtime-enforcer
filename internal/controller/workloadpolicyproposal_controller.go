@@ -63,7 +63,7 @@ func (r *WorkloadPolicyProposalReconciler) Reconcile(
 		return ctrl.Result{}, nil
 	}
 
-	hasPromotionLabel, mode := proposal.HasPromotionLabel()
+	mode, hasPromotionLabel := proposal.HasPromotionLabel()
 	if !hasPromotionLabel {
 		return ctrl.Result{}, nil
 	}

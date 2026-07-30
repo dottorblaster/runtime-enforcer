@@ -109,7 +109,7 @@ func runProposalPromote(
 		)
 	}
 
-	if hasPromotionLabel, _ := proposal.HasPromotionLabel(); hasPromotionLabel {
+	if _, hasPromotionLabel := proposal.HasPromotionLabel(); hasPromotionLabel {
 		fmt.Fprintf(
 			out,
 			"WorkloadPolicyProposal %q in namespace %q is already promoted to WorkloadPolicy.\n",

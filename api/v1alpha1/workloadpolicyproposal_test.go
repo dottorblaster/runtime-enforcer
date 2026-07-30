@@ -12,7 +12,7 @@ import (
 func TestWorkloadPolicyProposalPromotionLabel(t *testing.T) {
 	t.Run("nil proposal", func(t *testing.T) {
 		var p *WorkloadPolicyProposal
-		has, mode := p.HasPromotionLabel()
+		mode, has := p.HasPromotionLabel()
 		require.False(t, has)
 		require.Empty(t, mode)
 		p.SetPromotionLabel(policymode.MonitorString)
@@ -20,7 +20,7 @@ func TestWorkloadPolicyProposalPromotionLabel(t *testing.T) {
 
 	t.Run("missing label", func(t *testing.T) {
 		p := &WorkloadPolicyProposal{}
-		has, mode := p.HasPromotionLabel()
+		mode, has := p.HasPromotionLabel()
 		require.False(t, has)
 		require.Empty(t, mode)
 	})
@@ -31,12 +31,6 @@ func TestWorkloadPolicyProposalPromotionLabel(t *testing.T) {
 		wantHas    bool
 		wantMode   string
 	}{
-		{
-			name:       "true alias maps to monitor",
-			labelValue: ProposalPromoteLabelTrueAlias,
-			wantHas:    true,
-			wantMode:   policymode.MonitorString,
-		},
 		{
 			name:       "monitor",
 			labelValue: policymode.MonitorString,
@@ -66,7 +60,7 @@ func TestWorkloadPolicyProposalPromotionLabel(t *testing.T) {
 					},
 				},
 			}
-			has, mode := p.HasPromotionLabel()
+			mode, has := p.HasPromotionLabel()
 			require.Equal(t, tc.wantHas, has)
 			require.Equal(t, tc.wantMode, mode)
 		})
@@ -75,7 +69,7 @@ func TestWorkloadPolicyProposalPromotionLabel(t *testing.T) {
 	t.Run("SetPromotionLabel sets mode", func(t *testing.T) {
 		p := &WorkloadPolicyProposal{}
 		p.SetPromotionLabel(policymode.ProtectString)
-		has, mode := p.HasPromotionLabel()
+		mode, has := p.HasPromotionLabel()
 		require.True(t, has)
 		require.Equal(t, policymode.ProtectString, p.Labels[ProposalPromoteLabelKey])
 		require.Equal(t, policymode.ProtectString, mode)

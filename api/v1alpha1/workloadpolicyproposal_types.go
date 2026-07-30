@@ -79,21 +79,21 @@ func (p *WorkloadPolicyProposal) SetPromotionLabel(mode string) {
 
 // HasPromotionLabel reports whether the proposal has a valid promotion label and
 // returns the target WorkloadPolicy mode when it does.
-func (p *WorkloadPolicyProposal) HasPromotionLabel() (bool, string) {
+func (p *WorkloadPolicyProposal) HasPromotionLabel() (string, bool) {
 	if p == nil {
-		return false, ""
+		return "", false
 	}
 	val, ok := p.Labels[ProposalPromoteLabelKey]
 	if !ok {
-		return false, ""
+		return "", false
 	}
 	switch val {
-	case ProposalPromoteLabelTrueAlias, policymode.MonitorString:
-		return true, policymode.MonitorString
+	case policymode.MonitorString:
+		return policymode.MonitorString, true
 	case policymode.ProtectString:
-		return true, policymode.ProtectString
+		return policymode.ProtectString, true
 	default:
-		return false, ""
+		return "", false
 	}
 }
 

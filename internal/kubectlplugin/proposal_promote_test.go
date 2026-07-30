@@ -130,7 +130,7 @@ func TestRunProposalPromote(t *testing.T) {
 					Name:      name,
 					Namespace: ns,
 					Labels: map[string]string{
-						securityv1alpha1.ProposalPromoteLabelKey: "true",
+						securityv1alpha1.ProposalPromoteLabelKey: policymode.MonitorString,
 					},
 				},
 			},
@@ -139,7 +139,7 @@ func TestRunProposalPromote(t *testing.T) {
 				name,
 				ns,
 			),
-			expectLabel: "true",
+			expectLabel: policymode.MonitorString,
 		},
 		{
 			name: "rejects invalid mode",
@@ -201,7 +201,7 @@ func TestRunProposalPromote(t *testing.T) {
 			// The fake client ignores DryRun and still mutates the object, so we
 			// still assert the updated label even in dry-run mode.
 			if !tt.skipLabelCheck {
-				hasPromotionLabel, _ := wpProposal.HasPromotionLabel()
+				_, hasPromotionLabel := wpProposal.HasPromotionLabel()
 				require.True(t, hasPromotionLabel)
 				require.Equal(t, tt.expectLabel, wpProposal.Labels[securityv1alpha1.ProposalPromoteLabelKey])
 			}

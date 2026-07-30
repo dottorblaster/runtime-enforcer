@@ -2,12 +2,8 @@ package v1alpha1
 
 const (
 	// ProposalPromoteLabelKey is set on a WorkloadPolicyProposal when it is promoted to a WorkloadPolicy.
-	// Valid values are policymode strings ("monitor", "protect"). The value "true" is accepted as an
-	// alias for "monitor" for backward compatibility.
+	// Valid values are policymode strings ("monitor", "protect").
 	ProposalPromoteLabelKey = "security.rancher.io/promote"
-
-	// ProposalPromoteLabelTrueAlias is the legacy promote label value, treated as "monitor" mode.
-	ProposalPromoteLabelTrueAlias = "true"
 
 	// PolicyPromotedFromLabelKey is set on a WorkloadPolicy when it is created by
 	// promoting a WorkloadPolicyProposal.
