@@ -59,3 +59,23 @@ webhooks:
     resources:
     - workloadpolicies
   sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: {{ include "runtime-enforcer.fullname" . }}-controller-webhook
+      namespace: {{ .Release.Namespace }}
+      path: /validate-security-rancher-io-v1alpha1-workloadpolicyproposal
+  failurePolicy: Fail
+  name: validate-workloadpolicyproposals.rancher.io
+  rules:
+  - apiGroups:
+    - security.rancher.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - workloadpolicyproposals
+  sideEffects: None

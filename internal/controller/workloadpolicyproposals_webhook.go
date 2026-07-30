@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	securityv1alpha1 "github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
+	"github.com/rancher-sandbox/runtime-enforcer/internal/types/policymode"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -13,13 +14,19 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
+
+// +kubebuilder:webhook:path=/validate-security-rancher-io-v1alpha1-workloadpolicyproposal,mutating=false,failurePolicy=fail,sideEffects=None,groups=security.rancher.io,resources=workloadpolicyproposals,verbs=create;update,versions=v1alpha1,name=validate-workloadpolicyproposals.rancher.io,admissionReviewVersions=v1
 
 type ProposalWebhook struct {
 	Client client.Client
 }
+
+var _ admission.Validator[*securityv1alpha1.WorkloadPolicyProposal] = &ProposalWebhook{}
 
 var _ apierrors.APIStatus = (*ProposalValidatorError)(nil)
 
@@ -180,4 +187,55 @@ func (p *ProposalWebhook) Default(ctx context.Context, proposal *securityv1alpha
 	}
 
 	return p.updateResource(ctx, proposal)
+}
+
+func (p *ProposalWebhook) ValidateCreate(
+	ctx context.Context,
+	proposal *securityv1alpha1.WorkloadPolicyProposal,
+) (admission.Warnings, error) {
+	logger := log.FromContext(ctx)
+	logger.Info("Validation for WorkloadPolicyProposal upon creation", "name", proposal.GetName())
+	return nil, p.validatePromotionLabel(proposal)
+}
+
+func (p *ProposalWebhook) ValidateUpdate(
+	ctx context.Context,
+	_, newProposal *securityv1alpha1.WorkloadPolicyProposal,
+) (admission.Warnings, error) {
+	logger := log.FromContext(ctx)
+	logger.Info("Validation for WorkloadPolicyProposal upon update", "name", newProposal.GetName())
+	return nil, p.validatePromotionLabel(newProposal)
+}
+
+func (p *ProposalWebhook) ValidateDelete(
+	_ context.Context,
+	_ *securityv1alpha1.WorkloadPolicyProposal,
+) (admission.Warnings, error) {
+	return nil, nil
+}
+
+func (p *ProposalWebhook) validatePromotionLabel(proposal *securityv1alpha1.WorkloadPolicyProposal) error {
+	val, ok := proposal.Labels[securityv1alpha1.ProposalPromoteLabelKey]
+	if !ok {
+		return nil
+	}
+	if _, valid := proposal.HasPromotionLabel(); valid {
+		return nil
+	}
+	return apierrors.NewInvalid(
+		schema.GroupKind{Group: "security.rancher.io", Kind: "WorkloadPolicyProposal"},
+		proposal.Name,
+		field.ErrorList{
+			field.Invalid(
+				field.NewPath("metadata", "labels").Key(securityv1alpha1.ProposalPromoteLabelKey),
+				val,
+				fmt.Sprintf(
+					"unsupported value %q: must be %q or %q",
+					val,
+					policymode.MonitorString,
+					policymode.ProtectString,
+				),
+			),
+		},
+	)
 }

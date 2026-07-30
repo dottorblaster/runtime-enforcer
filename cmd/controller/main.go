@@ -424,8 +424,10 @@ func main() {
 		os.Exit(1)
 	}
 
+	proposalWebhook := &controller.ProposalWebhook{Client: mgr.GetClient()}
 	err = builder.WebhookManagedBy(mgr, &securityv1alpha1.WorkloadPolicyProposal{}).
-		WithDefaulter(&controller.ProposalWebhook{Client: mgr.GetClient()}).
+		WithDefaulter(proposalWebhook).
+		WithValidator(proposalWebhook).
 		Complete()
 	if err != nil {
 		setupLog.Error(err, "unable to create WorkloadPolicyProposal webhook")
