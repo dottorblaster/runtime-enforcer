@@ -63,7 +63,8 @@ func (r *WorkloadPolicyProposalReconciler) Reconcile(
 		return ctrl.Result{}, nil
 	}
 
-	if !proposal.HasPromotionLabel() {
+	mode, hasPromotionLabel := proposal.HasPromotionLabel()
+	if !hasPromotionLabel {
 		return ctrl.Result{}, nil
 	}
 
@@ -72,7 +73,7 @@ func (r *WorkloadPolicyProposalReconciler) Reconcile(
 			Name:      proposal.Name,
 			Namespace: proposal.Namespace,
 		},
-		Spec: proposal.Spec.IntoWorkloadPolicySpec(),
+		Spec: proposal.Spec.IntoWorkloadPolicySpec(mode),
 	}
 	if err = policy.SetPromotedLabel(proposal.Name); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to set promoted label: %w", err)

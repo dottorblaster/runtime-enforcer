@@ -6,8 +6,10 @@ import (
 
 	securityv1alpha1 "github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/controller"
+	"github.com/rancher-sandbox/runtime-enforcer/internal/types/policymode"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -133,6 +135,67 @@ var _ = Describe("WorkloadPolicyProposal Webhook", func() {
 					Expect(err).To(HaveOccurred())
 				}
 			}
+		})
+	})
+
+	Context("ValidatePromotionLabel", func() {
+		var webhook *controller.ProposalWebhook
+
+		BeforeEach(func() {
+			webhook = &controller.ProposalWebhook{}
+		})
+
+		It("allows create without promote label", func() {
+			proposal := &securityv1alpha1.WorkloadPolicyProposal{
+				ObjectMeta: metav1.ObjectMeta{Name: "test-proposal"},
+			}
+			warns, err := webhook.ValidateCreate(ctx, proposal)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(warns).To(BeEmpty())
+		})
+
+		It("allows create with monitor promote label", func() {
+			proposal := &securityv1alpha1.WorkloadPolicyProposal{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-proposal",
+					Labels: map[string]string{
+						securityv1alpha1.ProposalPromoteLabelKey: policymode.MonitorString,
+					},
+				},
+			}
+			warns, err := webhook.ValidateCreate(ctx, proposal)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(warns).To(BeEmpty())
+		})
+
+		It("allows update with protect promote label", func() {
+			proposal := &securityv1alpha1.WorkloadPolicyProposal{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-proposal",
+					Labels: map[string]string{
+						securityv1alpha1.ProposalPromoteLabelKey: policymode.ProtectString,
+					},
+				},
+			}
+			warns, err := webhook.ValidateUpdate(ctx, proposal, proposal)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(warns).To(BeEmpty())
+		})
+
+		It("denies create with unsupported promote label", func() {
+			proposal := &securityv1alpha1.WorkloadPolicyProposal{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-proposal",
+					Labels: map[string]string{
+						securityv1alpha1.ProposalPromoteLabelKey: "true",
+					},
+				},
+			}
+			warns, err := webhook.ValidateCreate(ctx, proposal)
+			Expect(err).To(HaveOccurred())
+			Expect(apierrors.IsInvalid(err)).To(BeTrue())
+			Expect(err.Error()).To(ContainSubstring(`unsupported value "true"`))
+			Expect(warns).To(BeEmpty())
 		})
 	})
 })

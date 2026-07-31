@@ -67,21 +67,34 @@ func (p *WorkloadPolicyProposal) NamespacedName() string {
 	return p.Namespace + "/" + p.Name
 }
 
-func (p *WorkloadPolicyProposal) SetPromotionLabel() {
+func (p *WorkloadPolicyProposal) SetPromotionLabel(mode string) {
 	if p == nil {
 		return
 	}
 	if p.Labels == nil {
 		p.SetLabels(map[string]string{})
 	}
-	p.Labels[ProposalPromoteLabelKey] = "true"
+	p.Labels[ProposalPromoteLabelKey] = mode
 }
 
-func (p *WorkloadPolicyProposal) HasPromotionLabel() bool {
+// HasPromotionLabel reports whether the proposal has a valid promotion label and
+// returns the target WorkloadPolicy mode when it does.
+func (p *WorkloadPolicyProposal) HasPromotionLabel() (string, bool) {
 	if p == nil {
-		return false
+		return "", false
 	}
-	return p.Labels[ProposalPromoteLabelKey] == "true"
+	val, ok := p.Labels[ProposalPromoteLabelKey]
+	if !ok {
+		return "", false
+	}
+	switch val {
+	case policymode.MonitorString:
+		return policymode.MonitorString, true
+	case policymode.ProtectString:
+		return policymode.ProtectString, true
+	default:
+		return "", false
+	}
 }
 
 func (p *WorkloadPolicyProposal) IsFull() bool {
@@ -119,10 +132,9 @@ func (p *WorkloadPolicyProposal) AddPartialOwnerReferenceDetails(workloadKind st
 	}
 }
 
-func (p *WorkloadPolicyProposalSpec) IntoWorkloadPolicySpec() WorkloadPolicySpec {
-	// enforcement mode to "monitor" by default.
+func (p *WorkloadPolicyProposalSpec) IntoWorkloadPolicySpec(mode string) WorkloadPolicySpec {
 	return WorkloadPolicySpec{
-		Mode:             policymode.MonitorString,
+		Mode:             mode,
 		RulesByContainer: p.RulesByContainer,
 	}
 }

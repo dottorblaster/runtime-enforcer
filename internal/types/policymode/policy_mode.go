@@ -35,6 +35,15 @@ func FromUint8(v uint8) Mode {
 	}
 }
 
+func IsValid(mode string) bool {
+	switch mode {
+	case MonitorString, ProtectString:
+		return true
+	default:
+		return false
+	}
+}
+
 func ParseMode(s string) Mode {
 	switch s {
 	case MonitorString:
