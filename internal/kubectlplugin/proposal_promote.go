@@ -146,9 +146,10 @@ func runProposalPromote(
 	if opts.DryRun {
 		fmt.Fprintf(
 			out,
-			"WorkloadPolicyProposal %q in namespace %q can be correctly promoted to WorkloadPolicy.\nRerun without '--dry-run' to apply the changes.\n",
+			"WorkloadPolicyProposal %q in namespace %q can be promoted to WorkloadPolicy in %q mode.\nRerun without '--dry-run' to apply the changes.\n",
 			proposal.Name,
 			proposal.Namespace,
+			opts.Mode,
 		)
 		// We need to return here because we cannot wait for the resource to be created in --dry-run mode
 		return nil
@@ -156,9 +157,10 @@ func runProposalPromote(
 
 	fmt.Fprintf(
 		out,
-		"Promoted WorkloadPolicyProposal %q in namespace %q to WorkloadPolicy.\n",
+		"Promoted WorkloadPolicyProposal %q in namespace %q to WorkloadPolicy in %q mode.\n",
 		proposal.Name,
 		proposal.Namespace,
+		opts.Mode,
 	)
 
 	policy, err := waitForWorkloadPolicy(ctx, client, opts.Namespace, opts.ProposalName)
