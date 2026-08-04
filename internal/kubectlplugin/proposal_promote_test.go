@@ -52,9 +52,10 @@ func TestRunProposalPromote(t *testing.T) {
 				},
 			},
 			expectOutput: fmt.Sprintf(
-				"Promoted WorkloadPolicyProposal %q in namespace %q to WorkloadPolicy.",
+				"Promoted WorkloadPolicyProposal %q in namespace %q to WorkloadPolicy in %q mode.",
 				name,
 				ns,
+				policymode.MonitorString,
 			),
 			expectLabel: policymode.MonitorString,
 		},
@@ -74,9 +75,10 @@ func TestRunProposalPromote(t *testing.T) {
 				},
 			},
 			expectOutput: fmt.Sprintf(
-				"Promoted WorkloadPolicyProposal %q in namespace %q to WorkloadPolicy.",
+				"Promoted WorkloadPolicyProposal %q in namespace %q to WorkloadPolicy in %q mode.",
 				name,
 				ns,
+				policymode.ProtectString,
 			),
 			expectLabel: policymode.ProtectString,
 		},
@@ -96,9 +98,10 @@ func TestRunProposalPromote(t *testing.T) {
 				},
 			},
 			expectOutput: fmt.Sprintf(
-				"Promoted WorkloadPolicyProposal %q in namespace %q to WorkloadPolicy.",
+				"Promoted WorkloadPolicyProposal %q in namespace %q to WorkloadPolicy in %q mode.",
 				name,
 				ns,
+				policymode.MonitorString,
 			),
 			expectLabel: policymode.MonitorString,
 		},
@@ -115,9 +118,10 @@ func TestRunProposalPromote(t *testing.T) {
 			// In dry-run mode, we don't wait for the policy to be created
 			policy: nil,
 			expectOutput: fmt.Sprintf(
-				"WorkloadPolicyProposal %q in namespace %q can be correctly promoted to WorkloadPolicy.",
+				"WorkloadPolicyProposal %q in namespace %q can be promoted to WorkloadPolicy in %q mode.",
 				name,
 				ns,
+				policymode.MonitorString,
 			),
 			expectLabel: policymode.MonitorString,
 		},
