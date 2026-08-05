@@ -11,8 +11,18 @@ import (
 	"github.com/rancher-sandbox/runtime-enforcer/internal/types/loglevel"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/types/policymode"
 	pb "github.com/rancher-sandbox/runtime-enforcer/proto/agent/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+func (r *WorkloadPolicyStatusSync) managePatchError(err error, policyNamespacedName string, msg string) error {
+	if apierrors.IsNotFound(err) {
+		r.logger.Info(msg,
+			"policy", policyNamespacedName)
+		return nil
+	}
+	return fmt.Errorf("%s %q: %w", msg, policyNamespacedName, err)
+}
 
 // processWorkloadPolicy updates the wp.status and wp.annotation in order to acknowledge a violation.
 // On success, *wp is replaced with the patched policy. On failure, *wp is left unchanged.
@@ -25,6 +35,7 @@ func (r *WorkloadPolicyStatusSync) processWorkloadPolicy(
 ) error {
 	patchBase := client.MergeFrom(wp.DeepCopy())
 	newPolicy := wp.DeepCopy()
+	policyNamespacedName := newPolicy.NamespacedName()
 
 	acknowledged, err := newPolicy.RecomputeStatus(nodes, scrapedViolations, time.Now())
 	if err != nil {
@@ -32,7 +43,7 @@ func (r *WorkloadPolicyStatusSync) processWorkloadPolicy(
 	}
 
 	r.logger.V(loglevel.VerbosityDebug).Info("updating",
-		"policy", newPolicy.NamespacedName(),
+		"policy", policyNamespacedName,
 		"annotations", newPolicy.Annotations,
 		"status", newPolicy.Status)
 
@@ -44,7 +55,7 @@ func (r *WorkloadPolicyStatusSync) processWorkloadPolicy(
 	// If anything goes wrong we can retry in the next reconcile.
 	err = r.Status().Patch(ctx, newPolicy.DeepCopy(), patchBase)
 	if err != nil {
-		return err
+		return r.managePatchError(err, policyNamespacedName, "failed to update status for policy")
 	}
 
 	// Only if the status update was successful we emit the logs.
@@ -55,7 +66,7 @@ func (r *WorkloadPolicyStatusSync) processWorkloadPolicy(
 
 	err = r.Patch(ctx, newPolicy.DeepCopy(), patchBase)
 	if err != nil {
-		return err
+		return r.managePatchError(err, policyNamespacedName, "failed to patch the policy")
 	}
 	*wp = *newPolicy
 	return nil
