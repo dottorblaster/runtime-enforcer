@@ -68,6 +68,9 @@ webhooks:
       path: /validate-security-rancher-io-v1alpha1-workloadpolicyproposal
   failurePolicy: Fail
   name: validate-workloadpolicyproposals.rancher.io
+  matchConditions:
+  - name: has-promote-label
+    expression: has(object.metadata.labels) && 'security.rancher.io/promote' in object.metadata.labels
   rules:
   - apiGroups:
     - security.rancher.io
