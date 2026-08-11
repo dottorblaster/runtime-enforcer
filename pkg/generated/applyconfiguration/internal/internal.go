@@ -36,6 +36,21 @@ var schemaYAML = typed.YAMLObject(`types:
       type:
         namedType: com.github.rancher-sandbox.runtime-enforcer.api.v1alpha1.ViolationRecord
       default: {}
+- name: com.github.rancher-sandbox.runtime-enforcer.api.v1alpha1.PolicyNodeStatus
+  map:
+    fields:
+    - name: code
+      type:
+        scalar: string
+    - name: message
+      type:
+        scalar: string
+    - name: nodeName
+      type:
+        scalar: string
+    - name: since
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.Time
 - name: com.github.rancher-sandbox.runtime-enforcer.api.v1alpha1.PolicyStatus
   map:
     fields:
@@ -45,6 +60,9 @@ var schemaYAML = typed.YAMLObject(`types:
     - name: message
       type:
         scalar: string
+    - name: since
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.Time
 - name: com.github.rancher-sandbox.runtime-enforcer.api.v1alpha1.ViolationRecord
   map:
     fields:
@@ -174,7 +192,7 @@ var schemaYAML = typed.YAMLObject(`types:
       type:
         list:
           elementType:
-            scalar: string
+            namedType: com.github.rancher-sandbox.runtime-enforcer.api.v1alpha1.PolicyNodeStatus
           elementRelationship: atomic
     - name: nodesWithIssues
       type:

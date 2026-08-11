@@ -62,8 +62,9 @@ type WorkloadPolicyStatus struct {
 	FailedNodes int `json:"failedNodes,omitempty"`
 	// transitioningNodes is the number of nodes where the policy is transitioning mode.
 	TransitioningNodes int `json:"transitioningNodes,omitempty"`
-	// nodesTransitioning contains the names of the nodes that are transitioning.
-	NodesTransitioning []string `json:"nodesTransitioning,omitempty"`
+	// nodesTransitioning contains the nodes that are transitioning, including
+	// the time at which each node entered the transitioning state.
+	NodesTransitioning []PolicyNodeStatus `json:"nodesTransitioning,omitempty"`
 	// phase indicates the current phase of the workload policy.
 	Phase Phase `json:"phase,omitempty"`
 	// violationCount is the total number of unique violation records
@@ -159,7 +160,10 @@ func (wp *WorkloadPolicy) RecomputeStatus(
 		return nil, errors.New("WorkloadPolicy is nil")
 	}
 
-	if err := wp.Status.processPolicyNodeStatus(nodes); err != nil {
+	// processPolicyNodeStatus recomputes the per-node status. The object already
+	// carries the previous status, which is threaded through so that the per-node
+	// "since" timestamps are preserved for nodes whose code is unchanged.
+	if err := wp.Status.processPolicyNodeStatus(wp.Status, nodes, now); err != nil {
 		return nil, fmt.Errorf(
 			"failed to compute node status for policy %s: %w",
 			wp.NamespacedName(),

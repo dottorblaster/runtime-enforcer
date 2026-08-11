@@ -4,6 +4,7 @@ package v1alpha1
 
 import (
 	apiv1alpha1 "github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // PolicyStatusApplyConfiguration represents a declarative configuration of the PolicyStatus type for use
@@ -15,6 +16,11 @@ type PolicyStatusApplyConfiguration struct {
 	Code *apiv1alpha1.PolicyCode `json:"code,omitempty"`
 	// message is a human-readable description.
 	Message *string `json:"message,omitempty"`
+	// since is the time at which the node entered its current status.
+	// It is stamped by the controller when the node's code changes and
+	// preserved across status recomputations while the code is unchanged;
+	// the agent does not report it.
+	Since *v1.Time `json:"since,omitempty"`
 }
 
 // PolicyStatusApplyConfiguration constructs a declarative configuration of the PolicyStatus type for use with
@@ -36,5 +42,13 @@ func (b *PolicyStatusApplyConfiguration) WithCode(value apiv1alpha1.PolicyCode) 
 // If called multiple times, the Message field is set to the value of the last call.
 func (b *PolicyStatusApplyConfiguration) WithMessage(value string) *PolicyStatusApplyConfiguration {
 	b.Message = &value
+	return b
+}
+
+// WithSince sets the Since field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the Since field is set to the value of the last call.
+func (b *PolicyStatusApplyConfiguration) WithSince(value v1.Time) *PolicyStatusApplyConfiguration {
+	b.Since = &value
 	return b
 }

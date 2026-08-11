@@ -182,10 +182,28 @@ spec:
                   failed.
                 type: integer
               nodesTransitioning:
-                description: nodesTransitioning contains the names of the nodes that
-                  are transitioning.
+                description: |-
+                  nodesTransitioning contains the nodes that are transitioning, including
+                  the time at which each node entered the transitioning state.
                 items:
-                  type: string
+                  properties:
+                    code:
+                      description: code is the policy code.
+                      type: string
+                    message:
+                      description: message is a human-readable description.
+                      type: string
+                    nodeName:
+                      type: string
+                    since:
+                      description: |-
+                        since is the time at which the node entered its current status.
+                        It is stamped by the controller when the node's code changes and
+                        preserved across status recomputations while the code is unchanged;
+                        the agent does not report it.
+                      format: date-time
+                      type: string
+                  type: object
                 type: array
               nodesWithIssues:
                 additionalProperties:
@@ -197,6 +215,14 @@ spec:
                       type: string
                     message:
                       description: message is a human-readable description.
+                      type: string
+                    since:
+                      description: |-
+                        since is the time at which the node entered its current status.
+                        It is stamped by the controller when the node's code changes and
+                        preserved across status recomputations while the code is unchanged;
+                        the agent does not report it.
+                      format: date-time
                       type: string
                   type: object
                 description: nodesWithIssues contains the status of each node with
