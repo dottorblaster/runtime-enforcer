@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -34,31 +37,43 @@ type PolicyStatus struct {
 	Code PolicyCode `json:"code,omitempty"`
 	// message is a human-readable description.
 	Message string `json:"message,omitempty"`
+	// since is the time at which the node entered its current status.
+	// It is stamped by the controller when the node's code changes and
+	// preserved across status recomputations while the code is unchanged;
+	// the agent does not report it.
+	// +optional
+	Since metav1.Time `json:"since,omitempty"`
 }
 
 type PolicyNodeStatus struct {
-	PolicyStatus
+	PolicyStatus `json:",inline"`
 
 	NodeName string `json:"nodeName,omitempty"`
 }
 
-func (s *WorkloadPolicyStatus) addTransitioningNode(nodeName string) {
+func (s *WorkloadPolicyStatus) addTransitioningNode(status PolicyNodeStatus, previous PolicyStatus, now time.Time) {
 	// we always increment the transitioning count
 	s.TransitioningNodes++
 
 	if s.NodesTransitioning == nil {
-		s.NodesTransitioning = make([]string, 0, maxTransitioningNodes)
+		s.NodesTransitioning = make([]PolicyNodeStatus, 0, maxTransitioningNodes)
 	}
 
 	// we store up to maxTransitioningNodes-1, the last element will be a marker of max reached
 	if len(s.NodesTransitioning) < maxTransitioningNodes-1 {
-		s.NodesTransitioning = append(s.NodesTransitioning, nodeName)
+		status.Since = transitionTime(previous, status.PolicyStatus, now)
+		s.NodesTransitioning = append(s.NodesTransitioning, status)
 	} else if len(s.NodesTransitioning) == maxTransitioningNodes-1 {
-		s.NodesTransitioning = append(s.NodesTransitioning, truncationString)
+		s.NodesTransitioning = append(s.NodesTransitioning, PolicyNodeStatus{NodeName: truncationString})
 	}
 }
 
-func (s *WorkloadPolicyStatus) addNodeIssue(nodeName string, status PolicyStatus) {
+func (s *WorkloadPolicyStatus) addNodeIssue(
+	nodeName string,
+	status PolicyStatus,
+	previous PolicyStatus,
+	now time.Time,
+) {
 	// we always increment the failure count
 	s.FailedNodes++
 
@@ -68,6 +83,7 @@ func (s *WorkloadPolicyStatus) addNodeIssue(nodeName string, status PolicyStatus
 
 	// we store up to maxNodesWithIssues-1, the last element will be a marker of max reached
 	if len(s.NodesWithIssues) < maxNodesWithIssues-1 {
+		status.Since = transitionTime(previous, status, now)
 		s.NodesWithIssues[nodeName] = status
 	} else if len(s.NodesWithIssues) == maxNodesWithIssues-1 {
 		s.NodesWithIssues[truncationString] = PolicyStatus{
@@ -75,6 +91,18 @@ func (s *WorkloadPolicyStatus) addNodeIssue(nodeName string, status PolicyStatus
 			Message: truncationMessage,
 		}
 	}
+}
+
+// transitionTime returns the time at which a node entered its current status.
+// If the node's code is unchanged from the previous status and a timestamp is
+// already known, it is carried forward; otherwise the current time is stamped.
+// The latter also covers the first observation after an upgrade, when the
+// previous status predates the "since" field and carries a zero timestamp.
+func transitionTime(previous, current PolicyStatus, now time.Time) metav1.Time {
+	if previous.Code == current.Code && !previous.Since.Time.IsZero() {
+		return previous.Since
+	}
+	return metav1.Time{Time: now}
 }
 
 func (s *WorkloadPolicyStatus) resetPolicyNodeStatus(totalNodes int) {
@@ -86,7 +114,31 @@ func (s *WorkloadPolicyStatus) resetPolicyNodeStatus(totalNodes int) {
 	s.TransitioningNodes = 0
 }
 
-func (s *WorkloadPolicyStatus) processPolicyNodeStatus(nodes []PolicyNodeStatus) error {
+// nodeStatus returns the previous status of a node, if any. A zero-value
+// PolicyStatus is returned when the node has no prior record, for example
+// because it was previously ready and ready nodes are not tracked by name.
+func (s WorkloadPolicyStatus) nodeStatus(nodeName string) PolicyStatus {
+	if ps, ok := s.NodesWithIssues[nodeName]; ok {
+		return ps
+	}
+	for _, ns := range s.NodesTransitioning {
+		if ns.NodeName == nodeName {
+			return ns.PolicyStatus
+		}
+	}
+	return PolicyStatus{}
+}
+
+// processPolicyNodeStatus recomputes the per-node status counters and maps.
+// previous is the status carried by the object before this recomputation; it
+// is used to preserve the per-node "since" timestamp across recomputations
+// when a node's code is unchanged (see transitionTime). now is the time
+// stamped when a node enters a new code.
+func (s *WorkloadPolicyStatus) processPolicyNodeStatus(
+	previous WorkloadPolicyStatus,
+	nodes []PolicyNodeStatus,
+	now time.Time,
+) error {
 	s.resetPolicyNodeStatus(len(nodes))
 
 	for _, status := range nodes {
@@ -94,9 +146,14 @@ func (s *WorkloadPolicyStatus) processPolicyNodeStatus(nodes []PolicyNodeStatus)
 		case PolicyReady:
 			s.SuccessfulNodes++
 		case PolicyTransitioning:
-			s.addTransitioningNode(status.NodeName)
+			s.addTransitioningNode(status, previous.nodeStatus(status.NodeName), now)
 		case PolicyFailed, PolicyMissing:
-			s.addNodeIssue(status.NodeName, PolicyStatus{Code: status.Code, Message: status.Message})
+			s.addNodeIssue(
+				status.NodeName,
+				PolicyStatus{Code: status.Code, Message: status.Message},
+				previous.nodeStatus(status.NodeName),
+				now,
+			)
 		case PolicyUnknown:
 			fallthrough
 		default:
@@ -106,7 +163,9 @@ func (s *WorkloadPolicyStatus) processPolicyNodeStatus(nodes []PolicyNodeStatus)
 
 	// We order the slice to avoid resource status updates in case of different order
 	if len(s.NodesTransitioning) > 0 {
-		slices.SortFunc(s.NodesTransitioning, strings.Compare)
+		slices.SortFunc(s.NodesTransitioning, func(a, b PolicyNodeStatus) int {
+			return strings.Compare(a.NodeName, b.NodeName)
+		})
 	}
 
 	// Consistency check

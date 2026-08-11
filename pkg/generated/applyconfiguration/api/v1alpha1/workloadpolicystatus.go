@@ -20,8 +20,9 @@ type WorkloadPolicyStatusApplyConfiguration struct {
 	FailedNodes *int `json:"failedNodes,omitempty"`
 	// transitioningNodes is the number of nodes where the policy is transitioning mode.
 	TransitioningNodes *int `json:"transitioningNodes,omitempty"`
-	// nodesTransitioning contains the names of the nodes that are transitioning.
-	NodesTransitioning []string `json:"nodesTransitioning,omitempty"`
+	// nodesTransitioning contains the nodes that are transitioning, including
+	// the time at which each node entered the transitioning state.
+	NodesTransitioning []PolicyNodeStatusApplyConfiguration `json:"nodesTransitioning,omitempty"`
 	// phase indicates the current phase of the workload policy.
 	Phase *apiv1alpha1.Phase `json:"phase,omitempty"`
 	// violationCount is the total number of unique violation records
@@ -106,9 +107,12 @@ func (b *WorkloadPolicyStatusApplyConfiguration) WithTransitioningNodes(value in
 // WithNodesTransitioning adds the given value to the NodesTransitioning field in the declarative configuration
 // and returns the receiver, so that objects can be build by chaining "With" function invocations.
 // If called multiple times, values provided by each call will be appended to the NodesTransitioning field.
-func (b *WorkloadPolicyStatusApplyConfiguration) WithNodesTransitioning(values ...string) *WorkloadPolicyStatusApplyConfiguration {
+func (b *WorkloadPolicyStatusApplyConfiguration) WithNodesTransitioning(values ...*PolicyNodeStatusApplyConfiguration) *WorkloadPolicyStatusApplyConfiguration {
 	for i := range values {
-		b.NodesTransitioning = append(b.NodesTransitioning, values[i])
+		if values[i] == nil {
+			panic("nil value passed to WithNodesTransitioning")
+		}
+		b.NodesTransitioning = append(b.NodesTransitioning, *values[i])
 	}
 	return b
 }

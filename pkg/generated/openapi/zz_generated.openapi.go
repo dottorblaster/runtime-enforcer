@@ -128,10 +128,24 @@ func schema_rancher_sandbox_runtime_enforcer_api_v1alpha1_PolicyNodeStatus(ref c
 			SchemaProps: spec.SchemaProps{
 				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
-					"PolicyStatus": {
+					"code": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]interface{}{},
-							Ref:     ref(v1alpha1.PolicyStatus{}.OpenAPIModelName()),
+							Description: "code is the policy code.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"message": {
+						SchemaProps: spec.SchemaProps{
+							Description: "message is a human-readable description.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"since": {
+						SchemaProps: spec.SchemaProps{
+							Description: "since is the time at which the node entered its current status. It is stamped by the controller when the node's code changes and preserved across status recomputations while the code is unchanged; the agent does not report it.",
+							Ref:         ref(v1.Time{}.OpenAPIModelName()),
 						},
 					},
 					"nodeName": {
@@ -141,11 +155,10 @@ func schema_rancher_sandbox_runtime_enforcer_api_v1alpha1_PolicyNodeStatus(ref c
 						},
 					},
 				},
-				Required: []string{"PolicyStatus"},
 			},
 		},
 		Dependencies: []string{
-			v1alpha1.PolicyStatus{}.OpenAPIModelName()},
+			v1.Time{}.OpenAPIModelName()},
 	}
 }
 
@@ -170,9 +183,17 @@ func schema_rancher_sandbox_runtime_enforcer_api_v1alpha1_PolicyStatus(ref commo
 							Format:      "",
 						},
 					},
+					"since": {
+						SchemaProps: spec.SchemaProps{
+							Description: "since is the time at which the node entered its current status. It is stamped by the controller when the node's code changes and preserved across status recomputations while the code is unchanged; the agent does not report it.",
+							Ref:         ref(v1.Time{}.OpenAPIModelName()),
+						},
+					},
 				},
 			},
 		},
+		Dependencies: []string{
+			v1.Time{}.OpenAPIModelName()},
 	}
 }
 
@@ -615,14 +636,13 @@ func schema_rancher_sandbox_runtime_enforcer_api_v1alpha1_WorkloadPolicyStatus(r
 					},
 					"nodesTransitioning": {
 						SchemaProps: spec.SchemaProps{
-							Description: "nodesTransitioning contains the names of the nodes that are transitioning.",
+							Description: "nodesTransitioning contains the nodes that are transitioning, including the time at which each node entered the transitioning state.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
+										Default: map[string]interface{}{},
+										Ref:     ref(v1alpha1.PolicyNodeStatus{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -683,7 +703,7 @@ func schema_rancher_sandbox_runtime_enforcer_api_v1alpha1_WorkloadPolicyStatus(r
 			},
 		},
 		Dependencies: []string{
-			v1alpha1.AcknowledgedViolationRecord{}.OpenAPIModelName(), v1alpha1.PolicyStatus{}.OpenAPIModelName(), v1alpha1.ViolationRecord{}.OpenAPIModelName()},
+			v1alpha1.AcknowledgedViolationRecord{}.OpenAPIModelName(), v1alpha1.PolicyNodeStatus{}.OpenAPIModelName(), v1alpha1.PolicyStatus{}.OpenAPIModelName(), v1alpha1.ViolationRecord{}.OpenAPIModelName()},
 	}
 }
 
