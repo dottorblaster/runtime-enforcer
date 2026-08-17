@@ -609,15 +609,6 @@
                 }
             },
             "additionalProperties": false
-        },
-        "vap": {
-            "type": "object",
-            "properties": {
-                "enabled": {
-                    "type": "boolean"
-                }
-            },
-            "additionalProperties": false
         }
     },
     "additionalProperties": false
