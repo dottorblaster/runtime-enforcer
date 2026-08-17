@@ -251,11 +251,6 @@ telemetry:
     # The secret should contain the keys `tls.crt` and `tls.key`.
     otelCollectorClientCertificateSecret: ""
 
-# ValidatingAdmissionPolicy for Pod policy validation
-# Requires Kubernetes 1.25+ for ValidatingAdmissionPolicy support
-vap:
-  enabled: true
-
 # PriorityClass shared by both controller and agent pods.
 priorityClass:
   enabled: true

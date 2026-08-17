@@ -2,10 +2,7 @@ suite: VAP Pod Policy Validation Tests
 templates:
   - vap/pod-policy-validation.yaml
 tests:
-  - name: VAP resources should be created when enabled
-    set:
-      vap:
-        enabled: true
+  - name: VAP resources should be created
     asserts:
       - isKind:
           of: ValidatingAdmissionPolicy
@@ -21,11 +18,3 @@ tests:
           path: metadata.name
           pattern: ".*-pod-policy-validation-binding$"
         documentIndex: 1
-
-  - name: VAP resources should not be created when disabled
-    set:
-      vap:
-        enabled: false
-    asserts:
-      - hasDocuments:
-          count: 0
