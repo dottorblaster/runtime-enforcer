@@ -143,6 +143,11 @@ spec:
                             negative, so the sign bit is never set in practice.
                           format: int64
                           type: integer
+                        lastObservedTimestamp:
+                          description: lastObservedTimestamp is when the violation
+                            was last observed.
+                          format: date-time
+                          type: string
                         nodeName:
                           description: nodeName is the node where the violation occurred.
                           type: string
@@ -161,10 +166,6 @@ spec:
                         podName:
                           description: podName is the name of the pod where the violation
                             occurred.
-                          type: string
-                        timestamp:
-                          description: timestamp is when the violation last occurred.
-                          format: date-time
                           type: string
                         workloadKind:
                           description: |-
@@ -185,9 +186,9 @@ spec:
                       - containerName
                       - executablePath
                       - id
+                      - lastObservedTimestamp
                       - nodeName
                       - podName
-                      - timestamp
                       type: object
                   type: object
                 type: array
@@ -319,6 +320,11 @@ spec:
                         negative, so the sign bit is never set in practice.
                       format: int64
                       type: integer
+                    lastObservedTimestamp:
+                      description: lastObservedTimestamp is when the violation was
+                        last observed.
+                      format: date-time
+                      type: string
                     nodeName:
                       description: nodeName is the node where the violation occurred.
                       type: string
@@ -337,10 +343,6 @@ spec:
                     podName:
                       description: podName is the name of the pod where the violation
                         occurred.
-                      type: string
-                    timestamp:
-                      description: timestamp is when the violation last occurred.
-                      format: date-time
                       type: string
                     workloadKind:
                       description: |-
@@ -361,9 +363,9 @@ spec:
                   - containerName
                   - executablePath
                   - id
+                  - lastObservedTimestamp
                   - nodeName
                   - podName
-                  - timestamp
                   type: object
                 type: array
             type: object

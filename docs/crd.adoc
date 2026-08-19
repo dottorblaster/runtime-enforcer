@@ -162,7 +162,7 @@ Stored as int64 (not uint64) for compatibility with the Kubernetes +
 field-management machinery used by controller-runtime's test +
 fixtures; the counter is monotonically increasing and never goes +
 negative, so the sign bit is never set in practice. + |  | 
-| *`timestamp`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.35/#time-v1-meta[$$Time$$]__ | timestamp is when the violation last occurred. + |  | 
+| *`lastObservedTimestamp`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.35/#time-v1-meta[$$Time$$]__ | lastObservedTimestamp is when the violation was last observed. + |  | 
 | *`occurrences`* __integer__ | occurrences is the number of times this violation (identified by +
 pod, container, executable and action) has been observed since the +
 record was first created. It is a per-record counter, distinct from +

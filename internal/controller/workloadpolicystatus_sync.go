@@ -158,14 +158,14 @@ func (r *WorkloadPolicyStatusSync) getViolationsByPolicy(
 		for _, v := range pbViolations {
 			namespacedName := v.GetPolicyName()
 			rec := v1alpha1.ViolationRecord{
-				Timestamp:      metav1.NewTime(v.GetTimestamp().AsTime()),
-				PodName:        v.GetPodName(),
-				ContainerName:  v.GetContainerName(),
-				ExecutablePath: v.GetExecutablePath(),
-				NodeName:       v.GetNodeName(),
-				Action:         v.GetAction(),
-				WorkloadName:   v.GetWorkloadName(),
-				WorkloadKind:   v.GetWorkloadKind(),
+				LastObservedTimestamp: metav1.NewTime(v.GetTimestamp().AsTime()),
+				PodName:               v.GetPodName(),
+				ContainerName:         v.GetContainerName(),
+				ExecutablePath:        v.GetExecutablePath(),
+				NodeName:              v.GetNodeName(),
+				Action:                v.GetAction(),
+				WorkloadName:          v.GetWorkloadName(),
+				WorkloadKind:          v.GetWorkloadKind(),
 			}
 			violationsByPolicy[namespacedName] = append(violationsByPolicy[namespacedName], rec)
 		}
@@ -191,7 +191,7 @@ func (r *WorkloadPolicyStatusSync) emitAcknowledgedViolationOtelLog(
 	rec.SetTimestamp(time.Now())
 	rec.AddAttributes(
 		otellog.Int64("id", violation.ID),
-		otellog.String("timestamp", violation.Timestamp.UTC().Format(time.RFC3339)),
+		otellog.String("lastObservedTimestamp", violation.LastObservedTimestamp.UTC().Format(time.RFC3339)),
 		otellog.String("reason", ack.Reason),
 		otellog.String("policy.name", policyName),
 		otellog.String("k8s.namespace.name", namespace),

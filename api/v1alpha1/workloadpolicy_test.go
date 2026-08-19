@@ -72,10 +72,10 @@ func TestRecomputeStatus(t *testing.T) {
 	// If the application is a deployment we expect multiple violations from different nodes
 	violations := []ViolationRecord{
 		// The agent should send newest records first
-		podAViolation.withTimestamp(ts(1)),
-		podAViolation.withTimestamp(ts(2)),
-		podBViolation.withTimestamp(ts(3)),
-		podAViolation.withTimestamp(ts(4)),
+		podAViolation.withLastObserved(ts(1)),
+		podAViolation.withLastObserved(ts(2)),
+		podBViolation.withLastObserved(ts(3)),
+		podAViolation.withLastObserved(ts(4)),
 	}
 
 	policy.RecomputeStatus(nil, violations, ts(5))
@@ -83,9 +83,9 @@ func TestRecomputeStatus(t *testing.T) {
 		ViolationCount:       4,
 		ActiveViolationCount: 2,
 		Violations: []ViolationRecord{
-			podAViolation.withID(0).withTimestamp(ts(4)).withOccurrences(3).withFirstObserved(ts(1)),
+			podAViolation.withID(0).withLastObserved(ts(4)).withOccurrences(3).withFirstObserved(ts(1)),
 			// This has ID 2 because we first face 2 violation for pod-a
-			podBViolation.withID(2).withTimestamp(ts(3)).withOccurrences(1).withFirstObserved(ts(3)),
+			podBViolation.withID(2).withLastObserved(ts(3)).withOccurrences(1).withFirstObserved(ts(3)),
 		},
 		ObservedGeneration: 7,
 		Phase:              Ready,
@@ -101,19 +101,19 @@ func TestRecomputeStatus(t *testing.T) {
 	podBViolationMonitor := podBViolation.withAction(policymode.MonitorString)
 	violations = []ViolationRecord{
 		// The agent should send newest records first
-		podAViolationMonitor.withTimestamp(ts(20)),
-		podBViolationMonitor.withTimestamp(ts(21)),
-		podAViolationMonitor.withTimestamp(ts(22)),
+		podAViolationMonitor.withLastObserved(ts(20)),
+		podBViolationMonitor.withLastObserved(ts(21)),
+		podAViolationMonitor.withLastObserved(ts(22)),
 	}
 	policy.RecomputeStatus(nil, violations, ts(24))
 	expectedPolicyStatus = WorkloadPolicyStatus{
 		ViolationCount:       7,
 		ActiveViolationCount: 4,
 		Violations: []ViolationRecord{
-			podAViolationMonitor.withID(4).withTimestamp(ts(22)).withOccurrences(2).withFirstObserved(ts(20)),
-			podBViolationMonitor.withID(5).withTimestamp(ts(21)).withOccurrences(1).withFirstObserved(ts(21)),
-			podAViolation.withID(0).withTimestamp(ts(4)).withOccurrences(3).withFirstObserved(ts(1)),
-			podBViolation.withID(2).withTimestamp(ts(3)).withOccurrences(1).withFirstObserved(ts(3)),
+			podAViolationMonitor.withID(4).withLastObserved(ts(22)).withOccurrences(2).withFirstObserved(ts(20)),
+			podBViolationMonitor.withID(5).withLastObserved(ts(21)).withOccurrences(1).withFirstObserved(ts(21)),
+			podAViolation.withID(0).withLastObserved(ts(4)).withOccurrences(3).withFirstObserved(ts(1)),
+			podBViolation.withID(2).withLastObserved(ts(3)).withOccurrences(1).withFirstObserved(ts(3)),
 		},
 		ObservedGeneration: 7,
 		Phase:              Ready,
@@ -130,8 +130,8 @@ func TestRecomputeStatus(t *testing.T) {
 
 	// Some new violations comes in the meantime
 	violations = []ViolationRecord{
-		podAViolationMonitor.withTimestamp(ts(40)),
-		podBViolationMonitor.withTimestamp(ts(41)),
+		podAViolationMonitor.withLastObserved(ts(40)),
+		podBViolationMonitor.withLastObserved(ts(41)),
 	}
 	policy.RecomputeStatus(nil, violations, ts(42))
 	expectedPolicyStatus = WorkloadPolicyStatus{
@@ -148,14 +148,14 @@ func TestRecomputeStatus(t *testing.T) {
 	///////////////////////////
 
 	violations = []ViolationRecord{
-		podAViolation.withTimestamp(ts(100)).withExecutable("/usr/bin/malware"),
+		podAViolation.withLastObserved(ts(100)).withExecutable("/usr/bin/malware"),
 	}
 	policy.RecomputeStatus(nil, violations, ts(101))
 	expectedPolicyStatus = WorkloadPolicyStatus{
 		ViolationCount:       10,
 		ActiveViolationCount: 1,
 		Violations: []ViolationRecord{
-			podAViolation.withID(9).withTimestamp(ts(100)).withExecutable("/usr/bin/malware").
+			podAViolation.withID(9).withLastObserved(ts(100)).withExecutable("/usr/bin/malware").
 				withOccurrences(1).withFirstObserved(ts(100)),
 		},
 		ObservedGeneration: 8,
@@ -176,7 +176,7 @@ func TestRecomputeStatus(t *testing.T) {
 		Violations:           []ViolationRecord{},
 		AcknowledgedViolations: []AcknowledgedViolationRecord{
 			{
-				Violation: podAViolation.withID(9).withTimestamp(ts(100)).withExecutable("/usr/bin/malware").
+				Violation: podAViolation.withID(9).withLastObserved(ts(100)).withExecutable("/usr/bin/malware").
 					withOccurrences(1).withFirstObserved(ts(100)),
 				Reason:         "acknowledged by the user",
 				AcknowledgedAt: metav1.Time{Time: acknowledgeTime},

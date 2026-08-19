@@ -212,9 +212,9 @@ func schema_rancher_sandbox_runtime_enforcer_api_v1alpha1_ViolationRecord(ref co
 							Format:      "int64",
 						},
 					},
-					"timestamp": {
+					"lastObservedTimestamp": {
 						SchemaProps: spec.SchemaProps{
-							Description: "timestamp is when the violation last occurred.",
+							Description: "lastObservedTimestamp is when the violation was last observed.",
 							Ref:         ref(v1.Time{}.OpenAPIModelName()),
 						},
 					},
@@ -286,7 +286,7 @@ func schema_rancher_sandbox_runtime_enforcer_api_v1alpha1_ViolationRecord(ref co
 						},
 					},
 				},
-				Required: []string{"id", "timestamp", "podName", "containerName", "executablePath", "nodeName", "action"},
+				Required: []string{"id", "lastObservedTimestamp", "podName", "containerName", "executablePath", "nodeName", "action"},
 			},
 		},
 		Dependencies: []string{
