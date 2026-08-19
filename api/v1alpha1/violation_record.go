@@ -24,6 +24,25 @@ type ViolationRecord struct {
 	ID int64 `json:"id"`
 	// timestamp is when the violation last occurred.
 	Timestamp metav1.Time `json:"timestamp"`
+	// occurrences is the number of times this violation (identified by
+	// pod, container, executable and action) has been observed since the
+	// record was first created. It is a per-record counter, distinct from
+	// the policy-level violationCount aggregate: it is only incremented
+	// when a scraped event matches this exact record, so consumers can
+	// tell how many times this specific executable/container/pod combo
+	// fired.
+	//
+	// +optional
+	// +kubebuilder:default=1
+	Occurrences int64 `json:"occurrences,omitempty"`
+	// firstObservedTimestamp is when the violation was first observed. It
+	// is stamped from the scraped event's own timestamp when the record
+	// is created and is never updated on re-scrapes, so consumers can
+	// compute the age of the violation (unlike timestamp, which tracks
+	// the last occurrence).
+	//
+	// +optional
+	FirstObservedTimestamp metav1.Time `json:"firstObservedTimestamp,omitempty"`
 	// podName is the name of the pod where the violation occurred.
 	PodName string `json:"podName"`
 	// containerName is the container where the unauthorized executable ran.
@@ -84,7 +103,8 @@ func (wp *WorkloadPolicy) clearAllowedViolations() {
 }
 
 // mergeScrapedViolations dedupes scraped violations against the existing list, allocate ids for
-// new records and refresh the timestamp/node on matched records.
+// new records, refresh the timestamp on matched records and track per-record occurrence counts
+// and the first-observed timestamp.
 func (s *WorkloadPolicyStatus) mergeScrapedViolations(scraped []ViolationRecord) {
 	indexByKey := make(map[violationRecordKey]int, len(s.Violations))
 	for i, r := range s.Violations {
@@ -100,8 +120,15 @@ func (s *WorkloadPolicyStatus) mergeScrapedViolations(scraped []ViolationRecord)
 			if v.Timestamp.Time.After(s.Violations[idx].Timestamp.Time) {
 				s.Violations[idx].Timestamp = v.Timestamp
 			}
+			// Every scraped event that matches the record is one more
+			// occurrence, even if it does not carry a newer timestamp.
+			s.Violations[idx].Occurrences++
 		} else {
 			v.ID = s.ViolationCount
+			v.Occurrences = 1
+			// Stamp the first sighting with the scraped event's own
+			// timestamp (the earliest one we know of), never time.Now().
+			v.FirstObservedTimestamp = v.Timestamp
 			s.Violations = append(s.Violations, v)
 			indexByKey[key] = len(s.Violations) - 1
 		}

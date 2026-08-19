@@ -83,9 +83,9 @@ func TestRecomputeStatus(t *testing.T) {
 		ViolationCount:       4,
 		ActiveViolationCount: 2,
 		Violations: []ViolationRecord{
-			podAViolation.withID(0).withTimestamp(ts(4)),
+			podAViolation.withID(0).withTimestamp(ts(4)).withOccurrences(3).withFirstObserved(ts(1)),
 			// This has ID 2 because we first face 2 violation for pod-a
-			podBViolation.withID(2).withTimestamp(ts(3)),
+			podBViolation.withID(2).withTimestamp(ts(3)).withOccurrences(1).withFirstObserved(ts(3)),
 		},
 		ObservedGeneration: 7,
 		Phase:              Ready,
@@ -110,10 +110,10 @@ func TestRecomputeStatus(t *testing.T) {
 		ViolationCount:       7,
 		ActiveViolationCount: 4,
 		Violations: []ViolationRecord{
-			podAViolationMonitor.withID(4).withTimestamp(ts(22)),
-			podBViolationMonitor.withID(5).withTimestamp(ts(21)),
-			podAViolation.withID(0).withTimestamp(ts(4)),
-			podBViolation.withID(2).withTimestamp(ts(3)),
+			podAViolationMonitor.withID(4).withTimestamp(ts(22)).withOccurrences(2).withFirstObserved(ts(20)),
+			podBViolationMonitor.withID(5).withTimestamp(ts(21)).withOccurrences(1).withFirstObserved(ts(21)),
+			podAViolation.withID(0).withTimestamp(ts(4)).withOccurrences(3).withFirstObserved(ts(1)),
+			podBViolation.withID(2).withTimestamp(ts(3)).withOccurrences(1).withFirstObserved(ts(3)),
 		},
 		ObservedGeneration: 7,
 		Phase:              Ready,
@@ -155,7 +155,8 @@ func TestRecomputeStatus(t *testing.T) {
 		ViolationCount:       10,
 		ActiveViolationCount: 1,
 		Violations: []ViolationRecord{
-			podAViolation.withID(9).withTimestamp(ts(100)).withExecutable("/usr/bin/malware"),
+			podAViolation.withID(9).withTimestamp(ts(100)).withExecutable("/usr/bin/malware").
+				withOccurrences(1).withFirstObserved(ts(100)),
 		},
 		ObservedGeneration: 8,
 		Phase:              Ready,
@@ -175,7 +176,8 @@ func TestRecomputeStatus(t *testing.T) {
 		Violations:           []ViolationRecord{},
 		AcknowledgedViolations: []AcknowledgedViolationRecord{
 			{
-				Violation:      podAViolation.withID(9).withTimestamp(ts(100)).withExecutable("/usr/bin/malware"),
+				Violation: podAViolation.withID(9).withTimestamp(ts(100)).withExecutable("/usr/bin/malware").
+					withOccurrences(1).withFirstObserved(ts(100)),
 				Reason:         "acknowledged by the user",
 				AcknowledgedAt: metav1.Time{Time: acknowledgeTime},
 			},

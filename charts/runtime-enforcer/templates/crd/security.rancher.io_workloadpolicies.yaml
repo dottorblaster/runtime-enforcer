@@ -121,6 +121,15 @@ spec:
                           description: executablePath is the path of the unauthorized
                             executable.
                           type: string
+                        firstObservedTimestamp:
+                          description: |-
+                            firstObservedTimestamp is when the violation was first observed. It
+                            is stamped from the scraped event's own timestamp when the record
+                            is created and is never updated on re-scrapes, so consumers can
+                            compute the age of the violation (unlike timestamp, which tracks
+                            the last occurrence).
+                          format: date-time
+                          type: string
                         id:
                           description: |-
                             id is a per-policy unique identifier allocated by the controller
@@ -137,6 +146,18 @@ spec:
                         nodeName:
                           description: nodeName is the node where the violation occurred.
                           type: string
+                        occurrences:
+                          default: 1
+                          description: |-
+                            occurrences is the number of times this violation (identified by
+                            pod, container, executable and action) has been observed since the
+                            record was first created. It is a per-record counter, distinct from
+                            the policy-level violationCount aggregate: it is only incremented
+                            when a scraped event matches this exact record, so consumers can
+                            tell how many times this specific executable/container/pod combo
+                            fired.
+                          format: int64
+                          type: integer
                         podName:
                           description: podName is the name of the pod where the violation
                             occurred.
@@ -276,6 +297,15 @@ spec:
                       description: executablePath is the path of the unauthorized
                         executable.
                       type: string
+                    firstObservedTimestamp:
+                      description: |-
+                        firstObservedTimestamp is when the violation was first observed. It
+                        is stamped from the scraped event's own timestamp when the record
+                        is created and is never updated on re-scrapes, so consumers can
+                        compute the age of the violation (unlike timestamp, which tracks
+                        the last occurrence).
+                      format: date-time
+                      type: string
                     id:
                       description: |-
                         id is a per-policy unique identifier allocated by the controller
@@ -292,6 +322,18 @@ spec:
                     nodeName:
                       description: nodeName is the node where the violation occurred.
                       type: string
+                    occurrences:
+                      default: 1
+                      description: |-
+                        occurrences is the number of times this violation (identified by
+                        pod, container, executable and action) has been observed since the
+                        record was first created. It is a per-record counter, distinct from
+                        the policy-level violationCount aggregate: it is only incremented
+                        when a scraped event matches this exact record, so consumers can
+                        tell how many times this specific executable/container/pod combo
+                        fired.
+                      format: int64
+                      type: integer
                     podName:
                       description: podName is the name of the pod where the violation
                         occurred.
