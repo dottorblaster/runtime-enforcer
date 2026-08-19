@@ -187,21 +187,21 @@ func (r *WorkloadPolicyStatusSync) emitAcknowledgedViolationOtelLog(
 	violation := ack.Violation
 	rec.SetEventName("policy_violation_acknowledged")
 	rec.SetSeverity(otellog.SeverityInfo)
-	rec.SetBody(otellog.StringValue("policy_violation_acknowledged"))
+	rec.SetBody(attribute.StringValue("policy_violation_acknowledged"))
 	rec.SetTimestamp(time.Now())
 	rec.AddAttributes(
-		otellog.Int64("id", violation.ID),
-		otellog.String("lastObservedTimestamp", violation.LastObservedTimestamp.UTC().Format(time.RFC3339)),
-		otellog.String("reason", ack.Reason),
-		otellog.String("policy.name", policyName),
-		otellog.String("k8s.namespace.name", namespace),
-		otellog.String("k8s.pod.name", violation.PodName),
-		otellog.String("container.name", violation.ContainerName),
-		otellog.String("proc.exepath", violation.ExecutablePath),
-		otellog.String("node.name", violation.NodeName),
-		otellog.String("action", violation.Action),
-		otellog.String("workload.name", violation.WorkloadName),
-		otellog.String("workload.kind", violation.WorkloadKind),
+		attribute.Int64("id", violation.ID),
+		attribute.String("lastObservedTimestamp", violation.LastObservedTimestamp.UTC().Format(time.RFC3339)),
+		attribute.String("reason", ack.Reason),
+		attribute.String("policy.name", policyName),
+		attribute.String("k8s.namespace.name", namespace),
+		attribute.String("k8s.pod.name", violation.PodName),
+		attribute.String("container.name", violation.ContainerName),
+		attribute.String("proc.exepath", violation.ExecutablePath),
+		attribute.String("node.name", violation.NodeName),
+		attribute.String("action", violation.Action),
+		attribute.String("workload.name", violation.WorkloadName),
+		attribute.String("workload.kind", violation.WorkloadKind),
 	)
 
 	r.eventLogger.Emit(ctx, rec)
