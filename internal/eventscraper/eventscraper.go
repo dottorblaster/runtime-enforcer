@@ -9,6 +9,7 @@ import (
 	"github.com/rancher-sandbox/runtime-enforcer/internal/bpf"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/resolver"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/violationbuf"
+	"go.opentelemetry.io/otel/attribute"
 	otellog "go.opentelemetry.io/otel/log"
 	"golang.org/x/time/rate"
 )
@@ -186,16 +187,16 @@ func (es *EventScraper) emitViolationEvent(ctx context.Context, info *KubeProces
 	var rec otellog.Record
 	rec.SetEventName("policy_violation")
 	rec.SetSeverity(otellog.SeverityWarn)
-	rec.SetBody(otellog.StringValue("policy_violation"))
+	rec.SetBody(attribute.StringValue("policy_violation"))
 	rec.SetTimestamp(time.Now())
 	rec.AddAttributes(
-		otellog.String("policy.name", info.PolicyName),
-		otellog.String("k8s.namespace.name", info.Namespace),
-		otellog.String("k8s.pod.name", info.PodName),
-		otellog.String("container.name", info.ContainerName),
-		otellog.String("proc.exepath", info.ExecutablePath),
-		otellog.String("node.name", es.nodeName),
-		otellog.String("action", action),
+		attribute.String("policy.name", info.PolicyName),
+		attribute.String("k8s.namespace.name", info.Namespace),
+		attribute.String("k8s.pod.name", info.PodName),
+		attribute.String("container.name", info.ContainerName),
+		attribute.String("proc.exepath", info.ExecutablePath),
+		attribute.String("node.name", es.nodeName),
+		attribute.String("action", action),
 	)
 
 	es.violationLogger.Emit(ctx, rec)
