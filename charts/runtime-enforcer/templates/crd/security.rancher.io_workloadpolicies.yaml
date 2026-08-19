@@ -121,6 +121,15 @@ spec:
                           description: executablePath is the path of the unauthorized
                             executable.
                           type: string
+                        firstObservedTimestamp:
+                          description: |-
+                            firstObservedTimestamp is when the violation was first observed. It
+                            is stamped from the scraped event's own timestamp when the record
+                            is created and is never updated on re-scrapes, so consumers can
+                            compute the age of the violation (unlike timestamp, which tracks
+                            the last occurrence).
+                          format: date-time
+                          type: string
                         id:
                           description: |-
                             id is a per-policy unique identifier allocated by the controller
@@ -134,16 +143,29 @@ spec:
                             negative, so the sign bit is never set in practice.
                           format: int64
                           type: integer
+                        lastObservedTimestamp:
+                          description: lastObservedTimestamp is when the violation
+                            was last observed.
+                          format: date-time
+                          type: string
                         nodeName:
                           description: nodeName is the node where the violation occurred.
                           type: string
+                        occurrences:
+                          default: 1
+                          description: |-
+                            occurrences is the number of times this violation (identified by
+                            pod, container, executable and action) has been observed since the
+                            record was first created. It is a per-record counter, distinct from
+                            the policy-level violationCount aggregate: it is only incremented
+                            when a scraped event matches this exact record, so consumers can
+                            tell how many times this specific executable/container/pod combo
+                            fired.
+                          format: int64
+                          type: integer
                         podName:
                           description: podName is the name of the pod where the violation
                             occurred.
-                          type: string
-                        timestamp:
-                          description: timestamp is when the violation last occurred.
-                          format: date-time
                           type: string
                         workloadKind:
                           description: |-
@@ -164,9 +186,9 @@ spec:
                       - containerName
                       - executablePath
                       - id
+                      - lastObservedTimestamp
                       - nodeName
                       - podName
-                      - timestamp
                       type: object
                   type: object
                 type: array
@@ -276,6 +298,15 @@ spec:
                       description: executablePath is the path of the unauthorized
                         executable.
                       type: string
+                    firstObservedTimestamp:
+                      description: |-
+                        firstObservedTimestamp is when the violation was first observed. It
+                        is stamped from the scraped event's own timestamp when the record
+                        is created and is never updated on re-scrapes, so consumers can
+                        compute the age of the violation (unlike timestamp, which tracks
+                        the last occurrence).
+                      format: date-time
+                      type: string
                     id:
                       description: |-
                         id is a per-policy unique identifier allocated by the controller
@@ -289,16 +320,29 @@ spec:
                         negative, so the sign bit is never set in practice.
                       format: int64
                       type: integer
+                    lastObservedTimestamp:
+                      description: lastObservedTimestamp is when the violation was
+                        last observed.
+                      format: date-time
+                      type: string
                     nodeName:
                       description: nodeName is the node where the violation occurred.
                       type: string
+                    occurrences:
+                      default: 1
+                      description: |-
+                        occurrences is the number of times this violation (identified by
+                        pod, container, executable and action) has been observed since the
+                        record was first created. It is a per-record counter, distinct from
+                        the policy-level violationCount aggregate: it is only incremented
+                        when a scraped event matches this exact record, so consumers can
+                        tell how many times this specific executable/container/pod combo
+                        fired.
+                      format: int64
+                      type: integer
                     podName:
                       description: podName is the name of the pod where the violation
                         occurred.
-                      type: string
-                    timestamp:
-                      description: timestamp is when the violation last occurred.
-                      format: date-time
                       type: string
                     workloadKind:
                       description: |-
@@ -319,9 +363,9 @@ spec:
                   - containerName
                   - executablePath
                   - id
+                  - lastObservedTimestamp
                   - nodeName
                   - podName
-                  - timestamp
                   type: object
                 type: array
             type: object

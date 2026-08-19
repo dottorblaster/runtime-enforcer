@@ -212,9 +212,22 @@ func schema_rancher_sandbox_runtime_enforcer_api_v1alpha1_ViolationRecord(ref co
 							Format:      "int64",
 						},
 					},
-					"timestamp": {
+					"lastObservedTimestamp": {
 						SchemaProps: spec.SchemaProps{
-							Description: "timestamp is when the violation last occurred.",
+							Description: "lastObservedTimestamp is when the violation was last observed.",
+							Ref:         ref(v1.Time{}.OpenAPIModelName()),
+						},
+					},
+					"occurrences": {
+						SchemaProps: spec.SchemaProps{
+							Description: "occurrences is the number of times this violation (identified by pod, container, executable and action) has been observed since the record was first created. It is a per-record counter, distinct from the policy-level violationCount aggregate: it is only incremented when a scraped event matches this exact record, so consumers can tell how many times this specific executable/container/pod combo fired.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"firstObservedTimestamp": {
+						SchemaProps: spec.SchemaProps{
+							Description: "firstObservedTimestamp is when the violation was first observed. It is stamped from the scraped event's own timestamp when the record is created and is never updated on re-scrapes, so consumers can compute the age of the violation (unlike timestamp, which tracks the last occurrence).",
 							Ref:         ref(v1.Time{}.OpenAPIModelName()),
 						},
 					},
@@ -273,7 +286,7 @@ func schema_rancher_sandbox_runtime_enforcer_api_v1alpha1_ViolationRecord(ref co
 						},
 					},
 				},
-				Required: []string{"id", "timestamp", "podName", "containerName", "executablePath", "nodeName", "action"},
+				Required: []string{"id", "lastObservedTimestamp", "podName", "containerName", "executablePath", "nodeName", "action"},
 			},
 		},
 		Dependencies: []string{

@@ -162,7 +162,19 @@ Stored as int64 (not uint64) for compatibility with the Kubernetes +
 field-management machinery used by controller-runtime's test +
 fixtures; the counter is monotonically increasing and never goes +
 negative, so the sign bit is never set in practice. + |  | 
-| *`timestamp`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.35/#time-v1-meta[$$Time$$]__ | timestamp is when the violation last occurred. + |  | 
+| *`lastObservedTimestamp`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.35/#time-v1-meta[$$Time$$]__ | lastObservedTimestamp is when the violation was last observed. + |  | 
+| *`occurrences`* __integer__ | occurrences is the number of times this violation (identified by +
+pod, container, executable and action) has been observed since the +
+record was first created. It is a per-record counter, distinct from +
+the policy-level violationCount aggregate: it is only incremented +
+when a scraped event matches this exact record, so consumers can +
+tell how many times this specific executable/container/pod combo +
+fired. + | 1 | 
+| *`firstObservedTimestamp`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.35/#time-v1-meta[$$Time$$]__ | firstObservedTimestamp is when the violation was first observed. It +
+is stamped from the scraped event's own timestamp when the record +
+is created and is never updated on re-scrapes, so consumers can +
+compute the age of the violation (unlike timestamp, which tracks +
+the last occurrence). + |  | 
 | *`podName`* __string__ | podName is the name of the pod where the violation occurred. + |  | 
 | *`containerName`* __string__ | containerName is the container where the unauthorized executable ran. + |  | 
 | *`executablePath`* __string__ | executablePath is the path of the unauthorized executable. + |  | 

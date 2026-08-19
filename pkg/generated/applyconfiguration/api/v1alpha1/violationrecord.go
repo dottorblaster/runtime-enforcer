@@ -21,8 +21,22 @@ type ViolationRecordApplyConfiguration struct {
 	// fixtures; the counter is monotonically increasing and never goes
 	// negative, so the sign bit is never set in practice.
 	ID *int64 `json:"id,omitempty"`
-	// timestamp is when the violation last occurred.
-	Timestamp *v1.Time `json:"timestamp,omitempty"`
+	// lastObservedTimestamp is when the violation was last observed.
+	LastObservedTimestamp *v1.Time `json:"lastObservedTimestamp,omitempty"`
+	// occurrences is the number of times this violation (identified by
+	// pod, container, executable and action) has been observed since the
+	// record was first created. It is a per-record counter, distinct from
+	// the policy-level violationCount aggregate: it is only incremented
+	// when a scraped event matches this exact record, so consumers can
+	// tell how many times this specific executable/container/pod combo
+	// fired.
+	Occurrences *int64 `json:"occurrences,omitempty"`
+	// firstObservedTimestamp is when the violation was first observed. It
+	// is stamped from the scraped event's own timestamp when the record
+	// is created and is never updated on re-scrapes, so consumers can
+	// compute the age of the violation (unlike timestamp, which tracks
+	// the last occurrence).
+	FirstObservedTimestamp *v1.Time `json:"firstObservedTimestamp,omitempty"`
 	// podName is the name of the pod where the violation occurred.
 	PodName *string `json:"podName,omitempty"`
 	// containerName is the container where the unauthorized executable ran.
@@ -59,11 +73,27 @@ func (b *ViolationRecordApplyConfiguration) WithID(value int64) *ViolationRecord
 	return b
 }
 
-// WithTimestamp sets the Timestamp field in the declarative configuration to the given value
+// WithLastObservedTimestamp sets the LastObservedTimestamp field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
-// If called multiple times, the Timestamp field is set to the value of the last call.
-func (b *ViolationRecordApplyConfiguration) WithTimestamp(value v1.Time) *ViolationRecordApplyConfiguration {
-	b.Timestamp = &value
+// If called multiple times, the LastObservedTimestamp field is set to the value of the last call.
+func (b *ViolationRecordApplyConfiguration) WithLastObservedTimestamp(value v1.Time) *ViolationRecordApplyConfiguration {
+	b.LastObservedTimestamp = &value
+	return b
+}
+
+// WithOccurrences sets the Occurrences field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the Occurrences field is set to the value of the last call.
+func (b *ViolationRecordApplyConfiguration) WithOccurrences(value int64) *ViolationRecordApplyConfiguration {
+	b.Occurrences = &value
+	return b
+}
+
+// WithFirstObservedTimestamp sets the FirstObservedTimestamp field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the FirstObservedTimestamp field is set to the value of the last call.
+func (b *ViolationRecordApplyConfiguration) WithFirstObservedTimestamp(value v1.Time) *ViolationRecordApplyConfiguration {
+	b.FirstObservedTimestamp = &value
 	return b
 }
 

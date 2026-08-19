@@ -40,8 +40,18 @@ func (r ViolationRecord) withExecutable(exec string) ViolationRecord {
 	return r
 }
 
-func (r ViolationRecord) withTimestamp(ts time.Time) ViolationRecord {
-	r.Timestamp = metav1.NewTime(ts)
+func (r ViolationRecord) withLastObserved(ts time.Time) ViolationRecord {
+	r.LastObservedTimestamp = metav1.NewTime(ts)
+	return r
+}
+
+func (r ViolationRecord) withOccurrences(n int64) ViolationRecord {
+	r.Occurrences = n
+	return r
+}
+
+func (r ViolationRecord) withFirstObserved(ts time.Time) ViolationRecord {
+	r.FirstObservedTimestamp = metav1.NewTime(ts)
 	return r
 }
 
@@ -49,19 +59,19 @@ func TestViolationRecordKeyOf(t *testing.T) {
 	baseTS := metav1.NewTime(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
 
 	baseViolation := ViolationRecord{
-		ID:             0,
-		Timestamp:      baseTS,
-		PodName:        "pod-a",
-		ContainerName:  "c",
-		ExecutablePath: "/x",
-		NodeName:       "node-1",
-		Action:         "monitor",
+		ID:                    0,
+		LastObservedTimestamp: baseTS,
+		PodName:               "pod-a",
+		ContainerName:         "c",
+		ExecutablePath:        "/x",
+		NodeName:              "node-1",
+		Action:                "monitor",
 	}
 
 	// If the timestamp changes the key should not change
 	require.Equal(t,
 		baseViolation.key(),
-		baseViolation.withTimestamp(baseTS.Add(time.Minute)).key())
+		baseViolation.withLastObserved(baseTS.Add(time.Minute)).key())
 
 	// different executable -> different keys
 	require.NotEqual(t,
@@ -88,13 +98,15 @@ func TestMergeScrapedViolations(t *testing.T) {
 	baseTS := metav1.NewTime(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
 
 	baseViolation := ViolationRecord{
-		ID:             0,
-		Timestamp:      baseTS,
-		PodName:        "pod-a",
-		ContainerName:  "c",
-		ExecutablePath: "/x",
-		NodeName:       "node-1",
-		Action:         "monitor",
+		ID:                     0,
+		LastObservedTimestamp:  baseTS,
+		Occurrences:            1,
+		FirstObservedTimestamp: baseTS,
+		PodName:                "pod-a",
+		ContainerName:          "c",
+		ExecutablePath:         "/x",
+		NodeName:               "node-1",
+		Action:                 "monitor",
 	}
 
 	baseStatus := WorkloadPolicyStatus{
@@ -117,14 +129,20 @@ func TestMergeScrapedViolations(t *testing.T) {
 		{
 			name: "scrape_new_violations",
 			scraped: []ViolationRecord{
-				baseViolation.withExecutable("/y").withTimestamp(baseTS.Add(time.Minute)),
-				baseViolation.withExecutable("/z").withTimestamp(baseTS.Add(time.Minute * 2)),
+				baseViolation.withExecutable("/y").withLastObserved(baseTS.Add(time.Minute)),
+				baseViolation.withExecutable("/z").withLastObserved(baseTS.Add(time.Minute * 2)),
 			},
 			initialStatus: baseStatus,
 			expectedStatus: WorkloadPolicyStatus{
 				Violations: []ViolationRecord{
-					baseViolation.withExecutable("/z").withID(2).withTimestamp(baseTS.Add(time.Minute * 2)),
-					baseViolation.withExecutable("/y").withID(1).withTimestamp(baseTS.Add(time.Minute)),
+					baseViolation.withExecutable("/z").
+						withID(2).
+						withLastObserved(baseTS.Add(time.Minute * 2)).
+						withFirstObserved(baseTS.Add(time.Minute * 2)),
+					baseViolation.withExecutable("/y").
+						withID(1).
+						withLastObserved(baseTS.Add(time.Minute)).
+						withFirstObserved(baseTS.Add(time.Minute)),
 					baseViolation.withExecutable("/x").withID(0),
 				},
 				ViolationCount: 3,
@@ -134,14 +152,20 @@ func TestMergeScrapedViolations(t *testing.T) {
 			name: "scrape_new_and_old_violations",
 			scraped: []ViolationRecord{
 				// New timestamp but same violation
-				baseViolation.withTimestamp(baseTS.Add(time.Hour)),
-				baseViolation.withExecutable("/z").withTimestamp(baseTS.Add(time.Minute)),
+				baseViolation.withLastObserved(baseTS.Add(time.Hour)),
+				baseViolation.withExecutable("/z").withLastObserved(baseTS.Add(time.Minute)),
 			},
 			initialStatus: baseStatus,
 			expectedStatus: WorkloadPolicyStatus{
 				Violations: []ViolationRecord{
-					baseViolation.withExecutable("/x").withID(0).withTimestamp(baseTS.Add(time.Hour)),
-					baseViolation.withExecutable("/z").withID(2).withTimestamp(baseTS.Add(time.Minute)),
+					baseViolation.withExecutable("/x").
+						withID(0).
+						withLastObserved(baseTS.Add(time.Hour)).
+						withOccurrences(2),
+					baseViolation.withExecutable("/z").
+						withID(2).
+						withLastObserved(baseTS.Add(time.Minute)).
+						withFirstObserved(baseTS.Add(time.Minute)),
 				},
 				// Even if we have just 2 violations in the array, we have seen 3 of them.
 				ViolationCount: 3,
@@ -152,14 +176,16 @@ func TestMergeScrapedViolations(t *testing.T) {
 			scraped: []ViolationRecord{
 				baseViolation.withExecutable("/101").
 					withID(101).
-					withTimestamp(baseTS.Add(time.Duration(101) * time.Minute)),
+					withLastObserved(baseTS.Add(time.Duration(101) * time.Minute)),
 			},
 			initialStatus: func() WorkloadPolicyStatus {
 				r := make([]ViolationRecord, maxViolationRecords)
 				for i := range r {
 					r[i] = baseViolation.withExecutable(fmt.Sprintf("/%d", i+1)).
 						withID(int64(i)).
-						withTimestamp(baseTS.Add(time.Duration(i+1) * time.Minute))
+						withLastObserved(baseTS.Add(time.Duration(i+1) * time.Minute)).
+						withFirstObserved(baseTS.Add(time.Duration(i+1) * time.Minute)).
+						withOccurrences(int64(i + 2))
 				}
 				return WorkloadPolicyStatus{
 					Violations:     r,
@@ -171,10 +197,14 @@ func TestMergeScrapedViolations(t *testing.T) {
 				for i := range r {
 					r[i] = baseViolation.withExecutable(fmt.Sprintf("/%d", i+1)).
 						withID(int64(i)).
-						withTimestamp(baseTS.Add(time.Duration(i+1) * time.Minute))
+						withLastObserved(baseTS.Add(time.Duration(i+1) * time.Minute)).
+						withFirstObserved(baseTS.Add(time.Duration(i+1) * time.Minute))
+					if i < maxViolationRecords {
+						r[i] = r[i].withOccurrences(int64(i + 2))
+					}
 				}
 				slices.SortStableFunc(r, func(a, b ViolationRecord) int {
-					return b.Timestamp.Time.Compare(a.Timestamp.Time)
+					return b.LastObservedTimestamp.Time.Compare(a.LastObservedTimestamp.Time)
 				})
 				return WorkloadPolicyStatus{
 					Violations:     r[:maxViolationRecords],
@@ -190,6 +220,68 @@ func TestMergeScrapedViolations(t *testing.T) {
 			require.Equal(t, tt.expectedStatus, tt.initialStatus)
 		})
 	}
+}
+
+func TestMergeScrapedViolationsMultiBatch(t *testing.T) {
+	baseTS := metav1.NewTime(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+
+	baseViolation := ViolationRecord{
+		LastObservedTimestamp: baseTS,
+		PodName:               "pod-a",
+		ContainerName:         "c",
+		ExecutablePath:        "/x",
+		NodeName:              "node-1",
+		Action:                "monitor",
+	}
+
+	status := WorkloadPolicyStatus{}
+
+	// Batch 1: /x and /y are observed for the first time.
+	status.mergeScrapedViolations([]ViolationRecord{
+		baseViolation.withExecutable("/x").withLastObserved(baseTS.Time),
+		baseViolation.withExecutable("/y").withLastObserved(baseTS.Time),
+	})
+
+	require.Len(t, status.Violations, 2)
+	require.Equal(t, int64(2), status.ViolationCount)
+
+	// Batch 2: /x once more, /y twice in the same batch, and a new /z.
+	status.mergeScrapedViolations([]ViolationRecord{
+		baseViolation.withExecutable("/x").withLastObserved(baseTS.Add(time.Minute)),
+		baseViolation.withExecutable("/y").withLastObserved(baseTS.Add(time.Minute)),
+		baseViolation.withExecutable("/y").withLastObserved(baseTS.Add(time.Minute * 2)),
+		baseViolation.withExecutable("/z").withLastObserved(baseTS.Add(time.Minute)),
+	})
+
+	require.Len(t, status.Violations, 3)
+	require.Equal(t, int64(6), status.ViolationCount)
+
+	findByExe := func(exe string) ViolationRecord {
+		idx := slices.IndexFunc(status.Violations, func(v ViolationRecord) bool {
+			return v.ExecutablePath == exe
+		})
+		require.NotEqual(t, -1, idx, "violation %s not found", exe)
+		return status.Violations[idx]
+	}
+
+	// Per-record counts accumulate across batches (including duplicates
+	// within a single batch), and firstObservedTimestamp is stamped with
+	// the first sighting and never updated, while lastObservedTimestamp
+	// tracks the newest occurrence.
+	x := findByExe("/x")
+	require.Equal(t, int64(2), x.Occurrences)
+	require.Equal(t, baseTS, x.FirstObservedTimestamp)
+	require.Equal(t, baseTS.Add(time.Minute), x.LastObservedTimestamp.Time)
+
+	y := findByExe("/y")
+	require.Equal(t, int64(3), y.Occurrences)
+	require.Equal(t, baseTS, y.FirstObservedTimestamp)
+	require.Equal(t, baseTS.Add(time.Minute*2), y.LastObservedTimestamp.Time)
+
+	z := findByExe("/z")
+	require.Equal(t, int64(1), z.Occurrences)
+	require.Equal(t, baseTS.Add(time.Minute), z.FirstObservedTimestamp.Time)
+	require.Equal(t, baseTS.Add(time.Minute), z.LastObservedTimestamp.Time)
 }
 
 func TestClearAllowedViolations(t *testing.T) {
@@ -262,13 +354,13 @@ func TestAcknowledgeViolationsFromAnnotations(t *testing.T) {
 
 	newViolation := func(id int64) ViolationRecord {
 		return ViolationRecord{
-			ID:             id,
-			Timestamp:      metav1.NewTime(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)),
-			PodName:        fmt.Sprintf("pod-%d", id),
-			ContainerName:  fmt.Sprintf("container-%d", id),
-			ExecutablePath: fmt.Sprintf("/usr/bin/exe-%d", id),
-			NodeName:       fmt.Sprintf("node-%d", id),
-			Action:         "monitor",
+			ID:                    id,
+			LastObservedTimestamp: metav1.NewTime(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)),
+			PodName:               fmt.Sprintf("pod-%d", id),
+			ContainerName:         fmt.Sprintf("container-%d", id),
+			ExecutablePath:        fmt.Sprintf("/usr/bin/exe-%d", id),
+			NodeName:              fmt.Sprintf("node-%d", id),
+			Action:                "monitor",
 		}
 	}
 

@@ -78,21 +78,27 @@ var schemaYAML = typed.YAMLObject(`types:
       type:
         scalar: string
       default: ""
+    - name: firstObservedTimestamp
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.Time
     - name: id
       type:
         scalar: numeric
       default: 0
+    - name: lastObservedTimestamp
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.Time
     - name: nodeName
       type:
         scalar: string
       default: ""
+    - name: occurrences
+      type:
+        scalar: numeric
     - name: podName
       type:
         scalar: string
       default: ""
-    - name: timestamp
-      type:
-        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.Time
     - name: workloadKind
       type:
         scalar: string
