@@ -9,7 +9,6 @@ import (
 	"github.com/rancher-sandbox/runtime-enforcer/internal/types/policymode"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -28,10 +27,8 @@ var _ = Describe("WorkloadPolicy Webhook", func() {
 
 	BeforeEach(func() {
 		policy = &v1alpha1.WorkloadPolicy{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      policyName,
-				Namespace: testNS,
-			},
+			Name:      policyName,
+			Namespace: testNS,
 			Spec: v1alpha1.WorkloadPolicySpec{
 				Mode: policymode.MonitorString,
 				RulesByContainer: map[string]*v1alpha1.WorkloadPolicyRules{
@@ -52,7 +49,7 @@ var _ = Describe("WorkloadPolicy Webhook", func() {
 
 	AfterEach(func() {
 		Expect(client.IgnoreNotFound(k8sClient.Delete(ctx, &v1alpha1.WorkloadPolicy{
-			ObjectMeta: metav1.ObjectMeta{Name: policyName, Namespace: testNS},
+			Name: policyName, Namespace: testNS,
 		}))).To(Succeed())
 	})
 
@@ -65,12 +62,10 @@ var _ = Describe("WorkloadPolicy Webhook", func() {
 
 		It("denies deletion when a pod references the policy", func() {
 			pod := &corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      podName,
-					Namespace: testNS,
-					Labels: map[string]string{
-						v1alpha1.PolicyLabelKey: policyName,
-					},
+				Name:      podName,
+				Namespace: testNS,
+				Labels: map[string]string{
+					v1alpha1.PolicyLabelKey: policyName,
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{Name: containerName, Image: "pause"}},

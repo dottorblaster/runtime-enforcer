@@ -9,7 +9,6 @@ import (
 	"github.com/rancher-sandbox/runtime-enforcer/internal/types/policymode"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/e2e-framework/klient/k8s"
 	"sigs.k8s.io/e2e-framework/klient/wait"
 	"sigs.k8s.io/e2e-framework/klient/wait/conditions"
@@ -28,10 +27,8 @@ func getPolicyPerContainerTest() types.Feature {
 		Setup(SetupTestNamespace).
 		Setup(func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
 			policy := v1alpha1.WorkloadPolicy{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      policyName,
-					Namespace: getNamespace(ctx),
-				},
+				Name:      policyName,
+				Namespace: getNamespace(ctx),
 				Spec: v1alpha1.WorkloadPolicySpec{
 					Mode: policymode.ProtectString,
 					RulesByContainer: map[string]*v1alpha1.WorkloadPolicyRules{
@@ -64,12 +61,10 @@ func getPolicyPerContainerTest() types.Feature {
 				r := getClient(ctx)
 
 				pod := corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      podNameAllowed,
-						Namespace: getNamespace(ctx),
-						Labels: map[string]string{
-							v1alpha1.PolicyLabelKey: policyName,
-						},
+					Name:      podNameAllowed,
+					Namespace: getNamespace(ctx),
+					Labels: map[string]string{
+						v1alpha1.PolicyLabelKey: policyName,
 					},
 					Spec: corev1.PodSpec{
 						InitContainers: []corev1.Container{
@@ -126,12 +121,10 @@ func getPolicyPerContainerTest() types.Feature {
 				r := getClient(ctx)
 
 				blockedPod := corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      podNameBlocked,
-						Namespace: getNamespace(ctx),
-						Labels: map[string]string{
-							v1alpha1.PolicyLabelKey: policyName,
-						},
+					Name:      podNameBlocked,
+					Namespace: getNamespace(ctx),
+					Labels: map[string]string{
+						v1alpha1.PolicyLabelKey: policyName,
 					},
 					Spec: corev1.PodSpec{
 						InitContainers: []corev1.Container{
@@ -220,10 +213,8 @@ func getPolicyPerContainerTest() types.Feature {
 			r := getClient(ctx)
 
 			pod := corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      podNameAllowed,
-					Namespace: getNamespace(ctx),
-				},
+				Name:      podNameAllowed,
+				Namespace: getNamespace(ctx),
 			}
 			err := r.Delete(ctx, &pod)
 			require.NoError(t, err, "failed to delete pod")
@@ -235,10 +226,8 @@ func getPolicyPerContainerTest() types.Feature {
 			require.NoError(t, err, "pod was not deleted within timeout")
 
 			policy := v1alpha1.WorkloadPolicy{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      policyName,
-					Namespace: getNamespace(ctx),
-				},
+				Name:      policyName,
+				Namespace: getNamespace(ctx),
 			}
 			deleteAndWaitWP(ctx, t, &policy)
 

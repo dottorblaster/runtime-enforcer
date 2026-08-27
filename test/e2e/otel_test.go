@@ -15,7 +15,6 @@ import (
 	"github.com/rancher-sandbox/runtime-enforcer/internal/types/policymode"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -36,10 +35,8 @@ func getOtelCollectorTest() types.Feature {
 		Setup(SetupTestNamespace).
 		Setup(func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
 			policy := &v1alpha1.WorkloadPolicy{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-policy",
-					Namespace: getNamespace(ctx),
-				},
+				Name:      "test-policy",
+				Namespace: getNamespace(ctx),
 				Spec: v1alpha1.WorkloadPolicySpec{
 					Mode: policymode.MonitorString,
 					RulesByContainer: map[string]*v1alpha1.WorkloadPolicyRules{
@@ -250,15 +247,13 @@ func portForwardPod(
 
 	restClient, err := rest.RESTClientFor(
 		&rest.Config{
-			Host:            restConfig.Host,
-			TLSClientConfig: restConfig.TLSClientConfig,
-			BearerToken:     restConfig.BearerToken,
-			BearerTokenFile: restConfig.BearerTokenFile,
-			APIPath:         "/api",
-			ContentConfig: rest.ContentConfig{
-				GroupVersion:         &schema.GroupVersion{Version: "v1"},
-				NegotiatedSerializer: scheme.Codecs.WithoutConversion(),
-			},
+			Host:                 restConfig.Host,
+			TLSClientConfig:      restConfig.TLSClientConfig,
+			BearerToken:          restConfig.BearerToken,
+			BearerTokenFile:      restConfig.BearerTokenFile,
+			APIPath:              "/api",
+			GroupVersion:         &schema.GroupVersion{Version: "v1"},
+			NegotiatedSerializer: scheme.Codecs.WithoutConversion(),
 		},
 	)
 	if err != nil {

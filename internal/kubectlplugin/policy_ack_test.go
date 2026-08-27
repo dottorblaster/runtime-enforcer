@@ -24,11 +24,9 @@ func TestRunPolicyAck(t *testing.T) {
 
 	makePolicy := func(annotations map[string]string) *v1alpha1.WorkloadPolicy {
 		return &v1alpha1.WorkloadPolicy{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:        name,
-				Namespace:   ns,
-				Annotations: annotations,
-			},
+			Name:        name,
+			Namespace:   ns,
+			Annotations: annotations,
 			Status: v1alpha1.WorkloadPolicyStatus{
 				Violations: []v1alpha1.ViolationRecord{
 					{
@@ -159,10 +157,8 @@ func TestRunPolicyAck(t *testing.T) {
 
 			var out, errOut bytes.Buffer
 			opts := &policyAckOptions{
-				commonOptions: commonOptions{
-					Namespace: ns,
-					DryRun:    tt.dryRun,
-				},
+				Namespace:   ns,
+				DryRun:      tt.dryRun,
 				PolicyName:  name,
 				ViolationID: tt.violationID,
 				Reason:      tt.reason,
@@ -192,10 +188,8 @@ func TestCompletePolicyAckValidArgs(t *testing.T) {
 	t.Parallel()
 
 	testWorkloadPolicy := &v1alpha1.WorkloadPolicy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-policy",
-			Namespace: "test",
-		},
+		Name:      "test-policy",
+		Namespace: "test",
 		Status: v1alpha1.WorkloadPolicyStatus{
 			Violations: []v1alpha1.ViolationRecord{
 				{ID: 1, ContainerName: "app", ExecutablePath: "/bin/mv"},
@@ -205,11 +199,9 @@ func TestCompletePolicyAckValidArgs(t *testing.T) {
 	}
 
 	emptyWorkloadPolicy := &v1alpha1.WorkloadPolicy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-policy",
-			Namespace: "test",
-		},
-		Status: v1alpha1.WorkloadPolicyStatus{},
+		Name:      "test-policy",
+		Namespace: "test",
+		Status:    v1alpha1.WorkloadPolicyStatus{},
 	}
 
 	tests := []struct {

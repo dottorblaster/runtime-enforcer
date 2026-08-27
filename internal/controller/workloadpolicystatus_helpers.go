@@ -102,10 +102,8 @@ func (r *WorkloadPolicyStatusSync) getNodeStatusByPolicy(
 			r.logger.Info("cannot get a agent client for the node", "node", nodeName)
 			storeStatusForEachPolicy(nodeStatusByPolicy, policies, v1alpha1.PolicyNodeStatus{
 				NodeName: nodeName,
-				PolicyStatus: v1alpha1.PolicyStatus{
-					Code:    v1alpha1.PolicyMissing,
-					Message: "No agent client available",
-				},
+				Code:     v1alpha1.PolicyMissing,
+				Message:  "No agent client available",
 			})
 			continue
 		}
@@ -116,10 +114,8 @@ func (r *WorkloadPolicyStatusSync) getNodeStatusByPolicy(
 			r.logger.Error(err, "failed to get policies status", "node", nodeName)
 			storeStatusForEachPolicy(nodeStatusByPolicy, policies, v1alpha1.PolicyNodeStatus{
 				NodeName: nodeName,
-				PolicyStatus: v1alpha1.PolicyStatus{
-					Code:    v1alpha1.PolicyMissing,
-					Message: "failed to get policies status",
-				},
+				Code:     v1alpha1.PolicyMissing,
+				Message:  "failed to get policies status",
 			})
 			continue
 		}
@@ -128,10 +124,8 @@ func (r *WorkloadPolicyStatusSync) getNodeStatusByPolicy(
 			r.logger.Error(errors.New("empty policy list"), "No policies found", "node", nodeName)
 			storeStatusForEachPolicy(nodeStatusByPolicy, policies, v1alpha1.PolicyNodeStatus{
 				NodeName: nodeName,
-				PolicyStatus: v1alpha1.PolicyStatus{
-					Code:    v1alpha1.PolicyMissing,
-					Message: "no policies found on the node",
-				},
+				Code:     v1alpha1.PolicyMissing,
+				Message:  "no policies found on the node",
 			})
 			continue
 		}

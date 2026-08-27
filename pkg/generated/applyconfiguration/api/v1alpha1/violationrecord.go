@@ -30,12 +30,14 @@ type ViolationRecordApplyConfiguration struct {
 	// when a scraped event matches this exact record, so consumers can
 	// tell how many times this specific executable/container/pod combo
 	// fired.
+	//
 	Occurrences *int64 `json:"occurrences,omitempty"`
 	// firstObservedTimestamp is when the violation was first observed. It
 	// is stamped from the scraped event's own timestamp when the record
 	// is created and is never updated on re-scrapes, so consumers can
 	// compute the age of the violation (unlike timestamp, which tracks
 	// the last occurrence).
+	//
 	FirstObservedTimestamp *v1.Time `json:"firstObservedTimestamp,omitempty"`
 	// podName is the name of the pod where the violation occurred.
 	PodName *string `json:"podName,omitempty"`

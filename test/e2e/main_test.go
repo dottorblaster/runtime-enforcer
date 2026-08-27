@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/e2e-framework/klient/k8s"
 	"sigs.k8s.io/e2e-framework/klient/wait"
 	"sigs.k8s.io/e2e-framework/klient/wait/conditions"
@@ -33,10 +32,8 @@ func getMainTest() types.Feature {
 				r := getClient(ctx)
 
 				proposal := v1alpha1.WorkloadPolicyProposal{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "deploy-opensuse-deployment",
-						Namespace: getNamespace(ctx),
-					},
+					Name:      "deploy-opensuse-deployment",
+					Namespace: getNamespace(ctx),
 				}
 				err := wait.For(conditions.New(r).ResourceMatch(
 					&proposal,
@@ -62,10 +59,8 @@ func getMainTest() types.Feature {
 				t.Log("waiting for workload policy proposal to be created: ", id)
 
 				proposal := v1alpha1.WorkloadPolicyProposal{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      id,
-						Namespace: getNamespace(ctx),
-					},
+					Name:      id,
+					Namespace: getNamespace(ctx),
 				}
 
 				// There are two categories of processes to be learned:
@@ -90,10 +85,8 @@ func getMainTest() types.Feature {
 			func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
 				proposal := ctx.Value(key("proposal")).(*v1alpha1.WorkloadPolicyProposal)
 				policy := v1alpha1.WorkloadPolicy{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "test-policy",
-						Namespace: proposal.ObjectMeta.Namespace,
-					},
+					Name:      "test-policy",
+					Namespace: proposal.ObjectMeta.Namespace,
 					Spec: v1alpha1.WorkloadPolicySpec{
 						Mode: policymode.ProtectString,
 						RulesByContainer: map[string]*v1alpha1.WorkloadPolicyRules{
@@ -132,10 +125,8 @@ func getMainTest() types.Feature {
 
 				// Create a new WorkloadPolicy
 				nonReferencedPolicy := v1alpha1.WorkloadPolicy{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      nonReferencedPolicyName,
-						Namespace: getNamespace(ctx),
-					},
+					Name:      nonReferencedPolicyName,
+					Namespace: getNamespace(ctx),
 					Spec: v1alpha1.WorkloadPolicySpec{
 						Mode: policymode.MonitorString,
 						RulesByContainer: map[string]*v1alpha1.WorkloadPolicyRules{
@@ -179,10 +170,8 @@ func getMainTest() types.Feature {
 
 				// Create a new WorkloadPolicy
 				referencedPolicy := v1alpha1.WorkloadPolicy{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      referencedPolicyName,
-						Namespace: getNamespace(ctx),
-					},
+					Name:      referencedPolicyName,
+					Namespace: getNamespace(ctx),
 					Spec: v1alpha1.WorkloadPolicySpec{
 						Mode: policymode.MonitorString,
 						RulesByContainer: map[string]*v1alpha1.WorkloadPolicyRules{
@@ -201,12 +190,10 @@ func getMainTest() types.Feature {
 				)
 
 				pod := corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      podName,
-						Namespace: getNamespace(ctx),
-						Labels: map[string]string{
-							v1alpha1.PolicyLabelKey: referencedPolicyName,
-						},
+					Name:      podName,
+					Namespace: getNamespace(ctx),
+					Labels: map[string]string{
+						v1alpha1.PolicyLabelKey: referencedPolicyName,
 					},
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{

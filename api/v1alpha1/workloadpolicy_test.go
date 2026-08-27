@@ -11,10 +11,8 @@ import (
 
 func TestWorkloadPolicyNamespacedName(t *testing.T) {
 	wp := &WorkloadPolicy{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "test-namespace",
-			Name:      "test-name",
-		},
+		Namespace: "test-namespace",
+		Name:      "test-name",
 	}
 	expected := "test-namespace/test-name"
 	require.Equal(t, expected, wp.NamespacedName())
@@ -47,10 +45,8 @@ func TestRecomputeStatus(t *testing.T) {
 	}
 
 	policy := &WorkloadPolicy{
-		ObjectMeta: metav1.ObjectMeta{
-			Generation:  7,
-			Annotations: map[string]string{},
-		},
+		Generation:  7,
+		Annotations: map[string]string{},
 		Spec: WorkloadPolicySpec{
 			RulesByContainer: map[string]*WorkloadPolicyRules{
 				containerName: {Executables: WorkloadPolicyExecutables{Allowed: []string{

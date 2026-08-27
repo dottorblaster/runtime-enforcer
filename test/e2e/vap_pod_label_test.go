@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/e2e-framework/klient/wait"
 	"sigs.k8s.io/e2e-framework/klient/wait/conditions"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
@@ -30,12 +29,10 @@ func getValidatingAdmissionPolicyPodPolicyLabelTest() types.Feature {
 
 				// Create a pod without the policy label
 				pod := corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "test-pod-no-label",
-						Namespace: namespace,
-						Labels: map[string]string{
-							"app": "test",
-						},
+					Name:      "test-pod-no-label",
+					Namespace: namespace,
+					Labels: map[string]string{
+						"app": "test",
 					},
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{
@@ -87,13 +84,11 @@ func getValidatingAdmissionPolicyPodPolicyLabelTest() types.Feature {
 
 				// Create a pod with the policy label
 				pod := corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "test-pod-with-label",
-						Namespace: namespace,
-						Labels: map[string]string{
-							"app":                   "test",
-							v1alpha1.PolicyLabelKey: "test-policy",
-						},
+					Name:      "test-pod-with-label",
+					Namespace: namespace,
+					Labels: map[string]string{
+						"app":                   "test",
+						v1alpha1.PolicyLabelKey: "test-policy",
 					},
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{
@@ -146,13 +141,11 @@ func getValidatingAdmissionPolicyPodPolicyLabelTest() types.Feature {
 
 				// Create a pod with the policy label
 				pod := corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "test-pod-change-label",
-						Namespace: namespace,
-						Labels: map[string]string{
-							"app":                   "test",
-							v1alpha1.PolicyLabelKey: "original-policy",
-						},
+					Name:      "test-pod-change-label",
+					Namespace: namespace,
+					Labels: map[string]string{
+						"app":                   "test",
+						v1alpha1.PolicyLabelKey: "original-policy",
 					},
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{
@@ -205,13 +198,11 @@ func getValidatingAdmissionPolicyPodPolicyLabelTest() types.Feature {
 
 				// Create a pod with the policy label
 				pod := corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "test-pod-with-label-update-fields",
-						Namespace: namespace,
-						Labels: map[string]string{
-							"app":                   "test",
-							v1alpha1.PolicyLabelKey: "test-policy",
-						},
+					Name:      "test-pod-with-label-update-fields",
+					Namespace: namespace,
+					Labels: map[string]string{
+						"app":                   "test",
+						v1alpha1.PolicyLabelKey: "test-policy",
 					},
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{
@@ -278,12 +269,10 @@ func getValidatingAdmissionPolicyPodPolicyLabelTest() types.Feature {
 
 				// Create a pod without the policy label
 				pod := corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "test-pod-no-label-update-fields",
-						Namespace: namespace,
-						Labels: map[string]string{
-							"app": "test",
-						},
+					Name:      "test-pod-no-label-update-fields",
+					Namespace: namespace,
+					Labels: map[string]string{
+						"app": "test",
 					},
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{
@@ -358,7 +347,7 @@ func getValidatingAdmissionPolicyPodPolicyLabelTest() types.Feature {
 				}
 			}
 
-			namespace := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: getNamespace(ctx)}}
+			namespace := corev1.Namespace{Name: getNamespace(ctx)}
 			err = r.Delete(ctx, &namespace)
 			assert.NoError(t, err, "failed to delete test namespace")
 

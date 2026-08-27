@@ -74,10 +74,8 @@ func TestRunPolicyExec(t *testing.T) {
 			t.Parallel()
 
 			policy := &v1alpha1.WorkloadPolicy{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      name,
-					Namespace: ns,
-				},
+				Name:      name,
+				Namespace: ns,
 				Spec: v1alpha1.WorkloadPolicySpec{
 					RulesByContainer: map[string]*v1alpha1.WorkloadPolicyRules{
 						"app": {
@@ -94,10 +92,8 @@ func TestRunPolicyExec(t *testing.T) {
 
 			var out bytes.Buffer
 			opts := &policyExecOptions{
-				commonOptions: commonOptions{
-					Namespace: ns,
-					DryRun:    tt.dryRun,
-				},
+				Namespace:     ns,
+				DryRun:        tt.dryRun,
 				PolicyName:    name,
 				ContainerName: containerName,
 				Executables:   tt.executables,
@@ -127,10 +123,8 @@ func TestCompletePolicyExecValidArgs(t *testing.T) {
 	t.Parallel()
 
 	testWorkloadPolicy := &v1alpha1.WorkloadPolicy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-policy",
-			Namespace: "test",
-		},
+		Name:      "test-policy",
+		Namespace: "test",
 		Spec: v1alpha1.WorkloadPolicySpec{
 			RulesByContainer: map[string]*v1alpha1.WorkloadPolicyRules{
 				"app": {
@@ -161,12 +155,10 @@ func TestCompletePolicyExecValidArgs(t *testing.T) {
 	}
 
 	emptyWorkloadPolicy := &v1alpha1.WorkloadPolicy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-policy",
-			Namespace: "test",
-		},
-		Spec:   v1alpha1.WorkloadPolicySpec{},
-		Status: v1alpha1.WorkloadPolicyStatus{},
+		Name:      "test-policy",
+		Namespace: "test",
+		Spec:      v1alpha1.WorkloadPolicySpec{},
+		Status:    v1alpha1.WorkloadPolicyStatus{},
 	}
 
 	tests := []struct {

@@ -57,16 +57,12 @@ func output() error {
 		schemaDefs[k] = v.Schema
 	}
 	data, err := json.Marshal(&spec.Swagger{
-		SwaggerProps: spec.SwaggerProps{
-			Definitions: schemaDefs,
-			Info: &spec.Info{
-				InfoProps: spec.InfoProps{
-					Title:   "Kubernetes",
-					Version: "unversioned",
-				},
-			},
-			Swagger: "2.0",
+		Definitions: schemaDefs,
+		Info: &spec.Info{
+			Title:   "Kubernetes",
+			Version: "unversioned",
 		},
+		Swagger: "2.0",
 	})
 	if err != nil {
 		return fmt.Errorf("error serializing api definitions: %w", err)

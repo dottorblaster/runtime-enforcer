@@ -34,8 +34,8 @@ func TestAddTransitioningNode(t *testing.T) {
 	numTransitioning := maxTransitioningNodes + 12
 	for i := range numTransitioning {
 		wpStatus.addTransitioningNode(PolicyNodeStatus{
-			NodeName:     strconv.Itoa(i),
-			PolicyStatus: PolicyStatus{Code: PolicyTransitioning},
+			NodeName: strconv.Itoa(i),
+			Code:     PolicyTransitioning,
 		}, PolicyStatus{}, time.Now())
 	}
 
@@ -59,9 +59,9 @@ func TestProcessPolicyNodeStatus(t *testing.T) {
 		{
 			name: "policy_is_missing",
 			nodes: []PolicyNodeStatus{
-				{NodeName: node1, PolicyStatus: PolicyStatus{Code: PolicyMissing, Message: "No policies found"}},
-				{NodeName: node2, PolicyStatus: PolicyStatus{Code: PolicyReady}},
-				{NodeName: node3, PolicyStatus: PolicyStatus{Code: PolicyTransitioning}},
+				{NodeName: node1, Code: PolicyMissing, Message: "No policies found"},
+				{NodeName: node2, Code: PolicyReady},
+				{NodeName: node3, Code: PolicyTransitioning},
 			},
 			expected: WorkloadPolicyStatus{
 				NodesWithIssues: map[string]PolicyStatus{
@@ -73,8 +73,8 @@ func TestProcessPolicyNodeStatus(t *testing.T) {
 				TransitioningNodes: 1,
 				NodesTransitioning: []PolicyNodeStatus{
 					{
-						NodeName:     node3,
-						PolicyStatus: PolicyStatus{Code: PolicyTransitioning, Since: metav1.Time{Time: now}},
+						NodeName: node3,
+						Code:     PolicyTransitioning, Since: metav1.Time{Time: now},
 					},
 				},
 				Phase: Failed,
@@ -83,9 +83,9 @@ func TestProcessPolicyNodeStatus(t *testing.T) {
 		{
 			name: "policy_is_transitioning",
 			nodes: []PolicyNodeStatus{
-				{NodeName: node1, PolicyStatus: PolicyStatus{Code: PolicyReady}},
-				{NodeName: node2, PolicyStatus: PolicyStatus{Code: PolicyTransitioning}},
-				{NodeName: node3, PolicyStatus: PolicyStatus{Code: PolicyTransitioning}},
+				{NodeName: node1, Code: PolicyReady},
+				{NodeName: node2, Code: PolicyTransitioning},
+				{NodeName: node3, Code: PolicyTransitioning},
 			},
 			expected: WorkloadPolicyStatus{
 				NodesWithIssues:    nil,
@@ -95,12 +95,12 @@ func TestProcessPolicyNodeStatus(t *testing.T) {
 				TransitioningNodes: 2,
 				NodesTransitioning: []PolicyNodeStatus{
 					{
-						NodeName:     node2,
-						PolicyStatus: PolicyStatus{Code: PolicyTransitioning, Since: metav1.Time{Time: now}},
+						NodeName: node2,
+						Code:     PolicyTransitioning, Since: metav1.Time{Time: now},
 					},
 					{
-						NodeName:     node3,
-						PolicyStatus: PolicyStatus{Code: PolicyTransitioning, Since: metav1.Time{Time: now}},
+						NodeName: node3,
+						Code:     PolicyTransitioning, Since: metav1.Time{Time: now},
 					},
 				},
 				Phase: Transitioning,
@@ -109,9 +109,9 @@ func TestProcessPolicyNodeStatus(t *testing.T) {
 		{
 			name: "policy_is_active",
 			nodes: []PolicyNodeStatus{
-				{NodeName: node1, PolicyStatus: PolicyStatus{Code: PolicyReady}},
-				{NodeName: node2, PolicyStatus: PolicyStatus{Code: PolicyReady}},
-				{NodeName: node3, PolicyStatus: PolicyStatus{Code: PolicyReady}},
+				{NodeName: node1, Code: PolicyReady},
+				{NodeName: node2, Code: PolicyReady},
+				{NodeName: node3, Code: PolicyReady},
 			},
 			expected: WorkloadPolicyStatus{
 				NodesWithIssues:    nil,
@@ -144,8 +144,8 @@ func TestProcessPolicyNodeStatusPreservesTransitionTime(t *testing.T) {
 	// First observation: every node enters its current code, so all get stamped.
 	status := WorkloadPolicyStatus{}
 	nodes := []PolicyNodeStatus{
-		{NodeName: node1, PolicyStatus: PolicyStatus{Code: PolicyFailed, Message: "boom"}},
-		{NodeName: node2, PolicyStatus: PolicyStatus{Code: PolicyTransitioning}},
+		{NodeName: node1, Code: PolicyFailed, Message: "boom"},
+		{NodeName: node2, Code: PolicyTransitioning},
 	}
 	require.NoError(t, status.processPolicyNodeStatus(status, nodes, ts(1)))
 	require.Equal(t, metav1.Time{Time: ts(1)}, status.NodesWithIssues[node1].Since)
@@ -153,9 +153,9 @@ func TestProcessPolicyNodeStatusPreservesTransitionTime(t *testing.T) {
 
 	// Unchanged codes: timestamps must be carried forward, not re-stamped.
 	nodes = []PolicyNodeStatus{
-		{NodeName: node1, PolicyStatus: PolicyStatus{Code: PolicyFailed, Message: "still boom"}},
-		{NodeName: node2, PolicyStatus: PolicyStatus{Code: PolicyTransitioning}},
-		{NodeName: node3, PolicyStatus: PolicyStatus{Code: PolicyMissing}},
+		{NodeName: node1, Code: PolicyFailed, Message: "still boom"},
+		{NodeName: node2, Code: PolicyTransitioning},
+		{NodeName: node3, Code: PolicyMissing},
 	}
 	require.NoError(t, status.processPolicyNodeStatus(status, nodes, ts(2)))
 	require.Equal(t, metav1.Time{Time: ts(1)}, status.NodesWithIssues[node1].Since)
@@ -167,15 +167,15 @@ func TestProcessPolicyNodeStatusPreservesTransitionTime(t *testing.T) {
 	// re-stamped rather than keeping the ts(1) timestamp. node2 stays
 	// Transitioning and keeps ts(1). node3 stays Missing and keeps ts(2).
 	nodes = []PolicyNodeStatus{
-		{NodeName: node1, PolicyStatus: PolicyStatus{Code: PolicyReady}},
-		{NodeName: node2, PolicyStatus: PolicyStatus{Code: PolicyTransitioning}},
-		{NodeName: node3, PolicyStatus: PolicyStatus{Code: PolicyMissing}},
+		{NodeName: node1, Code: PolicyReady},
+		{NodeName: node2, Code: PolicyTransitioning},
+		{NodeName: node3, Code: PolicyMissing},
 	}
 	require.NoError(t, status.processPolicyNodeStatus(status, nodes, ts(3)))
 	nodes = []PolicyNodeStatus{
-		{NodeName: node1, PolicyStatus: PolicyStatus{Code: PolicyFailed, Message: "boom again"}},
-		{NodeName: node2, PolicyStatus: PolicyStatus{Code: PolicyTransitioning}},
-		{NodeName: node3, PolicyStatus: PolicyStatus{Code: PolicyMissing}},
+		{NodeName: node1, Code: PolicyFailed, Message: "boom again"},
+		{NodeName: node2, Code: PolicyTransitioning},
+		{NodeName: node3, Code: PolicyMissing},
 	}
 	require.NoError(t, status.processPolicyNodeStatus(status, nodes, ts(4)))
 	require.Equal(t, metav1.Time{Time: ts(4)}, status.NodesWithIssues[node1].Since)

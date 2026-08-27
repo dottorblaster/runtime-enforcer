@@ -5,7 +5,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -83,11 +82,9 @@ func TestNewClusterPodView(t *testing.T) {
 		{
 			name: "simple pod",
 			pod: &corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "my-pod",
-					Namespace: "my-namespace",
-					UID:       types.UID("uid-1234"),
-				},
+				Name:      "my-pod",
+				Namespace: "my-namespace",
+				UID:       types.UID("uid-1234"),
 				Status: corev1.PodStatus{
 					ContainerStatuses: []corev1.ContainerStatus{
 						{ContainerID: "containerd://cid1", Name: "main"},
@@ -110,13 +107,11 @@ func TestNewClusterPodView(t *testing.T) {
 		{
 			name: "static pod",
 			pod: &corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "static-pod",
-					Namespace: "kube-system",
-					UID:       types.UID("api-server-generated-uid"),
-					Annotations: map[string]string{
-						staticPodAnnotation: "mirror-uid",
-					},
+				Name:      "static-pod",
+				Namespace: "kube-system",
+				UID:       types.UID("api-server-generated-uid"),
+				Annotations: map[string]string{
+					staticPodAnnotation: "mirror-uid",
 				},
 				Status: corev1.PodStatus{
 					InitContainerStatuses: []corev1.ContainerStatus{

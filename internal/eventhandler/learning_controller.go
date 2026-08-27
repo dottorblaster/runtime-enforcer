@@ -268,10 +268,8 @@ func (r *LearningReconciler) reconcile(
 	}
 
 	policyProposal := &securityv1alpha1.WorkloadPolicyProposal{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      proposalName,
-			Namespace: req.Namespace,
-		},
+		Name:      proposalName,
+		Namespace: req.Namespace,
 	}
 
 	skip, err := r.skipOrLearn(ctx, req, proposalName, policyProposal)

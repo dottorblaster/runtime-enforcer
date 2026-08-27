@@ -40,16 +40,12 @@ func TestRunProposalPromote(t *testing.T) {
 			name: "promotes proposal and waits for policy",
 			mode: policymode.MonitorString,
 			proposal: &securityv1alpha1.WorkloadPolicyProposal{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      name,
-					Namespace: ns,
-				},
+				Name:      name,
+				Namespace: ns,
 			},
 			policy: &securityv1alpha1.WorkloadPolicy{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      name,
-					Namespace: ns,
-				},
+				Name:      name,
+				Namespace: ns,
 			},
 			expectOutput: fmt.Sprintf(
 				"Promoted WorkloadPolicyProposal %q in namespace %q to WorkloadPolicy in %q mode.",
@@ -63,16 +59,12 @@ func TestRunProposalPromote(t *testing.T) {
 			name: "promotes proposal in protect mode",
 			mode: policymode.ProtectString,
 			proposal: &securityv1alpha1.WorkloadPolicyProposal{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      name,
-					Namespace: ns,
-				},
+				Name:      name,
+				Namespace: ns,
 			},
 			policy: &securityv1alpha1.WorkloadPolicy{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      name,
-					Namespace: ns,
-				},
+				Name:      name,
+				Namespace: ns,
 			},
 			expectOutput: fmt.Sprintf(
 				"Promoted WorkloadPolicyProposal %q in namespace %q to WorkloadPolicy in %q mode.",
@@ -86,16 +78,12 @@ func TestRunProposalPromote(t *testing.T) {
 			name:     "defaults to monitor when mode is omitted",
 			omitMode: true,
 			proposal: &securityv1alpha1.WorkloadPolicyProposal{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      name,
-					Namespace: ns,
-				},
+				Name:      name,
+				Namespace: ns,
 			},
 			policy: &securityv1alpha1.WorkloadPolicy{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      name,
-					Namespace: ns,
-				},
+				Name:      name,
+				Namespace: ns,
 			},
 			expectOutput: fmt.Sprintf(
 				"Promoted WorkloadPolicyProposal %q in namespace %q to WorkloadPolicy in %q mode.",
@@ -110,10 +98,8 @@ func TestRunProposalPromote(t *testing.T) {
 			dryRun: true,
 			mode:   policymode.MonitorString,
 			proposal: &securityv1alpha1.WorkloadPolicyProposal{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      name,
-					Namespace: ns,
-				},
+				Name:      name,
+				Namespace: ns,
 			},
 			// In dry-run mode, we don't wait for the policy to be created
 			policy: nil,
@@ -130,12 +116,10 @@ func TestRunProposalPromote(t *testing.T) {
 			dryRun: true,
 			mode:   policymode.MonitorString,
 			proposal: &securityv1alpha1.WorkloadPolicyProposal{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      name,
-					Namespace: ns,
-					Labels: map[string]string{
-						securityv1alpha1.ProposalPromoteLabelKey: policymode.MonitorString,
-					},
+				Name:      name,
+				Namespace: ns,
+				Labels: map[string]string{
+					securityv1alpha1.ProposalPromoteLabelKey: policymode.MonitorString,
 				},
 			},
 			expectOutput: fmt.Sprintf(
@@ -149,10 +133,8 @@ func TestRunProposalPromote(t *testing.T) {
 			name: "rejects invalid mode",
 			mode: "invalid",
 			proposal: &securityv1alpha1.WorkloadPolicyProposal{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      name,
-					Namespace: ns,
-				},
+				Name:      name,
+				Namespace: ns,
 			},
 			expectErr:      `invalid mode "invalid"`,
 			skipLabelCheck: true,
@@ -181,10 +163,8 @@ func TestRunProposalPromote(t *testing.T) {
 
 			var out bytes.Buffer
 			opts := &proposalPromoteOptions{
-				commonOptions: commonOptions{
-					Namespace: ns,
-					DryRun:    tt.dryRun,
-				},
+				Namespace:    ns,
+				DryRun:       tt.dryRun,
 				ProposalName: name,
 				Mode:         mode,
 			}
@@ -230,9 +210,7 @@ func TestCompleteProposalPromoteArgs(t *testing.T) {
 	t.Parallel()
 	proposalName := "test-proposal"
 	testWorkloadPolicyProposal := &securityv1alpha1.WorkloadPolicyProposal{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: proposalName,
-		},
+		Name: proposalName,
 	}
 
 	tf, streams := setupTestFactory(t, testWorkloadPolicyProposal.DeepCopy())

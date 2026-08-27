@@ -8,7 +8,6 @@ import (
 	"github.com/rancher-sandbox/runtime-enforcer/internal/types/policymode"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/e2e-framework/klient/wait"
 	"sigs.k8s.io/e2e-framework/klient/wait/conditions"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
@@ -29,10 +28,8 @@ func getPolicyUpdateTest() types.Feature {
 		Setup(SetupTestNamespace).
 		Setup(func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
 			policy := v1alpha1.WorkloadPolicy{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      policyName,
-					Namespace: getNamespace(ctx),
-				},
+				Name:      policyName,
+				Namespace: getNamespace(ctx),
 				Spec: v1alpha1.WorkloadPolicySpec{
 					Mode: policymode.ProtectString,
 					RulesByContainer: map[string]*v1alpha1.WorkloadPolicyRules{
@@ -58,12 +55,10 @@ func getPolicyUpdateTest() types.Feature {
 			namespace := getNamespace(ctx)
 
 			pod := corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      podName,
-					Namespace: namespace,
-					Labels: map[string]string{
-						v1alpha1.PolicyLabelKey: policyName,
-					},
+				Name:      podName,
+				Namespace: namespace,
+				Labels: map[string]string{
+					v1alpha1.PolicyLabelKey: policyName,
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
@@ -250,10 +245,8 @@ func getPolicyUpdateTest() types.Feature {
 
 				t.Log("cleaning up pod")
 				pod := corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      podName,
-						Namespace: namespace,
-					},
+					Name:      podName,
+					Namespace: namespace,
 				}
 				err = r.Delete(ctx, &pod)
 				require.NoError(t, err, "failed to delete pod")
@@ -270,7 +263,7 @@ func getPolicyUpdateTest() types.Feature {
 			}).
 		Teardown(func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
 			t.Log("uninstalling test resources")
-			_ = getClient(ctx).Delete(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: getNamespace(ctx)}})
+			_ = getClient(ctx).Delete(ctx, &corev1.Namespace{Name: getNamespace(ctx)})
 			return ctx
 		}).Feature()
 }

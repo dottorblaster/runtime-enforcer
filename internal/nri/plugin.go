@@ -124,11 +124,9 @@ func (p *plugin) Synchronize(
 			tmpSandboxes[container.GetPodSandboxId()] = make(map[resolver.ContainerID]resolver.ContainerInput)
 		}
 		tmpSandboxes[container.GetPodSandboxId()][container.GetId()] = resolver.ContainerInput{
-			ContainerMeta: resolver.ContainerMeta{
-				CgroupID: cgroupID,
-				Name:     container.GetName(),
-				ID:       container.GetId(),
-			},
+			CgroupID:   cgroupID,
+			Name:       container.GetName(),
+			ID:         container.GetId(),
 			CgroupPath: cgroupPath,
 		}
 	}

@@ -12,7 +12,6 @@ import (
 
 	securityv1alpha1 "github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
 	"github.com/rancher-sandbox/runtime-enforcer/internal/eventhandler/proposalutils"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // WorkloadPolicyProposalReconciler reconciles a WorkloadPolicyProposal object.
@@ -69,11 +68,9 @@ func (r *WorkloadPolicyProposalReconciler) Reconcile(
 	}
 
 	policy := securityv1alpha1.WorkloadPolicy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      proposal.Name,
-			Namespace: proposal.Namespace,
-		},
-		Spec: proposal.Spec.IntoWorkloadPolicySpec(mode),
+		Name:      proposal.Name,
+		Namespace: proposal.Namespace,
+		Spec:      proposal.Spec.IntoWorkloadPolicySpec(mode),
 	}
 	if err = policy.SetPromotedLabel(proposal.Name); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to set promoted label: %w", err)

@@ -12,7 +12,6 @@ import (
 	"github.com/rancher-sandbox/runtime-enforcer/internal/types/policymode"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/e2e-framework/klient/k8s"
 	"sigs.k8s.io/e2e-framework/klient/wait"
 	"sigs.k8s.io/e2e-framework/klient/wait/conditions"
@@ -40,10 +39,8 @@ func getKubectlPluginSmokeTest() types.Feature {
 				r := getClient(ctx)
 
 				proposal := v1alpha1.WorkloadPolicyProposal{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      proposalName,
-						Namespace: getNamespace(ctx),
-					},
+					Name:      proposalName,
+					Namespace: getNamespace(ctx),
 				}
 
 				// Wait for proposal to be created
@@ -74,10 +71,8 @@ func getKubectlPluginSmokeTest() types.Feature {
 				t.Log("waiting for policy proposal to be created: ", id)
 
 				proposal := v1alpha1.WorkloadPolicyProposal{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      id,
-						Namespace: getNamespace(ctx),
-					},
+					Name:      id,
+					Namespace: getNamespace(ctx),
 				}
 
 				// There are two categories of processes to be learned:
@@ -129,10 +124,8 @@ func getKubectlPluginSmokeTest() types.Feature {
 				r := getClient(ctx)
 
 				policy := v1alpha1.WorkloadPolicy{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      policyName,
-						Namespace: getNamespace(ctx),
-					},
+					Name:      policyName,
+					Namespace: getNamespace(ctx),
 				}
 
 				err := wait.For(conditions.New(r).ResourceMatch(&policy, func(_ k8s.Object) bool {
@@ -150,10 +143,8 @@ func getKubectlPluginSmokeTest() types.Feature {
 				r := getClient(ctx)
 
 				proposal := v1alpha1.WorkloadPolicyProposal{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      proposalName,
-						Namespace: getNamespace(ctx),
-					},
+					Name:      proposalName,
+					Namespace: getNamespace(ctx),
 				}
 
 				err := wait.For(
@@ -186,10 +177,8 @@ func getKubectlPluginSmokeTest() types.Feature {
 				// Verify the policy mode changed
 				r := getClient(ctx)
 				policy := v1alpha1.WorkloadPolicy{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      policyName,
-						Namespace: getNamespace(ctx),
-					},
+					Name:      policyName,
+					Namespace: getNamespace(ctx),
 				}
 				err = r.Get(ctx, policyName, getNamespace(ctx), &policy)
 				require.NoError(t, err)
@@ -217,10 +206,8 @@ func getKubectlPluginSmokeTest() types.Feature {
 				// Verify the policy mode changed back
 				r := getClient(ctx)
 				policy := v1alpha1.WorkloadPolicy{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      policyName,
-						Namespace: getNamespace(ctx),
-					},
+					Name:      policyName,
+					Namespace: getNamespace(ctx),
 				}
 				err = r.Get(ctx, policyName, getNamespace(ctx), &policy)
 				require.NoError(t, err)
@@ -248,10 +235,8 @@ func getKubectlPluginSmokeTest() types.Feature {
 				// Verify the executables were added
 				r := getClient(ctx)
 				policy := v1alpha1.WorkloadPolicy{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      policyName,
-						Namespace: getNamespace(ctx),
-					},
+					Name:      policyName,
+					Namespace: getNamespace(ctx),
 				}
 				err = r.Get(ctx, policyName, getNamespace(ctx), &policy)
 				require.NoError(t, err, "plugin command should succeed")
@@ -286,10 +271,8 @@ func getKubectlPluginSmokeTest() types.Feature {
 				// Verify the executables were removed
 				r := getClient(ctx)
 				policy := v1alpha1.WorkloadPolicy{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      policyName,
-						Namespace: getNamespace(ctx),
-					},
+					Name:      policyName,
+					Namespace: getNamespace(ctx),
 				}
 				err = r.Get(ctx, policyName, getNamespace(ctx), &policy)
 				require.NoError(t, err)
@@ -309,10 +292,8 @@ func getKubectlPluginSmokeTest() types.Feature {
 			deleteOpensuseDeployment(ctx, t)
 			r := getClient(ctx)
 			policy := v1alpha1.WorkloadPolicy{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      policyName,
-					Namespace: getNamespace(ctx),
-				},
+				Name:      policyName,
+				Namespace: getNamespace(ctx),
 			}
 			_ = r.Delete(ctx, &policy)
 			return ctx
@@ -337,10 +318,8 @@ func assessKubectlPluginAck(policyName, containerName string) features.Func {
 
 		r := getClient(ctx)
 		policy := &v1alpha1.WorkloadPolicy{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      policyName,
-				Namespace: getNamespace(ctx),
-			},
+			Name:      policyName,
+			Namespace: getNamespace(ctx),
 		}
 
 		var violationID int64

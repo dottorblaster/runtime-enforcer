@@ -22,18 +22,14 @@ var _ = Describe("WorkloadPolicyProposal Webhook", func() {
 		}
 
 		proposal := &securityv1alpha1.WorkloadPolicyProposal{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "deploy-opensuse-deployment",
-				Namespace: "default",
-			},
-			Spec: securityv1alpha1.WorkloadPolicyProposalSpec{},
+			Name:      "deploy-opensuse-deployment",
+			Namespace: "default",
+			Spec:      securityv1alpha1.WorkloadPolicyProposalSpec{},
 		}
 
 		deployment := &appsv1.Deployment{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      typeNamespacedName.Name,
-				Namespace: typeNamespacedName.Namespace,
-			},
+			Name:      typeNamespacedName.Name,
+			Namespace: typeNamespacedName.Namespace,
 			Spec: appsv1.DeploymentSpec{
 				Selector: &metav1.LabelSelector{
 					MatchLabels: map[string]string{
@@ -66,16 +62,12 @@ var _ = Describe("WorkloadPolicyProposal Webhook", func() {
 
 		AfterEach(func() {
 			Expect(k8sClient.Delete(ctx, &appsv1.Deployment{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      deployment.Name,
-					Namespace: deployment.Namespace,
-				},
+				Name:      deployment.Name,
+				Namespace: deployment.Namespace,
 			})).To(Succeed())
 			Expect(k8sClient.Delete(ctx, &securityv1alpha1.WorkloadPolicyProposal{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      proposal.Name,
-					Namespace: proposal.Namespace,
-				},
+				Name:      proposal.Name,
+				Namespace: proposal.Namespace,
 			})).To(Succeed())
 		})
 
@@ -89,30 +81,26 @@ var _ = Describe("WorkloadPolicyProposal Webhook", func() {
 			}{
 				{
 					Resource: &securityv1alpha1.WorkloadPolicyProposal{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      "deploy-opensuse-deployment",
-							Namespace: "default",
-							OwnerReferences: []metav1.OwnerReference{
-								{
-									Kind: "Deployment",
-									Name: "opensuse-deployment",
-								},
+						Name:      "deploy-opensuse-deployment",
+						Namespace: "default",
+						OwnerReferences: []metav1.OwnerReference{
+							{
+								Kind: "Deployment",
+								Name: "opensuse-deployment",
 							},
 						},
 						Spec: securityv1alpha1.WorkloadPolicyProposalSpec{},
 					},
 					Expected: &securityv1alpha1.WorkloadPolicyProposal{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      "deploy-opensuse-deployment",
-							Namespace: "default",
-							OwnerReferences: []metav1.OwnerReference{
-								{
-									Kind:               "Deployment",
-									Name:               "opensuse-deployment",
-									APIVersion:         "apps/v1",
-									Controller:         new(true),
-									BlockOwnerDeletion: new(true),
-								},
+						Name:      "deploy-opensuse-deployment",
+						Namespace: "default",
+						OwnerReferences: []metav1.OwnerReference{
+							{
+								Kind:               "Deployment",
+								Name:               "opensuse-deployment",
+								APIVersion:         "apps/v1",
+								Controller:         new(true),
+								BlockOwnerDeletion: new(true),
 							},
 						},
 						Spec: securityv1alpha1.WorkloadPolicyProposalSpec{},
@@ -147,7 +135,7 @@ var _ = Describe("WorkloadPolicyProposal Webhook", func() {
 
 		It("allows create without promote label", func() {
 			proposal := &securityv1alpha1.WorkloadPolicyProposal{
-				ObjectMeta: metav1.ObjectMeta{Name: "test-proposal"},
+				Name: "test-proposal",
 			}
 			warns, err := webhook.ValidateCreate(ctx, proposal)
 			Expect(err).NotTo(HaveOccurred())
@@ -156,11 +144,9 @@ var _ = Describe("WorkloadPolicyProposal Webhook", func() {
 
 		It("allows create with monitor promote label", func() {
 			proposal := &securityv1alpha1.WorkloadPolicyProposal{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-proposal",
-					Labels: map[string]string{
-						securityv1alpha1.ProposalPromoteLabelKey: policymode.MonitorString,
-					},
+				Name: "test-proposal",
+				Labels: map[string]string{
+					securityv1alpha1.ProposalPromoteLabelKey: policymode.MonitorString,
 				},
 			}
 			warns, err := webhook.ValidateCreate(ctx, proposal)
@@ -170,11 +156,9 @@ var _ = Describe("WorkloadPolicyProposal Webhook", func() {
 
 		It("allows update with protect promote label", func() {
 			proposal := &securityv1alpha1.WorkloadPolicyProposal{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-proposal",
-					Labels: map[string]string{
-						securityv1alpha1.ProposalPromoteLabelKey: policymode.ProtectString,
-					},
+				Name: "test-proposal",
+				Labels: map[string]string{
+					securityv1alpha1.ProposalPromoteLabelKey: policymode.ProtectString,
 				},
 			}
 			warns, err := webhook.ValidateUpdate(ctx, proposal, proposal)
@@ -184,11 +168,9 @@ var _ = Describe("WorkloadPolicyProposal Webhook", func() {
 
 		It("denies create with unsupported promote label", func() {
 			proposal := &securityv1alpha1.WorkloadPolicyProposal{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-proposal",
-					Labels: map[string]string{
-						securityv1alpha1.ProposalPromoteLabelKey: "true",
-					},
+				Name: "test-proposal",
+				Labels: map[string]string{
+					securityv1alpha1.ProposalPromoteLabelKey: "true",
 				},
 			}
 			warns, err := webhook.ValidateCreate(ctx, proposal)

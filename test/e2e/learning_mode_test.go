@@ -178,9 +178,7 @@ func getNoLearningModeTest() types.Feature {
 				t.Logf("creating a namespace without the selector: %s", disabledNS)
 				r := getClient(ctx)
 				require.NoError(t, r.Create(ctx, &corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: disabledNS,
-					},
+					Name: disabledNS,
 				}))
 				return context.WithValue(ctx, key("namespace"), disabledNS)
 			}).
@@ -194,10 +192,8 @@ func getNoLearningModeTest() types.Feature {
 			require.NoError(t, err)
 
 			proposal := v1alpha1.WorkloadPolicyProposal{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      proposalName,
-					Namespace: getNamespace(ctx),
-				},
+				Name:      proposalName,
+				Namespace: getNamespace(ctx),
 			}
 
 			// we want to be sure the proposal is not created so we need to try several times.

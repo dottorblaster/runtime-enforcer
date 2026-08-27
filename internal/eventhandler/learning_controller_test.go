@@ -41,11 +41,9 @@ var _ = Describe("Learning", func() {
 		}
 
 		proposal := &securityv1alpha1.WorkloadPolicyProposal{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "deploy-opensuse-deployment",
-				Namespace: "default",
-			},
-			Spec: securityv1alpha1.WorkloadPolicyProposalSpec{},
+			Name:      "deploy-opensuse-deployment",
+			Namespace: "default",
+			Spec:      securityv1alpha1.WorkloadPolicyProposalSpec{},
 		}
 
 		defaultNamespaceSelector := labels.SelectorFromSet(labels.Set{
@@ -53,10 +51,8 @@ var _ = Describe("Learning", func() {
 		})
 
 		deployment := &appsv1.Deployment{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      typeNamespacedName.Name,
-				Namespace: typeNamespacedName.Namespace,
-			},
+			Name:      typeNamespacedName.Name,
+			Namespace: typeNamespacedName.Namespace,
 			Spec: appsv1.DeploymentSpec{
 				Selector: &metav1.LabelSelector{
 					MatchLabels: map[string]string{
@@ -89,16 +85,12 @@ var _ = Describe("Learning", func() {
 
 		AfterEach(func() {
 			Expect(k8sClient.Delete(ctx, &appsv1.Deployment{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      deployment.Name,
-					Namespace: deployment.Namespace,
-				},
+				Name:      deployment.Name,
+				Namespace: deployment.Namespace,
 			})).To(Succeed())
 			Expect(k8sClient.Delete(ctx, &securityv1alpha1.WorkloadPolicyProposal{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      proposal.Name,
-					Namespace: proposal.Namespace,
-				},
+				Name:      proposal.Name,
+				Namespace: proposal.Namespace,
 			})).To(Succeed())
 		})
 
@@ -174,10 +166,8 @@ var _ = Describe("Learning", func() {
 			}
 
 			proposalResult := securityv1alpha1.WorkloadPolicyProposal{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "deploy-opensuse-deployment",
-					Namespace: "default",
-				},
+				Name:      "deploy-opensuse-deployment",
+				Namespace: "default",
 			}
 
 			err := k8sClient.Get(ctx, types.NamespacedName{
@@ -289,10 +279,8 @@ var _ = Describe("Learning", func() {
 				).To(ContainElements(tc.expectedResult))
 
 				Expect(k8sClient.Delete(ctx, &securityv1alpha1.WorkloadPolicyProposal{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      testProposal.Name,
-						Namespace: testProposal.Namespace,
-					},
+					Name:      testProposal.Name,
+					Namespace: testProposal.Namespace,
 				})).To(Succeed())
 			}
 		})
@@ -351,10 +339,8 @@ var _ = Describe("Learning", func() {
 			Expect(testProposal.Spec.RulesByContainer).To(BeNil())
 
 			Expect(k8sClient.Delete(ctx, &securityv1alpha1.WorkloadPolicyProposal{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      testProposal.Name,
-					Namespace: testProposal.Namespace,
-				},
+				Name:      testProposal.Name,
+				Namespace: testProposal.Namespace,
 			})).To(Succeed())
 		})
 
@@ -383,10 +369,8 @@ var _ = Describe("Learning", func() {
 			reconciler := eventhandler.NewLearningReconciler(k8sClient, defaultNamespaceSelector)
 
 			workloadPolicy := &securityv1alpha1.WorkloadPolicy{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      testProposalName,
-					Namespace: testNamespace,
-				},
+				Name:      testProposalName,
+				Namespace: testNamespace,
 				Spec: securityv1alpha1.WorkloadPolicySpec{
 					Mode: "monitor",
 				},
@@ -404,10 +388,8 @@ var _ = Describe("Learning", func() {
 
 			// The learning reconciler should not recreate the proposal while the policy exists.
 			proposalResult := &securityv1alpha1.WorkloadPolicyProposal{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      testProposalName,
-					Namespace: testNamespace,
-				},
+				Name:      testProposalName,
+				Namespace: testNamespace,
 			}
 			err := k8sClient.Get(ctx, types.NamespacedName{
 				Namespace: testNamespace,
@@ -428,11 +410,9 @@ var _ = Describe("Learning", func() {
 
 				By("Creating a namespace that does not match the selector")
 				namespace := &corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "unmatched-namespace",
-						Labels: map[string]string{
-							"env": "development",
-						},
+					Name: "unmatched-namespace",
+					Labels: map[string]string{
+						"env": "development",
 					},
 				}
 				Expect(k8sClient.Create(ctx, namespace)).To(Succeed())
