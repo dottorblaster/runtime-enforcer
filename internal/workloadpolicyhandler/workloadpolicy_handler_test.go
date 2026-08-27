@@ -10,7 +10,6 @@ import (
 	"github.com/rancher-sandbox/runtime-enforcer/internal/workloadpolicyhandler"
 	agentv1 "github.com/rancher-sandbox/runtime-enforcer/proto/agent/v1"
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -27,10 +26,8 @@ func TestWorkloadPolicyHandler(t *testing.T) {
 	}
 
 	policy := &v1alpha1.WorkloadPolicy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      policyName,
-			Namespace: testNamespace,
-		},
+		Name:      policyName,
+		Namespace: testNamespace,
 		Spec: v1alpha1.WorkloadPolicySpec{
 			Mode: "monitor",
 			RulesByContainer: map[string]*v1alpha1.WorkloadPolicyRules{
@@ -71,10 +68,8 @@ func TestWorkloadPolicyHandler(t *testing.T) {
 
 	// 2. delete the wp and verify the status is removed
 	err = fakeClient.Delete(t.Context(), &v1alpha1.WorkloadPolicy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      typeNamespacedName.Name,
-			Namespace: typeNamespacedName.Namespace,
-		},
+		Name:      typeNamespacedName.Name,
+		Namespace: typeNamespacedName.Namespace,
 	},
 	)
 

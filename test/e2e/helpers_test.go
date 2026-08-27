@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apimachinerywait "k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/e2e-framework/klient/decoder"
 	"sigs.k8s.io/e2e-framework/klient/k8s"
@@ -63,10 +62,8 @@ func IfRequiredResourcesAreCreated(ctx context.Context, t *testing.T, _ *envconf
 
 	err = wait.For(conditions.New(r).DaemonSetReady(
 		&appsv1.DaemonSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "runtime-enforcer-agent",
-				Namespace: runtimeEnforcerNamespace,
-			},
+			Name:      "runtime-enforcer-agent",
+			Namespace: runtimeEnforcerNamespace,
 		}),
 		wait.WithTimeout(defaultOperationTimeout),
 	)
@@ -87,12 +84,11 @@ func SetupTestNamespace(ctx context.Context, t *testing.T, _ *envconf.Config) co
 	// RandomName already adds a `-` so we need to trim it from our prefix
 	testNamespace := envconf.RandomName(strings.TrimSuffix(runtimeEnforcerE2EPrefix, "-"), 32)
 	t.Logf("creating test namespace: %q", testNamespace)
-	err := getClient(ctx).Create(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+	err := getClient(ctx).Create(ctx, &corev1.Namespace{
 		Name: testNamespace,
 		Labels: map[string]string{
 			testNamespaceLabelKey: testNamespaceLabelValue,
-		},
-	}})
+		}})
 	require.NoError(t, err, "failed to create test namespace %q", testNamespace)
 	return context.WithValue(ctx, key("namespace"), testNamespace)
 }
@@ -213,10 +209,8 @@ func waitForOpensuseDeploymentDeleted(ctx context.Context, t *testing.T) {
 	t.Helper()
 	t.Log("waiting for Opensuse deployment to be deleted")
 	deployment := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      opensuseDeploymentName,
-			Namespace: getNamespace(ctx),
-		},
+		Name:      opensuseDeploymentName,
+		Namespace: getNamespace(ctx),
 	}
 	err := wait.For(
 		conditions.New(getClient(ctx)).ResourceDeleted(deployment),

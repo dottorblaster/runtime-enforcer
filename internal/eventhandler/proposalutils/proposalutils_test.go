@@ -8,7 +8,6 @@ import (
 	"github.com/rancher-sandbox/runtime-enforcer/internal/eventhandler/proposalutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -95,12 +94,10 @@ func TestHasProposalBeenPromoted(t *testing.T) {
 			namespace:    defaultNamespace,
 			proposalName: proposalName,
 			existingPolicy: &securityv1alpha1.WorkloadPolicy{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: defaultNamespace,
-					Name:      proposalName,
-					Labels: map[string]string{
-						securityv1alpha1.PolicyPromotedFromLabelKey: proposalName,
-					},
+				Namespace: defaultNamespace,
+				Name:      proposalName,
+				Labels: map[string]string{
+					securityv1alpha1.PolicyPromotedFromLabelKey: proposalName,
 				},
 			},
 			wantPromoted: true,

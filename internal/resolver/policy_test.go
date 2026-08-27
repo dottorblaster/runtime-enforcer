@@ -6,7 +6,6 @@ import (
 	"github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
 	agentv1 "github.com/rancher-sandbox/runtime-enforcer/proto/agent/v1"
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -22,7 +21,7 @@ const (
 func TestHandleWP_Lifecycle(t *testing.T) {
 	r := NewTestResolver(t)
 	wp := &v1alpha1.WorkloadPolicy{
-		ObjectMeta: metav1.ObjectMeta{Name: "example", Namespace: "test-ns"},
+		Name: "example", Namespace: "test-ns",
 		Spec: v1alpha1.WorkloadPolicySpec{
 			Mode: "monitor",
 			RulesByContainer: map[string]*v1alpha1.WorkloadPolicyRules{

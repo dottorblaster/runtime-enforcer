@@ -12,7 +12,6 @@ import (
 	"github.com/rancher-sandbox/runtime-enforcer/internal/types/policymode"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/e2e-framework/klient/k8s"
 	"sigs.k8s.io/e2e-framework/klient/wait"
 	"sigs.k8s.io/e2e-framework/klient/wait/conditions"
@@ -40,10 +39,8 @@ func getMonitoringTest() types.Feature {
 
 func setupMonitoringPolicy(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
 	policy := &v1alpha1.WorkloadPolicy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-policy",
-			Namespace: getNamespace(ctx),
-		},
+		Name:      "test-policy",
+		Namespace: getNamespace(ctx),
 		Spec: v1alpha1.WorkloadPolicySpec{
 			Mode: policymode.MonitorString,
 			RulesByContainer: map[string]*v1alpha1.WorkloadPolicyRules{
@@ -96,10 +93,8 @@ func assessMonitoringWaitForViolation(ctx context.Context, t *testing.T, _ *envc
 	r := getClient(ctx)
 
 	policyToCheck := &v1alpha1.WorkloadPolicy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-policy",
-			Namespace: getNamespace(ctx),
-		},
+		Name:      "test-policy",
+		Namespace: getNamespace(ctx),
 	}
 
 	t.Log("waiting for zypper violation to appear in WorkloadPolicy status")
@@ -141,10 +136,8 @@ func assessAcknowledgeAnnotate(ctx context.Context, t *testing.T, _ *envconf.Con
 	violationID := ctx.Value(key("violationID")).(int64)
 
 	policy := &v1alpha1.WorkloadPolicy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-policy",
-			Namespace: getNamespace(ctx),
-		},
+		Name:      "test-policy",
+		Namespace: getNamespace(ctx),
 	}
 	err := r.Get(ctx, "test-policy", getNamespace(ctx), policy)
 	require.NoError(t, err)
@@ -164,10 +157,8 @@ func assessAcknowledgeVerify(ctx context.Context, t *testing.T, _ *envconf.Confi
 	violationID := ctx.Value(key("violationID")).(int64)
 
 	policyToCheck := &v1alpha1.WorkloadPolicy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-policy",
-			Namespace: getNamespace(ctx),
-		},
+		Name:      "test-policy",
+		Namespace: getNamespace(ctx),
 	}
 
 	t.Log("waiting for violation to appear in acknowledgedViolations")

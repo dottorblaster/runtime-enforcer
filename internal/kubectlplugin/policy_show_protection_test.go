@@ -10,7 +10,6 @@ import (
 	"github.com/rancher-sandbox/runtime-enforcer/internal/types/workloadkind"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -43,31 +42,27 @@ func TestBuildWorkloadProtectionRows(t *testing.T) {
 			name: "group deployment pods into one workload row",
 			pods: []corev1.Pod{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "opensuse-deployment-6469c647b5-2ftx7",
-						Namespace: namespaceA,
-						Labels: map[string]string{
-							v1alpha1.PolicyLabelKey: policyName,
-							podTemplateHashLabel:    "6469c647b5",
-						},
+					Name:      "opensuse-deployment-6469c647b5-2ftx7",
+					Namespace: namespaceA,
+					Labels: map[string]string{
+						v1alpha1.PolicyLabelKey: policyName,
+						podTemplateHashLabel:    "6469c647b5",
 					},
 				},
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "opensuse-deployment-6469c647b5-tjssz",
-						Namespace: namespaceA,
-						Labels: map[string]string{
-							v1alpha1.PolicyLabelKey: policyName,
-							podTemplateHashLabel:    "6469c647b5",
-						},
+					Name:      "opensuse-deployment-6469c647b5-tjssz",
+					Namespace: namespaceA,
+					Labels: map[string]string{
+						v1alpha1.PolicyLabelKey: policyName,
+						podTemplateHashLabel:    "6469c647b5",
 					},
 				},
 			},
 			policies: []v1alpha1.WorkloadPolicy{
 				{
-					ObjectMeta: metav1.ObjectMeta{Name: policyName, Namespace: namespaceA},
-					Spec:       v1alpha1.WorkloadPolicySpec{Mode: policymode.ProtectString},
-					Status:     v1alpha1.WorkloadPolicyStatus{Phase: v1alpha1.Ready},
+					Name: policyName, Namespace: namespaceA,
+					Spec:   v1alpha1.WorkloadPolicySpec{Mode: policymode.ProtectString},
+					Status: v1alpha1.WorkloadPolicyStatus{Phase: v1alpha1.Ready},
 				},
 			},
 			expected: []workloadProtectionRow{
@@ -84,13 +79,11 @@ func TestBuildWorkloadProtectionRows(t *testing.T) {
 			name: "missing policy uses unknown mode and missing status",
 			pods: []corev1.Pod{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "opensuse-deployment-6469c647b5-2ftx7",
-						Namespace: namespaceA,
-						Labels: map[string]string{
-							v1alpha1.PolicyLabelKey: policyName,
-							podTemplateHashLabel:    "6469c647b5",
-						},
+					Name:      "opensuse-deployment-6469c647b5-2ftx7",
+					Namespace: namespaceA,
+					Labels: map[string]string{
+						v1alpha1.PolicyLabelKey: policyName,
+						podTemplateHashLabel:    "6469c647b5",
 					},
 				},
 			},
@@ -109,34 +102,30 @@ func TestBuildWorkloadProtectionRows(t *testing.T) {
 			name: "same policy name in different namespaces respects namespace",
 			pods: []corev1.Pod{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "pod-a",
-						Namespace: namespaceA,
-						Labels: map[string]string{
-							v1alpha1.PolicyLabelKey: policyName,
-						},
+					Name:      "pod-a",
+					Namespace: namespaceA,
+					Labels: map[string]string{
+						v1alpha1.PolicyLabelKey: policyName,
 					},
 				},
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "pod-b",
-						Namespace: namespaceB,
-						Labels: map[string]string{
-							v1alpha1.PolicyLabelKey: policyName,
-						},
+					Name:      "pod-b",
+					Namespace: namespaceB,
+					Labels: map[string]string{
+						v1alpha1.PolicyLabelKey: policyName,
 					},
 				},
 			},
 			policies: []v1alpha1.WorkloadPolicy{
 				{
-					ObjectMeta: metav1.ObjectMeta{Name: policyName, Namespace: namespaceA},
-					Spec:       v1alpha1.WorkloadPolicySpec{Mode: policymode.MonitorString},
-					Status:     v1alpha1.WorkloadPolicyStatus{Phase: v1alpha1.Ready},
+					Name: policyName, Namespace: namespaceA,
+					Spec:   v1alpha1.WorkloadPolicySpec{Mode: policymode.MonitorString},
+					Status: v1alpha1.WorkloadPolicyStatus{Phase: v1alpha1.Ready},
 				},
 				{
-					ObjectMeta: metav1.ObjectMeta{Name: policyName, Namespace: namespaceB},
-					Spec:       v1alpha1.WorkloadPolicySpec{Mode: policymode.ProtectString},
-					Status:     v1alpha1.WorkloadPolicyStatus{Phase: v1alpha1.Failed},
+					Name: policyName, Namespace: namespaceB,
+					Spec:   v1alpha1.WorkloadPolicySpec{Mode: policymode.ProtectString},
+					Status: v1alpha1.WorkloadPolicyStatus{Phase: v1alpha1.Failed},
 				},
 			},
 			expected: []workloadProtectionRow{

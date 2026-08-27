@@ -8,7 +8,6 @@ import (
 	"github.com/rancher-sandbox/runtime-enforcer/internal/types/policymode"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/e2e-framework/klient/decoder"
 	"sigs.k8s.io/e2e-framework/klient/k8s"
 	"sigs.k8s.io/e2e-framework/klient/wait"
@@ -24,10 +23,8 @@ func getRollingUpdateTest() types.Feature {
 		Setup(SetupTestNamespace).
 		Setup(func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
 			policy := &v1alpha1.WorkloadPolicy{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-policy",
-					Namespace: getNamespace(ctx),
-				},
+				Name:      "test-policy",
+				Namespace: getNamespace(ctx),
 				Spec: v1alpha1.WorkloadPolicySpec{
 					Mode: policymode.ProtectString,
 					RulesByContainer: map[string]*v1alpha1.WorkloadPolicyRules{
@@ -94,10 +91,8 @@ func getRollingUpdateTest() types.Feature {
 			require.NoError(t, err)
 
 			err = wait.For(daemonSetUpToDate(r, &appsv1.DaemonSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "runtime-enforcer-agent",
-					Namespace: runtimeEnforcerNamespace,
-				},
+				Name:      "runtime-enforcer-agent",
+				Namespace: runtimeEnforcerNamespace,
 			}),
 				wait.WithTimeout(defaultOperationTimeout),
 			)

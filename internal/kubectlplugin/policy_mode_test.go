@@ -25,10 +25,8 @@ func TestRunPolicyModeSet(t *testing.T) {
 
 	createTestPolicyWithMode := func(mode string) *securityv1alpha1.WorkloadPolicy {
 		return &securityv1alpha1.WorkloadPolicy{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      policyName,
-				Namespace: namespace,
-			},
+			Name:      policyName,
+			Namespace: namespace,
 			Spec: securityv1alpha1.WorkloadPolicySpec{
 				Mode: mode,
 			},
@@ -75,10 +73,8 @@ func TestRunPolicyModeSet(t *testing.T) {
 
 			var out bytes.Buffer
 			opts := &policyModeOptions{
-				commonOptions: commonOptions{
-					Namespace: namespace,
-					DryRun:    false,
-				},
+				Namespace:  namespace,
+				DryRun:     false,
 				PolicyName: policyName,
 				Mode:       tt.expectedMode,
 			}
@@ -107,9 +103,7 @@ func TestCompletePolicyModeArgs(t *testing.T) {
 
 	policyName := "test-policy"
 	testPolicy := &securityv1alpha1.WorkloadPolicy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: policyName,
-		},
+		Name: policyName,
 	}
 
 	// This auto-completes policy name in `kubectl runtime-enforcer policy protect|monitor [TAB]`

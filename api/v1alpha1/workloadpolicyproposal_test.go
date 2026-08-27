@@ -6,7 +6,6 @@ import (
 
 	"github.com/rancher-sandbox/runtime-enforcer/internal/types/policymode"
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestWorkloadPolicyProposalPromotionLabel(t *testing.T) {
@@ -54,10 +53,8 @@ func TestWorkloadPolicyProposalPromotionLabel(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			p := &WorkloadPolicyProposal{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						ProposalPromoteLabelKey: tc.labelValue,
-					},
+				Labels: map[string]string{
+					ProposalPromoteLabelKey: tc.labelValue,
 				},
 			}
 			mode, has := p.HasPromotionLabel()
@@ -84,10 +81,8 @@ func TestWorkloadPolicyProposalNamespacedName(t *testing.T) {
 
 	t.Run("returns namespace/name", func(t *testing.T) {
 		p := &WorkloadPolicyProposal{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "test-namespace",
-				Name:      "test-name",
-			},
+			Namespace: "test-namespace",
+			Name:      "test-name",
 		}
 		require.Equal(t, "test-namespace/test-name", p.NamespacedName())
 	})
