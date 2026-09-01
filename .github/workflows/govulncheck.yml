@@ -39,7 +39,7 @@ jobs:
         run: make generate-ebpf
       - name: Run govulncheck
         env:
-          GOVULNCHECK_VERSION: d1f380186385b4f64e00313f31743df8e4b89a77 # v1.1.4
+          GOVULNCHECK_VERSION: 617f44b718537dccdea1915395650e0529e3b72e # v1.7.0
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@${{ env.GOVULNCHECK_VERSION }}
           govulncheck -C . -format text ./...
