@@ -16,7 +16,7 @@ import (
 //
 // WorkloadPolicy is the Schema for the workloadpolicies API.
 type WorkloadPolicyApplyConfiguration struct {
-	v1.TypeMetaApplyConfiguration    `json:",inline"`
+	v1.TypeMetaApplyConfiguration    `json:""`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
 	Spec                             *WorkloadPolicySpecApplyConfiguration   `json:"spec,omitempty"`
 	Status                           *WorkloadPolicyStatusApplyConfiguration `json:"status,omitempty"`

@@ -18,11 +18,39 @@ import (
 )
 
 // WorkloadPolicyProposalInformer provides access to a shared informer and lister for
-// WorkloadPolicyProposals.
+// WorkloadPolicyProposals. Prefer using the type-safe variant (see [TypedWorkloadPolicyProposalInformer]).
 type WorkloadPolicyProposalInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() apiv1alpha1.WorkloadPolicyProposalLister
 }
+
+// TypedWorkloadPolicyProposalInformer provides access to a shared informer and lister for
+// WorkloadPolicyProposals, including the type-safe TypedInformer variant.
+// It is a superset of WorkloadPolicyProposalInformer.
+type TypedWorkloadPolicyProposalInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() WorkloadPolicyProposalIndexInformer
+	Lister() apiv1alpha1.WorkloadPolicyProposalLister
+}
+
+// WorkloadPolicyProposalIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type WorkloadPolicyProposalIndexInformer cache.TypedSharedIndexInformer[*runtimeenforcerapiv1alpha1.WorkloadPolicyProposal]
+
+// WorkloadPolicyProposalHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for WorkloadPolicyProposal.
+type WorkloadPolicyProposalHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*runtimeenforcerapiv1alpha1.WorkloadPolicyProposal]
+
+// WorkloadPolicyProposalDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for WorkloadPolicyProposal.
+type WorkloadPolicyProposalDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*runtimeenforcerapiv1alpha1.WorkloadPolicyProposal]
+
+// WorkloadPolicyProposalFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for WorkloadPolicyProposal.
+type WorkloadPolicyProposalFilteringHandler = cache.TypedFilteringResourceEventHandler[*runtimeenforcerapiv1alpha1.WorkloadPolicyProposal]
+
+// WorkloadPolicyProposalIndexers is a specialization of [cache.TypedIndexers] for WorkloadPolicyProposal.
+type WorkloadPolicyProposalIndexers = cache.TypedIndexers[*runtimeenforcerapiv1alpha1.WorkloadPolicyProposal]
+
+// DeletedWorkloadPolicyProposal is a specialization of [cache.DeletedObject] for WorkloadPolicyProposal.
+type DeletedWorkloadPolicyProposal = cache.DeletedObject[*runtimeenforcerapiv1alpha1.WorkloadPolicyProposal]
 
 type workloadPolicyProposalInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -33,25 +61,49 @@ type workloadPolicyProposalInformer struct {
 // NewWorkloadPolicyProposalInformer constructs a new informer for WorkloadPolicyProposal type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedWorkloadPolicyProposalInformer]).
 func NewWorkloadPolicyProposalInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewWorkloadPolicyProposalInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedWorkloadPolicyProposalInformer constructs a new informer for WorkloadPolicyProposal type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedWorkloadPolicyProposalInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers WorkloadPolicyProposalIndexers) WorkloadPolicyProposalIndexInformer {
+	return NewTypedWorkloadPolicyProposalInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredWorkloadPolicyProposalInformer constructs a new informer for WorkloadPolicyProposal type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredWorkloadPolicyProposalInformer]).
 func NewFilteredWorkloadPolicyProposalInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewWorkloadPolicyProposalInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+	return NewTypedWorkloadPolicyProposalInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredWorkloadPolicyProposalInformer constructs a new informer for WorkloadPolicyProposal type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredWorkloadPolicyProposalInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers WorkloadPolicyProposalIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) WorkloadPolicyProposalIndexInformer {
+	return NewTypedWorkloadPolicyProposalInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
 }
 
 // NewWorkloadPolicyProposalInformerWithOptions constructs a new informer for WorkloadPolicyProposal type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedWorkloadPolicyProposalInformerWithOptions]).
 func NewWorkloadPolicyProposalInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedWorkloadPolicyProposalInformerWithOptions(client, namespace, options)
+}
+
+// NewTypedWorkloadPolicyProposalInformerWithOptions constructs a new informer for WorkloadPolicyProposal type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedWorkloadPolicyProposalInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) WorkloadPolicyProposalIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "security.rancher.io", Version: "v1alpha1", Resource: "workloadpolicyproposals"}
 	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
-	return cache.NewSharedIndexInformerWithOptions(
+	return cache.NewTypedSharedIndexInformer[*runtimeenforcerapiv1alpha1.WorkloadPolicyProposal](cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
@@ -84,17 +136,57 @@ func NewWorkloadPolicyProposalInformerWithOptions(client versioned.Interface, na
 			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
-	)
+	))
 }
 
 func (f *workloadPolicyProposalInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewWorkloadPolicyProposalInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
+	return NewTypedWorkloadPolicyProposalInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *workloadPolicyProposalInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&runtimeenforcerapiv1alpha1.WorkloadPolicyProposal{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *workloadPolicyProposalInformer) TypedInformer() WorkloadPolicyProposalIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*runtimeenforcerapiv1alpha1.WorkloadPolicyProposal](f.factory.InformerFor(&runtimeenforcerapiv1alpha1.WorkloadPolicyProposal{}, f.defaultInformer))
 }
 
 func (f *workloadPolicyProposalInformer) Lister() apiv1alpha1.WorkloadPolicyProposalLister {
 	return apiv1alpha1.NewWorkloadPolicyProposalLister(f.Informer().GetIndexer())
+}
+
+// ToTypedWorkloadPolicyProposalInformer converts an untyped informer into a TypedWorkloadPolicyProposalInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *WorkloadPolicyProposal. If that is not the case, calling type-safe methods of the returned
+// TypedWorkloadPolicyProposalInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedWorkloadPolicyProposalInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedWorkloadPolicyProposalInformer(informer WorkloadPolicyProposalInformer) TypedWorkloadPolicyProposalInformer {
+	if informer, ok := informer.(TypedWorkloadPolicyProposalInformer); ok {
+		return informer
+	}
+	return &workloadPolicyProposalTypedInformerAdapter{informer}
+}
+
+type workloadPolicyProposalTypedInformerAdapter struct {
+	WorkloadPolicyProposalInformer
+}
+
+func (a *workloadPolicyProposalTypedInformerAdapter) TypedInformer() WorkloadPolicyProposalIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*runtimeenforcerapiv1alpha1.WorkloadPolicyProposal](a.Informer())
+}
+
+// ToWorkloadPolicyProposalIndexInformer converts an untyped informer into a WorkloadPolicyProposalIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *WorkloadPolicyProposal. If that is not the case, calling type-safe methods of the returned
+// WorkloadPolicyProposalIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a WorkloadPolicyProposalIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToWorkloadPolicyProposalIndexInformer(informer cache.SharedIndexInformer) WorkloadPolicyProposalIndexInformer {
+	if informer, ok := informer.(WorkloadPolicyProposalIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*runtimeenforcerapiv1alpha1.WorkloadPolicyProposal](informer)
 }

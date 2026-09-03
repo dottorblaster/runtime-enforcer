@@ -9,9 +9,9 @@ import (
 // Interface provides access to all the informers in this group version.
 type Interface interface {
 	// WorkloadPolicies returns a WorkloadPolicyInformer.
-	WorkloadPolicies() WorkloadPolicyInformer
+	WorkloadPolicies() TypedWorkloadPolicyInformer
 	// WorkloadPolicyProposals returns a WorkloadPolicyProposalInformer.
-	WorkloadPolicyProposals() WorkloadPolicyProposalInformer
+	WorkloadPolicyProposals() TypedWorkloadPolicyProposalInformer
 }
 
 type version struct {
@@ -25,12 +25,12 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
-// WorkloadPolicies returns a WorkloadPolicyInformer.
-func (v *version) WorkloadPolicies() WorkloadPolicyInformer {
+// WorkloadPolicies returns a TypedWorkloadPolicyInformer.
+func (v *version) WorkloadPolicies() TypedWorkloadPolicyInformer {
 	return &workloadPolicyInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
-// WorkloadPolicyProposals returns a WorkloadPolicyProposalInformer.
-func (v *version) WorkloadPolicyProposals() WorkloadPolicyProposalInformer {
+// WorkloadPolicyProposals returns a TypedWorkloadPolicyProposalInformer.
+func (v *version) WorkloadPolicyProposals() TypedWorkloadPolicyProposalInformer {
 	return &workloadPolicyProposalInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
