@@ -10,7 +10,7 @@ import (
 // PolicyNodeStatusApplyConfiguration represents a declarative configuration of the PolicyNodeStatus type for use
 // with apply.
 type PolicyNodeStatusApplyConfiguration struct {
-	PolicyStatusApplyConfiguration `json:",inline"`
+	PolicyStatusApplyConfiguration `json:""`
 	NodeName                       *string `json:"nodeName,omitempty"`
 }
 
