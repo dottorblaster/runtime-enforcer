@@ -21,9 +21,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/rancher-sandbox/runtime-enforcer/pkg/generated/openapi"
 	"k8s.io/kube-openapi/pkg/common"
 	"k8s.io/kube-openapi/pkg/validation/spec"
+
+	"github.com/kubewarden/runtime-enforcer/pkg/generated/openapi"
 )
 
 // Outputs openAPI schema JSON containing the schema definitions in zz_generated.openapi.go.

@@ -16,7 +16,7 @@ Runtime enforcer supports Tilt to run development environment in your local.
 
 ## Steps
 
-1. Clone the repository: `git clone https://github.com/rancher-sandbox/runtime-enforcer.git`.
+1. Clone the repository: `git clone https://github.com/kubewarden/runtime-enforcer.git`.
 2. Install [kubectl](https://kubernetes.io/docs/reference/kubectl/) and [helm](https://helm.sh/).
 3. Install [tilt](https://docs.tilt.dev/install.html).
 4. Install [libbpf](https://github.com/libbpf/libbpf), so you can build ebpf programs at your local.
@@ -26,7 +26,7 @@ Runtime enforcer supports Tilt to run development environment in your local.
 You can use this command to list the policy proposals:
 
 ```sh
-kubectl get workloadpolicyproposals.security.rancher.io -A
+kubectl get workloadpolicyproposals.runtimeenforcer.kubewarden.io -A
 ```
 
 ## Optional

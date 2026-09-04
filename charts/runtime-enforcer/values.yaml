@@ -25,7 +25,7 @@ controller:
   image:
     # The image path used by controller
     # @schema required
-    repository: ghcr.io/rancher-sandbox/runtime-enforcer/controller
+    repository: ghcr.io/kubewarden/runtime-enforcer/controller
     # The image tag used by controller
     # @schema required
     tag: v0.9.0
@@ -101,7 +101,7 @@ agent:
   image:
     # The image path used by agent
     # @schema required
-    repository: ghcr.io/rancher-sandbox/runtime-enforcer/agent
+    repository: ghcr.io/kubewarden/runtime-enforcer/agent
     # The image tag used by agent
     # @schema required
     tag: v0.9.0
@@ -173,7 +173,7 @@ debugger:
   image:
     # The image path used by debugger
     # @schema required
-    repository: ghcr.io/rancher-sandbox/runtime-enforcer/debugger
+    repository: ghcr.io/kubewarden/runtime-enforcer/debugger
     # The image tag used by debugger
     # @schema required
     tag: v0.9.0

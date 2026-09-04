@@ -8,10 +8,6 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	securityv1alpha1 "github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
-	"github.com/rancher-sandbox/runtime-enforcer/internal/eventhandler/proposalutils"
-	"github.com/rancher-sandbox/runtime-enforcer/internal/eventscraper"
-	"github.com/rancher-sandbox/runtime-enforcer/internal/types/loglevel"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,6 +23,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	securityv1alpha1 "github.com/kubewarden/runtime-enforcer/api/v1alpha1"
+	"github.com/kubewarden/runtime-enforcer/internal/eventhandler/proposalutils"
+	"github.com/kubewarden/runtime-enforcer/internal/eventscraper"
+	"github.com/kubewarden/runtime-enforcer/internal/types/loglevel"
 )
 
 // DefaultEventChannelBufferSize defines the channel buffer size used to
@@ -125,18 +126,18 @@ func (r *LearningReconciler) handleAdmissionError(logger logr.Logger, err error)
 
 // kubebuilder annotations for accessing policy proposals and namespaces.
 // +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
-// +kubebuilder:rbac:groups=security.rancher.io,resources=workloadpolicyproposals,verbs=create;get;list;watch;update;patch
-// +kubebuilder:rbac:groups=security.rancher.io,resources=workloadpolicies,verbs=list;watch
+// +kubebuilder:rbac:groups=runtimeenforcer.kubewarden.io,resources=workloadpolicyproposals,verbs=create;get;list;watch;update;patch
+// +kubebuilder:rbac:groups=runtimeenforcer.kubewarden.io,resources=workloadpolicies,verbs=list;watch
 
 // skipOrLearn decides whether to skip learning.
 //
 // Skip (true, nil) when:
-//   - req.PolicyName is set (pod already has security.rancher.io/policy).
-//   - the proposal does not exist but a WorkloadPolicy with workloadpolicy.security.rancher.io/promoted-from=<proposalName> exists.
+//   - req.PolicyName is set (pod already has runtimeenforcer.kubewarden.io/policy).
+//   - the proposal does not exist but a WorkloadPolicy with runtimeenforcer.kubewarden.io/promoted-from=<proposalName> exists.
 //
 // Learn (false, nil) when:
-//   - the proposal exists (no security.rancher.io/policy label set on the proposal).
-//   - the proposal does not exist but no WorkloadPolicy with workloadpolicy.security.rancher.io/promoted-from=<proposalName> exists.
+//   - the proposal exists (no runtimeenforcer.kubewarden.io/policy label set on the proposal).
+//   - the proposal does not exist but no WorkloadPolicy with runtimeenforcer.kubewarden.io/promoted-from=<proposalName> exists.
 func (r *LearningReconciler) skipOrLearn(
 	ctx context.Context,
 	req eventscraper.KubeProcessInfo,

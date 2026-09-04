@@ -13,7 +13,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - security.rancher.io
+  - runtimeenforcer.kubewarden.io
   resources:
   - workloadpolicies
   verbs:
@@ -21,7 +21,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - security.rancher.io
+  - runtimeenforcer.kubewarden.io
   resources:
   - workloadpolicyproposals
   verbs:

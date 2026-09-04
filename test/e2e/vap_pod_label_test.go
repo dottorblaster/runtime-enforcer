@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -15,6 +14,8 @@ import (
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/e2e-framework/pkg/types"
+
+	"github.com/kubewarden/runtime-enforcer/api/v1alpha1"
 )
 
 func getValidatingAdmissionPolicyPodPolicyLabelTest() types.Feature {

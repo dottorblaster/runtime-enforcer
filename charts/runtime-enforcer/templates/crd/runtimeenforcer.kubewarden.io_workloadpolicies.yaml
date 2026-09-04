@@ -5,9 +5,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.17.1
     helm.sh/resource-policy: keep
-  name: workloadpolicies.security.rancher.io
+  name: workloadpolicies.runtimeenforcer.kubewarden.io
 spec:
-  group: security.rancher.io
+  group: runtimeenforcer.kubewarden.io
   names:
     categories:
     - rancher-security

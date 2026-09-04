@@ -14,12 +14,12 @@ webhooks:
     service:
       name: {{ include "runtime-enforcer.fullname" . }}-controller-webhook
       namespace: {{ .Release.Namespace }}
-      path: /mutate-security-rancher-io-v1alpha1-workloadpolicyproposal
+      path: /mutate-runtimeenforcer-kubewarden-io-v1alpha1-workloadpolicyproposal
   failurePolicy: Fail
-  name: mutate-workloadpolicyproposals.rancher.io
+  name: mutate-workloadpolicyproposals.kubewarden.io
   rules:
   - apiGroups:
-    - security.rancher.io
+    - runtimeenforcer.kubewarden.io
     apiVersions:
     - v1alpha1
     operations:
@@ -46,12 +46,12 @@ webhooks:
     service:
       name: {{ include "runtime-enforcer.fullname" . }}-controller-webhook
       namespace: {{ .Release.Namespace }}
-      path: /validate-security-rancher-io-v1alpha1-workloadpolicy
+      path: /validate-runtimeenforcer-kubewarden-io-v1alpha1-workloadpolicy
   failurePolicy: Fail
-  name: validate-workloadpolicies.rancher.io
+  name: validate-workloadpolicies.kubewarden.io
   rules:
   - apiGroups:
-    - security.rancher.io
+    - runtimeenforcer.kubewarden.io
     apiVersions:
     - v1alpha1
     operations:
@@ -65,15 +65,15 @@ webhooks:
     service:
       name: {{ include "runtime-enforcer.fullname" . }}-controller-webhook
       namespace: {{ .Release.Namespace }}
-      path: /validate-security-rancher-io-v1alpha1-workloadpolicyproposal
+      path: /validate-runtimeenforcer-kubewarden-io-v1alpha1-workloadpolicyproposal
   failurePolicy: Fail
-  name: validate-workloadpolicyproposals.rancher.io
+  name: validate-workloadpolicyproposals.kubewarden.io
   matchConditions:
   - name: has-promote-label
-    expression: has(object.metadata.labels) && 'security.rancher.io/promote' in object.metadata.labels
+    expression: has(object.metadata.labels) && 'runtimeenforcer.kubewarden.io/promote' in object.metadata.labels
   rules:
   - apiGroups:
-    - security.rancher.io
+    - runtimeenforcer.kubewarden.io
     apiVersions:
     - v1alpha1
     operations:

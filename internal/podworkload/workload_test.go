@@ -4,8 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rancher-sandbox/runtime-enforcer/internal/types/workloadkind"
 	"github.com/stretchr/testify/require"
+
+	"github.com/kubewarden/runtime-enforcer/internal/types/workloadkind"
 )
 
 type podInfo struct {

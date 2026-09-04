@@ -3,8 +3,9 @@ package kernels_test
 import (
 	"testing"
 
-	"github.com/rancher-sandbox/runtime-enforcer/internal/kernels"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/kubewarden/runtime-enforcer/internal/kernels"
 )
 
 func TestKernelStringToNumeric(t *testing.T) {

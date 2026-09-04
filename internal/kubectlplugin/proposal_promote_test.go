@@ -6,14 +6,15 @@ import (
 	"fmt"
 	"testing"
 
-	securityv1alpha1 "github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
-	"github.com/rancher-sandbox/runtime-enforcer/internal/types/policymode"
-	fakeclient "github.com/rancher-sandbox/runtime-enforcer/pkg/generated/clientset/versioned/fake"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+
+	securityv1alpha1 "github.com/kubewarden/runtime-enforcer/api/v1alpha1"
+	"github.com/kubewarden/runtime-enforcer/internal/types/policymode"
+	fakeclient "github.com/kubewarden/runtime-enforcer/pkg/generated/clientset/versioned/fake"
 )
 
 func TestRunProposalPromote(t *testing.T) {
@@ -159,7 +160,7 @@ func TestRunProposalPromote(t *testing.T) {
 				require.Equal(t, policymode.MonitorString, mode)
 			}
 
-			securityClient := newProposalPromoteTestClient(tt.proposal, tt.policy).SecurityV1alpha1()
+			securityClient := newProposalPromoteTestClient(tt.proposal, tt.policy).RuntimeEnforcerV1alpha1()
 
 			var out bytes.Buffer
 			opts := &proposalPromoteOptions{

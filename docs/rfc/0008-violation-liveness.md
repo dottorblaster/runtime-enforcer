@@ -3,7 +3,7 @@
 | Feature Name | Violation Liveness and Resolution Tracking                   |
 | Start Date   | 2026-06-10                                                   |
 | Category     | Security / Observability                                     |
-| RFC PR       | https://github.com/rancher-sandbox/runtime-enforcer/pull/678 |
+| RFC PR       | https://github.com/kubewarden/runtime-enforcer/pull/678 |
 | State        | **ACCEPTED**                                                 |
 
 # Summary
@@ -50,7 +50,7 @@ referencing it:
 ```yaml
 metadata:
   annotations:
-    runtime-enforcer.security.rancher.io/acknowledge/42: "ongoing incident, see JIRA-1234"
+    runtimeenforcer.kubewarden.io/acknowledge-42: "ongoing incident, see JIRA-1234"
 ```
 
 On the next reconcile the controller:
@@ -119,7 +119,7 @@ without an `id` are not addressable, mirroring the existing decision not
 to backfill workload fields.
 
 Using an integer keeps annotation keys short and the wire format
-opaque-free ("`/acknowledge/42`" is much friendlier than a UUID) at the
+opaque-free ("`acknowledge-42`" is much friendlier than a UUID) at the
 cost of the controller having to coordinate the counter through the
 status field. Because status writes go through the API server's
 optimistic-concurrency loop, a double-allocation cannot happen: the
@@ -133,11 +133,11 @@ Operators acknowledge a specific violation by setting an annotation on the
 `WorkloadPolicy` with the form:
 
 ```
-<annotation-prefix>/<violation-id>: "<reason>"
+<annotation-prefix><violation-id>: "<reason>"
 ```
 
 The default annotation prefix is
-`runtime-enforcer.security.rancher.io/acknowledge`. The key's suffix is
+`runtimeenforcer.kubewarden.io/acknowledge-`. The key's suffix is
 the `id` of the violation being acknowledged, taken from
 `status.violations[].id`. The value is a free-form human-readable reason
 recorded into `status.acknowledgedViolations`.
@@ -147,7 +147,7 @@ Example:
 ```yaml
 metadata:
   annotations:
-    runtime-enforcer.security.rancher.io/acknowledge/42: "ongoing incident, see JIRA-1234"
+    runtimeenforcer.kubewarden.io/acknowledge-42: "ongoing incident, see JIRA-1234"
 ```
 
 On every reconcile the controller:

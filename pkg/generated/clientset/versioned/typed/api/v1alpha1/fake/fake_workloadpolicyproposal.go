@@ -3,19 +3,19 @@
 package fake
 
 import (
-	v1alpha1 "github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
-	apiv1alpha1 "github.com/rancher-sandbox/runtime-enforcer/pkg/generated/applyconfiguration/api/v1alpha1"
-	typedapiv1alpha1 "github.com/rancher-sandbox/runtime-enforcer/pkg/generated/clientset/versioned/typed/api/v1alpha1"
+	v1alpha1 "github.com/kubewarden/runtime-enforcer/api/v1alpha1"
+	apiv1alpha1 "github.com/kubewarden/runtime-enforcer/pkg/generated/applyconfiguration/api/v1alpha1"
+	typedapiv1alpha1 "github.com/kubewarden/runtime-enforcer/pkg/generated/clientset/versioned/typed/api/v1alpha1"
 	gentype "k8s.io/client-go/gentype"
 )
 
 // fakeWorkloadPolicyProposals implements WorkloadPolicyProposalInterface
 type fakeWorkloadPolicyProposals struct {
 	*gentype.FakeClientWithListAndApply[*v1alpha1.WorkloadPolicyProposal, *v1alpha1.WorkloadPolicyProposalList, *apiv1alpha1.WorkloadPolicyProposalApplyConfiguration]
-	Fake *FakeSecurityV1alpha1
+	Fake *FakeRuntimeEnforcerV1alpha1
 }
 
-func newFakeWorkloadPolicyProposals(fake *FakeSecurityV1alpha1, namespace string) typedapiv1alpha1.WorkloadPolicyProposalInterface {
+func newFakeWorkloadPolicyProposals(fake *FakeRuntimeEnforcerV1alpha1, namespace string) typedapiv1alpha1.WorkloadPolicyProposalInterface {
 	return &fakeWorkloadPolicyProposals{
 		gentype.NewFakeClientWithListAndApply[*v1alpha1.WorkloadPolicyProposal, *v1alpha1.WorkloadPolicyProposalList, *apiv1alpha1.WorkloadPolicyProposalApplyConfiguration](
 			fake.Fake,

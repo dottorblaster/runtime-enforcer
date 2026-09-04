@@ -3,8 +3,9 @@ package resolver
 import (
 	"testing"
 
-	"github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
 	"github.com/stretchr/testify/require"
+
+	"github.com/kubewarden/runtime-enforcer/api/v1alpha1"
 )
 
 func TestPodEntry(t *testing.T) {

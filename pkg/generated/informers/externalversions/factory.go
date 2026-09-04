@@ -8,9 +8,9 @@ import (
 	sync "sync"
 	time "time"
 
-	versioned "github.com/rancher-sandbox/runtime-enforcer/pkg/generated/clientset/versioned"
-	api "github.com/rancher-sandbox/runtime-enforcer/pkg/generated/informers/externalversions/api"
-	internalinterfaces "github.com/rancher-sandbox/runtime-enforcer/pkg/generated/informers/externalversions/internalinterfaces"
+	versioned "github.com/kubewarden/runtime-enforcer/pkg/generated/clientset/versioned"
+	api "github.com/kubewarden/runtime-enforcer/pkg/generated/informers/externalversions/api"
+	internalinterfaces "github.com/kubewarden/runtime-enforcer/pkg/generated/informers/externalversions/internalinterfaces"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -309,9 +309,9 @@ type SharedInformerFactory interface {
 	// client.
 	InformerFor(obj runtime.Object, newFunc internalinterfaces.NewInformerFunc) cache.SharedIndexInformer
 
-	Security() api.Interface
+	RuntimeEnforcer() api.Interface
 }
 
-func (f *sharedInformerFactory) Security() api.Interface {
+func (f *sharedInformerFactory) RuntimeEnforcer() api.Interface {
 	return api.New(f, f.namespace, f.tweakListOptions)
 }

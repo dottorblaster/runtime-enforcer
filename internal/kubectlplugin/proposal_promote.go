@@ -6,13 +6,14 @@ import (
 	"io"
 	"time"
 
-	"github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
-	"github.com/rancher-sandbox/runtime-enforcer/internal/types/policymode"
-	securityclient "github.com/rancher-sandbox/runtime-enforcer/pkg/generated/clientset/versioned/typed/api/v1alpha1"
 	"github.com/spf13/cobra"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/kubectl/pkg/util/completion"
+
+	"github.com/kubewarden/runtime-enforcer/api/v1alpha1"
+	"github.com/kubewarden/runtime-enforcer/internal/types/policymode"
+	securityclient "github.com/kubewarden/runtime-enforcer/pkg/generated/clientset/versioned/typed/api/v1alpha1"
 )
 
 type proposalPromoteOptions struct {
@@ -74,7 +75,7 @@ func runProposalPromoteCmd(opts *proposalPromoteOptions) func(cmd *cobra.Command
 
 		return withRuntimeEnforcerClient(cmd, &opts.commonOptions, func(
 			ctx context.Context,
-			client securityclient.SecurityV1alpha1Interface,
+			client securityclient.RuntimeEnforcerV1alpha1Interface,
 		) error {
 			return runProposalPromote(ctx, client, opts, opts.ioStreams.Out)
 		})
@@ -83,7 +84,7 @@ func runProposalPromoteCmd(opts *proposalPromoteOptions) func(cmd *cobra.Command
 
 func runProposalPromote(
 	ctx context.Context,
-	client securityclient.SecurityV1alpha1Interface,
+	client securityclient.RuntimeEnforcerV1alpha1Interface,
 	opts *proposalPromoteOptions,
 	out io.Writer,
 ) error {
@@ -175,7 +176,7 @@ func runProposalPromote(
 
 func waitForWorkloadPolicy(
 	ctx context.Context,
-	client securityclient.SecurityV1alpha1Interface,
+	client securityclient.RuntimeEnforcerV1alpha1Interface,
 	namespace, name string,
 ) (*v1alpha1.WorkloadPolicy, error) {
 	ticker := time.NewTicker(defaultPollInterval)

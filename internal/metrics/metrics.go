@@ -7,14 +7,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rancher-sandbox/runtime-enforcer/internal/tlsutil"
-	"github.com/rancher-sandbox/runtime-enforcer/internal/types/otlp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/metric"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	"google.golang.org/grpc/credentials"
+
+	"github.com/kubewarden/runtime-enforcer/internal/tlsutil"
+	"github.com/kubewarden/runtime-enforcer/internal/types/otlp"
 )
 
 const (

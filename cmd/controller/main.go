@@ -29,12 +29,12 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
 
-	securityv1alpha1 "github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
-	"github.com/rancher-sandbox/runtime-enforcer/internal/controller"
-	"github.com/rancher-sandbox/runtime-enforcer/internal/customloggers/httpserverlogger"
-	"github.com/rancher-sandbox/runtime-enforcer/internal/events"
-	"github.com/rancher-sandbox/runtime-enforcer/internal/grpcexporter"
-	"github.com/rancher-sandbox/runtime-enforcer/internal/metrics"
+	securityv1alpha1 "github.com/kubewarden/runtime-enforcer/api/v1alpha1"
+	"github.com/kubewarden/runtime-enforcer/internal/controller"
+	"github.com/kubewarden/runtime-enforcer/internal/customloggers/httpserverlogger"
+	"github.com/kubewarden/runtime-enforcer/internal/events"
+	"github.com/kubewarden/runtime-enforcer/internal/grpcexporter"
+	"github.com/kubewarden/runtime-enforcer/internal/metrics"
 
 	otellog "go.opentelemetry.io/otel/log"
 	"go.opentelemetry.io/otel/metric"
@@ -401,7 +401,7 @@ func main() {
 		WebhookServer:          webhookServer,
 		HealthProbeBindAddress: config.probeAddr,
 		LeaderElection:         config.enableLeaderElection,
-		LeaderElectionID:       "4e873589.rancher.io",
+		LeaderElectionID:       "4e873589.kubewarden.io",
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")

@@ -3,9 +3,9 @@
 package applyconfiguration
 
 import (
-	v1alpha1 "github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
-	apiv1alpha1 "github.com/rancher-sandbox/runtime-enforcer/pkg/generated/applyconfiguration/api/v1alpha1"
-	internal "github.com/rancher-sandbox/runtime-enforcer/pkg/generated/applyconfiguration/internal"
+	v1alpha1 "github.com/kubewarden/runtime-enforcer/api/v1alpha1"
+	apiv1alpha1 "github.com/kubewarden/runtime-enforcer/pkg/generated/applyconfiguration/api/v1alpha1"
+	internal "github.com/kubewarden/runtime-enforcer/pkg/generated/applyconfiguration/internal"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	managedfields "k8s.io/apimachinery/pkg/util/managedfields"
@@ -15,7 +15,7 @@ import (
 // apply configuration type exists for the given GroupVersionKind.
 func ForKind(kind schema.GroupVersionKind) interface{} {
 	switch kind {
-	// Group=security.rancher.io, Version=v1alpha1
+	// Group=runtimeenforcer.kubewarden.io, Version=v1alpha1
 	case v1alpha1.SchemeGroupVersion.WithKind("AcknowledgedViolationRecord"):
 		return &apiv1alpha1.AcknowledgedViolationRecordApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("PolicyNodeStatus"):

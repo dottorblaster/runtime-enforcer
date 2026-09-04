@@ -6,12 +6,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
-	fakeclient "github.com/rancher-sandbox/runtime-enforcer/pkg/generated/clientset/versioned/fake"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/kubewarden/runtime-enforcer/api/v1alpha1"
+	fakeclient "github.com/kubewarden/runtime-enforcer/pkg/generated/clientset/versioned/fake"
 )
 
 func TestRunPolicyAck(t *testing.T) {
@@ -153,7 +154,7 @@ func TestRunPolicyAck(t *testing.T) {
 			t.Parallel()
 
 			clientset := fakeclient.NewClientset(tt.policy.DeepCopy())
-			securityClient := clientset.SecurityV1alpha1()
+			securityClient := clientset.RuntimeEnforcerV1alpha1()
 
 			var out, errOut bytes.Buffer
 			opts := &policyAckOptions{

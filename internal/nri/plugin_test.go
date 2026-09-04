@@ -5,10 +5,11 @@ import (
 	"testing"
 
 	"github.com/containerd/nri/pkg/api"
-	"github.com/rancher-sandbox/runtime-enforcer/internal/resolver"
-	"github.com/rancher-sandbox/runtime-enforcer/internal/testutil"
-	"github.com/rancher-sandbox/runtime-enforcer/internal/types/workloadkind"
 	"github.com/stretchr/testify/require"
+
+	"github.com/kubewarden/runtime-enforcer/internal/resolver"
+	"github.com/kubewarden/runtime-enforcer/internal/testutil"
+	"github.com/kubewarden/runtime-enforcer/internal/types/workloadkind"
 )
 
 func newTestPlugin(

@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
-	securityclient "github.com/rancher-sandbox/runtime-enforcer/pkg/generated/clientset/versioned/typed/api/v1alpha1"
 	"github.com/spf13/cobra"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,6 +12,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+
+	"github.com/kubewarden/runtime-enforcer/api/v1alpha1"
+	securityclient "github.com/kubewarden/runtime-enforcer/pkg/generated/clientset/versioned/typed/api/v1alpha1"
 )
 
 const (
@@ -69,18 +70,18 @@ func newCommonOptions(deps commonCmdDeps) commonOptions {
 
 type subcommandFunc func(
 	ctx context.Context,
-	securityClient securityclient.SecurityV1alpha1Interface,
+	securityClient securityclient.RuntimeEnforcerV1alpha1Interface,
 ) error
 
 type subcommandWithCoreFunc func(
 	ctx context.Context,
-	securityClient securityclient.SecurityV1alpha1Interface,
+	securityClient securityclient.RuntimeEnforcerV1alpha1Interface,
 	coreClient corev1client.CoreV1Interface,
 ) error
 
 // buildSecurityClient resolves the namespace, builds the REST config and creates the runtime-enforcer security client.
 // It also populates opts.Namespace as a side effect.
-func buildSecurityClient(opts *commonOptions) (securityclient.SecurityV1alpha1Interface, error) {
+func buildSecurityClient(opts *commonOptions) (securityclient.RuntimeEnforcerV1alpha1Interface, error) {
 	namespace, _, err := opts.Factory.ToRawKubeConfigLoader().Namespace()
 	if err != nil {
 		return nil, fmt.Errorf("failed to determine namespace: %w", err)
@@ -146,7 +147,7 @@ func withRuntimeEnforcerAndCoreClient(
 
 func getWorkloadPolicy(
 	ctx context.Context,
-	client securityclient.SecurityV1alpha1Interface,
+	client securityclient.RuntimeEnforcerV1alpha1Interface,
 	namespace, name string,
 ) (*v1alpha1.WorkloadPolicy, error) {
 	policy, err := client.WorkloadPolicies(namespace).Get(ctx, name, metav1.GetOptions{})
@@ -166,7 +167,7 @@ func getWorkloadPolicy(
 
 func updateWorkloadPolicy(
 	ctx context.Context,
-	client securityclient.SecurityV1alpha1Interface,
+	client securityclient.RuntimeEnforcerV1alpha1Interface,
 	namespace string,
 	policy *v1alpha1.WorkloadPolicy,
 	dryRun bool,

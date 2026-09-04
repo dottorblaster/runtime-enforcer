@@ -15,7 +15,7 @@ annotations:
   catalog.cattle.io/display-name: RuntimeEnforcer # Only for Charts with custom UI
   catalog.cattle.io/os: linux # this means linux only, other choice here is "windows". For charts that support both, don't add this annotation
   # optional ones:
-  catalog.cattle.io/provides-gvr: "security.rancher.io/v1" # Declare that this chart provides a type, which other charts may use in `requires-gvr`. Only add to parent, not CRD chart.
+  catalog.cattle.io/provides-gvr: "workloadpolicies.runtimeenforcer.kubewarden.io/v1alpha1" # Declare that this chart provides a type, which other charts may use in `requires-gvr`. Only add to parent, not CRD chart.
   # The following two will create a UI warning if the request is not available in cluster
   # Assume the most standard setup for your chart. These can be strings with amounts, ie 64Mi or 2Gi are both valid.
   catalog.cattle.io/requests-cpu: "500m"

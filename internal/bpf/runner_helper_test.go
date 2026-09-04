@@ -9,10 +9,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rancher-sandbox/runtime-enforcer/internal/cgroups"
-	"github.com/rancher-sandbox/runtime-enforcer/internal/testutil"
-	"github.com/rancher-sandbox/runtime-enforcer/internal/types/policymode"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/kubewarden/runtime-enforcer/internal/cgroups"
+	"github.com/kubewarden/runtime-enforcer/internal/testutil"
+	"github.com/kubewarden/runtime-enforcer/internal/types/policymode"
 )
 
 //////////////////////
