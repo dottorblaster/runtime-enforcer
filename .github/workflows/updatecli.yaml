@@ -33,9 +33,11 @@ jobs:
       - name: Run Updatecli (dryrun)
         if: github.ref != 'refs/heads/main'
         env:
-          # Until this repository is under the kubewarden GitHub organisation
-          # It's easier to use the default GITHUB_TOKEN but ultimately
-          # it's gonna be better to use a GitHub App token
+          # TODO: switch to a GitHub App token instead of the default
+          # GITHUB_TOKEN, like
+          # https://github.com/kubewarden/adm-controller/blob/main/.github/workflows/update-dependencies.yaml
+          # does. This requires the APP_ID, APP_PRIVATE_KEY and
+          # APP_INSTALLATION_ID secrets to be available to this repository.
           UPDATECLI_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           UPDATECLI_GITHUB_OWNER: ${{ github.repository_owner }}
         run: "updatecli compose diff --file updatecli/updatecli-compose.yaml"
@@ -43,9 +45,11 @@ jobs:
       - name: Run Updatecli
         if: github.ref == 'refs/heads/main'
         env:
-          # Until this repository is under the kubewarden GitHub organisation
-          # It's easier to use the default GITHUB_TOKEN but ultimately
-          # it's gonna be better to use a GitHub App token
+          # TODO: switch to a GitHub App token instead of the default
+          # GITHUB_TOKEN, like
+          # https://github.com/kubewarden/adm-controller/blob/main/.github/workflows/update-dependencies.yaml
+          # does. This requires the APP_ID, APP_PRIVATE_KEY and
+          # APP_INSTALLATION_ID secrets to be available to this repository.
           UPDATECLI_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           UPDATECLI_GITHUB_OWNER: ${{ github.repository_owner }}
         run: "updatecli compose apply --file updatecli/updatecli-compose.yaml"

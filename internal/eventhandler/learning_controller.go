@@ -133,11 +133,11 @@ func (r *LearningReconciler) handleAdmissionError(logger logr.Logger, err error)
 //
 // Skip (true, nil) when:
 //   - req.PolicyName is set (pod already has runtimeenforcer.kubewarden.io/policy).
-//   - the proposal does not exist but a WorkloadPolicy with workloadpolicy.runtimeenforcer.kubewarden.io/promoted-from=<proposalName> exists.
+//   - the proposal does not exist but a WorkloadPolicy with runtimeenforcer.kubewarden.io/promoted-from=<proposalName> exists.
 //
 // Learn (false, nil) when:
 //   - the proposal exists (no runtimeenforcer.kubewarden.io/policy label set on the proposal).
-//   - the proposal does not exist but no WorkloadPolicy with workloadpolicy.runtimeenforcer.kubewarden.io/promoted-from=<proposalName> exists.
+//   - the proposal does not exist but no WorkloadPolicy with runtimeenforcer.kubewarden.io/promoted-from=<proposalName> exists.
 func (r *LearningReconciler) skipOrLearn(
 	ctx context.Context,
 	req eventscraper.KubeProcessInfo,
