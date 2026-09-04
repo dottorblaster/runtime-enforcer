@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"testing"
 
-	agentv1 "github.com/rancher-sandbox/runtime-enforcer/proto/agent/v1"
 	"github.com/stretchr/testify/assert"
+
+	agentv1 "github.com/kubewarden/runtime-enforcer/proto/agent/v1"
 )
 
 func agentContainerFixture(id, name string) *agentv1.ContainerMeta {

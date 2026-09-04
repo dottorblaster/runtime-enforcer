@@ -16,22 +16,22 @@ import (
 	"github.com/avast/retry-go/v4"
 	"github.com/go-logr/logr"
 
-	securityv1alpha1 "github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
-	"github.com/rancher-sandbox/runtime-enforcer/internal/bpf"
-	"github.com/rancher-sandbox/runtime-enforcer/internal/eventhandler"
-	"github.com/rancher-sandbox/runtime-enforcer/internal/events"
-	"github.com/rancher-sandbox/runtime-enforcer/internal/eventscraper"
-	"github.com/rancher-sandbox/runtime-enforcer/internal/grpcexporter"
-	"github.com/rancher-sandbox/runtime-enforcer/internal/nri"
-	"github.com/rancher-sandbox/runtime-enforcer/internal/resolver"
-	"github.com/rancher-sandbox/runtime-enforcer/internal/types/loglevel"
-	"github.com/rancher-sandbox/runtime-enforcer/internal/workloadpolicyhandler"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/rancher-sandbox/runtime-enforcer/internal/violationbuf"
+	securityv1alpha1 "github.com/kubewarden/runtime-enforcer/api/v1alpha1"
+	"github.com/kubewarden/runtime-enforcer/internal/bpf"
+	"github.com/kubewarden/runtime-enforcer/internal/eventhandler"
+	"github.com/kubewarden/runtime-enforcer/internal/events"
+	"github.com/kubewarden/runtime-enforcer/internal/eventscraper"
+	"github.com/kubewarden/runtime-enforcer/internal/grpcexporter"
+	"github.com/kubewarden/runtime-enforcer/internal/nri"
+	"github.com/kubewarden/runtime-enforcer/internal/resolver"
+	"github.com/kubewarden/runtime-enforcer/internal/types/loglevel"
+	"github.com/kubewarden/runtime-enforcer/internal/workloadpolicyhandler"
+
 	otellog "go.opentelemetry.io/otel/log"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -39,6 +39,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+
+	"github.com/kubewarden/runtime-enforcer/internal/violationbuf"
 )
 
 const wpSyncInProgressMsg = "waiting for WorkloadPolicy synchronization to complete"

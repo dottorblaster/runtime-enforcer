@@ -10,8 +10,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	securityv1alpha1 "github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
-	"github.com/rancher-sandbox/runtime-enforcer/internal/eventhandler/proposalutils"
+	securityv1alpha1 "github.com/kubewarden/runtime-enforcer/api/v1alpha1"
+	"github.com/kubewarden/runtime-enforcer/internal/eventhandler/proposalutils"
 )
 
 // WorkloadPolicyProposalReconciler reconciles a WorkloadPolicyProposal object.
@@ -21,8 +21,8 @@ type WorkloadPolicyProposalReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=security.rancher.io,resources=workloadpolicyproposals,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=security.rancher.io,resources=workloadpolicies,verbs=get;list;watch;create;patch
+// +kubebuilder:rbac:groups=runtimeenforcer.kubewarden.io,resources=workloadpolicyproposals,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=runtimeenforcer.kubewarden.io,resources=workloadpolicies,verbs=get;list;watch;create;patch
 
 func (r *WorkloadPolicyProposalReconciler) Reconcile(
 	ctx context.Context,

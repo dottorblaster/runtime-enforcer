@@ -5,10 +5,11 @@ import (
 
 	"log/slog"
 
-	"github.com/rancher-sandbox/runtime-enforcer/internal/resolver"
-	"github.com/rancher-sandbox/runtime-enforcer/internal/violationbuf"
-	pb "github.com/rancher-sandbox/runtime-enforcer/proto/agent/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/kubewarden/runtime-enforcer/internal/resolver"
+	"github.com/kubewarden/runtime-enforcer/internal/violationbuf"
+	pb "github.com/kubewarden/runtime-enforcer/proto/agent/v1"
 )
 
 // agentObserver implements the AgentObserver gRPC server.

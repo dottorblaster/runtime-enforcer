@@ -8,11 +8,12 @@ import (
 	"slices"
 	"strconv"
 
-	"github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
-	securityclient "github.com/rancher-sandbox/runtime-enforcer/pkg/generated/clientset/versioned/typed/api/v1alpha1"
 	"github.com/spf13/cobra"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/completion"
+
+	"github.com/kubewarden/runtime-enforcer/api/v1alpha1"
+	securityclient "github.com/kubewarden/runtime-enforcer/pkg/generated/clientset/versioned/typed/api/v1alpha1"
 )
 
 type policyExecAction string
@@ -153,7 +154,7 @@ func runPolicyExecCmd(opts *policyExecOptions) func(cmd *cobra.Command, args []s
 
 		return withRuntimeEnforcerClient(cmd, &opts.commonOptions, func(
 			ctx context.Context,
-			securityClient securityclient.SecurityV1alpha1Interface,
+			securityClient securityclient.RuntimeEnforcerV1alpha1Interface,
 		) error {
 			return runPolicyExec(ctx, securityClient, opts, opts.ioStreams.Out)
 		})
@@ -162,7 +163,7 @@ func runPolicyExecCmd(opts *policyExecOptions) func(cmd *cobra.Command, args []s
 
 func runPolicyExec(
 	ctx context.Context,
-	client securityclient.SecurityV1alpha1Interface,
+	client securityclient.RuntimeEnforcerV1alpha1Interface,
 	opts *policyExecOptions,
 	out io.Writer,
 ) error {

@@ -37,7 +37,7 @@ const (
 	runtimeEnforcerE2EPrefix    = "run-enf-e2e-"
 	runtimeEnforcerNamespace    = runtimeEnforcerE2EPrefix + "runtime-enforcer"
 	otelCollectorDeploymentName = "runtime-enforcer-otel-collector"
-	testNamespaceLabelKey       = "security.rancher.io/learning"
+	testNamespaceLabelKey       = "runtimeenforcer.kubewarden.io/learning"
 	testNamespaceLabelValue     = "runtime-enforcer-e2e-test"
 )
 
@@ -163,17 +163,17 @@ func TestMain(m *testing.M) {
 		commonSetupFuncs = append([]env.Func{
 			envfuncs.CreateCluster(kind.NewProvider(), kindClusterName),
 			envfuncs.LoadImageToCluster(kindClusterName,
-				"ghcr.io/rancher-sandbox/runtime-enforcer/controller:latest",
+				"ghcr.io/kubewarden/runtime-enforcer/controller:latest",
 				"--verbose",
 				"--mode",
 				"direct"),
 			envfuncs.LoadImageToCluster(kindClusterName,
-				"ghcr.io/rancher-sandbox/runtime-enforcer/agent:latest",
+				"ghcr.io/kubewarden/runtime-enforcer/agent:latest",
 				"--verbose",
 				"--mode",
 				"direct"),
 			envfuncs.LoadImageToCluster(kindClusterName,
-				"ghcr.io/rancher-sandbox/runtime-enforcer/debugger:latest",
+				"ghcr.io/kubewarden/runtime-enforcer/debugger:latest",
 				"--verbose",
 				"--mode",
 				"direct"),

@@ -3,7 +3,7 @@
 | Feature Name | Violation Liveness and Resolution Tracking                   |
 | Start Date   | 2026-06-10                                                   |
 | Category     | Security / Observability                                     |
-| RFC PR       | https://github.com/rancher-sandbox/runtime-enforcer/pull/678 |
+| RFC PR       | https://github.com/kubewarden/runtime-enforcer/pull/678 |
 | State        | **ACCEPTED**                                                 |
 
 # Summary
@@ -50,7 +50,7 @@ referencing it:
 ```yaml
 metadata:
   annotations:
-    runtime-enforcer.security.rancher.io/acknowledge/42: "ongoing incident, see JIRA-1234"
+    runtime-enforcer.runtimeenforcer.kubewarden.io/acknowledge/42: "ongoing incident, see JIRA-1234"
 ```
 
 On the next reconcile the controller:
@@ -137,7 +137,7 @@ Operators acknowledge a specific violation by setting an annotation on the
 ```
 
 The default annotation prefix is
-`runtime-enforcer.security.rancher.io/acknowledge`. The key's suffix is
+`runtime-enforcer.runtimeenforcer.kubewarden.io/acknowledge`. The key's suffix is
 the `id` of the violation being acknowledged, taken from
 `status.violations[].id`. The value is a free-form human-readable reason
 recorded into `status.acknowledgedViolations`.
@@ -147,7 +147,7 @@ Example:
 ```yaml
 metadata:
   annotations:
-    runtime-enforcer.security.rancher.io/acknowledge/42: "ongoing incident, see JIRA-1234"
+    runtime-enforcer.runtimeenforcer.kubewarden.io/acknowledge/42: "ongoing incident, see JIRA-1234"
 ```
 
 On every reconcile the controller:

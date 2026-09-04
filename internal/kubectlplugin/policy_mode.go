@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/rancher-sandbox/runtime-enforcer/internal/types/policymode"
-	securityclient "github.com/rancher-sandbox/runtime-enforcer/pkg/generated/clientset/versioned/typed/api/v1alpha1"
 	"github.com/spf13/cobra"
 	"k8s.io/kubectl/pkg/util/completion"
+
+	"github.com/kubewarden/runtime-enforcer/internal/types/policymode"
+	securityclient "github.com/kubewarden/runtime-enforcer/pkg/generated/clientset/versioned/typed/api/v1alpha1"
 )
 
 type policyModeOptions struct {
@@ -73,7 +74,7 @@ func runPolicyModeSetCmd(opts *policyModeOptions) func(cmd *cobra.Command, args 
 
 		return withRuntimeEnforcerClient(cmd, &opts.commonOptions, func(
 			ctx context.Context,
-			securityClient securityclient.SecurityV1alpha1Interface,
+			securityClient securityclient.RuntimeEnforcerV1alpha1Interface,
 		) error {
 			return runPolicyModeSet(ctx, securityClient, opts, opts.ioStreams.Out)
 		})
@@ -82,7 +83,7 @@ func runPolicyModeSetCmd(opts *policyModeOptions) func(cmd *cobra.Command, args 
 
 func runPolicyModeSet(
 	ctx context.Context,
-	client securityclient.SecurityV1alpha1Interface,
+	client securityclient.RuntimeEnforcerV1alpha1Interface,
 	opts *policyModeOptions,
 	out io.Writer,
 ) error {

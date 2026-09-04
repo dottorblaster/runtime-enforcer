@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/rancher-sandbox/runtime-enforcer/internal/violationbuf"
 	"github.com/stretchr/testify/require"
+
+	"github.com/kubewarden/runtime-enforcer/internal/violationbuf"
 )
 
 func TestBufferRecordAndDrain(t *testing.T) {

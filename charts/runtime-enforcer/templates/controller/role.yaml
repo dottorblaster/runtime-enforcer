@@ -29,7 +29,7 @@ rules:
   verbs:
   - get
 - apiGroups:
-  - security.rancher.io
+  - runtimeenforcer.kubewarden.io
   resources:
   - workloadpolicies
   - workloadpolicyproposals
@@ -42,7 +42,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - security.rancher.io
+  - runtimeenforcer.kubewarden.io
   resources:
   - workloadpolicies/status
   verbs:

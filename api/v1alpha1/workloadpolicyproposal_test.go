@@ -4,8 +4,9 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/rancher-sandbox/runtime-enforcer/internal/types/policymode"
 	"github.com/stretchr/testify/require"
+
+	"github.com/kubewarden/runtime-enforcer/internal/types/policymode"
 )
 
 func TestWorkloadPolicyProposalPromotionLabel(t *testing.T) {

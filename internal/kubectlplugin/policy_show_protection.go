@@ -8,16 +8,17 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
-	"github.com/rancher-sandbox/runtime-enforcer/internal/podworkload"
-	"github.com/rancher-sandbox/runtime-enforcer/internal/types/policymode"
-	securityclient "github.com/rancher-sandbox/runtime-enforcer/pkg/generated/clientset/versioned/typed/api/v1alpha1"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/cli-runtime/pkg/printers"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
+
+	"github.com/kubewarden/runtime-enforcer/api/v1alpha1"
+	"github.com/kubewarden/runtime-enforcer/internal/podworkload"
+	"github.com/kubewarden/runtime-enforcer/internal/types/policymode"
+	securityclient "github.com/kubewarden/runtime-enforcer/pkg/generated/clientset/versioned/typed/api/v1alpha1"
 )
 
 const (
@@ -80,7 +81,7 @@ func runPolicyShowProtectionCmd(opts *policyShowProtectionOptions) func(cmd *cob
 	return func(cmd *cobra.Command, _ []string) error {
 		return withRuntimeEnforcerAndCoreClient(cmd, &opts.commonOptions, func(
 			ctx context.Context,
-			securityClient securityclient.SecurityV1alpha1Interface,
+			securityClient securityclient.RuntimeEnforcerV1alpha1Interface,
 			coreClient corev1client.CoreV1Interface,
 		) error {
 			return runPolicyShowProtection(ctx, securityClient, coreClient, opts, opts.ioStreams.Out)
@@ -90,7 +91,7 @@ func runPolicyShowProtectionCmd(opts *policyShowProtectionOptions) func(cmd *cob
 
 func runPolicyShowProtection(
 	ctx context.Context,
-	securityClient securityclient.SecurityV1alpha1Interface,
+	securityClient securityclient.RuntimeEnforcerV1alpha1Interface,
 	coreClient corev1client.CoreV1Interface,
 	opts *policyShowProtectionOptions,
 	out io.Writer,
@@ -104,7 +105,7 @@ func runPolicyShowProtection(
 
 func collectPolicyProtectionRows(
 	ctx context.Context,
-	securityClient securityclient.SecurityV1alpha1Interface,
+	securityClient securityclient.RuntimeEnforcerV1alpha1Interface,
 	coreClient corev1client.CoreV1Interface,
 	opts *policyShowProtectionOptions,
 ) ([]workloadProtectionRow, error) {

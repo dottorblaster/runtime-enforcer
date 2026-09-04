@@ -5,8 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rancher-sandbox/runtime-enforcer/internal/kernels"
 	"github.com/stretchr/testify/require"
+
+	"github.com/kubewarden/runtime-enforcer/internal/kernels"
 )
 
 func TestStringPaddedLen(t *testing.T) {

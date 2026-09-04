@@ -158,7 +158,7 @@ Three CRDs are proposed in this RFC:
 ### Definitions
 
 ```
-apiVersion: security.rancher.io/v1alpha1
+apiVersion: runtimeenforcer.kubewarden.io/v1alpha1
 kind: WorkloadSecurityPolicyProposal
 metadata:
   name: <workload type>-<workload name>
@@ -206,7 +206,7 @@ The `rules` field here only records the behavior we learn. The rules won't have 
 [workloadsecuritypolicy]: #workloadsecuritypolicy
 
 ```
-apiVersion: security.rancher.io/v1alpha1
+apiVersion: runtimeenforcer.kubewarden.io/v1alpha1
 kind: WorkloadSecurityPolicy
 metadata:
   name: nginx-ingress-controller
@@ -297,7 +297,7 @@ In this version, kprobe override is chosen, but moving forward we would have to 
 ## ClusterWorkloadSecurityPolicy 
 
 ```
-apiVersion: security.rancher.io/v1alpha1
+apiVersion: runtimeenforcer.kubewarden.io/v1alpha1
 kind: WorkloadSecurityPolicy
 metadata:
   name: nginx-ingress-controller

@@ -6,9 +6,10 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
-	"github.com/rancher-sandbox/runtime-enforcer/internal/grpcexporter"
-	"github.com/rancher-sandbox/runtime-enforcer/internal/types/loglevel"
+
+	"github.com/kubewarden/runtime-enforcer/api/v1alpha1"
+	"github.com/kubewarden/runtime-enforcer/internal/grpcexporter"
+	"github.com/kubewarden/runtime-enforcer/internal/types/loglevel"
 
 	"go.opentelemetry.io/otel/attribute"
 	otellog "go.opentelemetry.io/otel/log"
@@ -19,8 +20,8 @@ import (
 )
 
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
-// +kubebuilder:rbac:groups=security.rancher.io,resources=workloadpolicies,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=security.rancher.io,resources=workloadpolicies/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=runtimeenforcer.kubewarden.io,resources=workloadpolicies,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=runtimeenforcer.kubewarden.io,resources=workloadpolicies/status,verbs=get;update;patch
 
 // WorkloadPolicyStatusSync reconciles a WorkloadPolicy status.
 type WorkloadPolicyStatusSync struct {

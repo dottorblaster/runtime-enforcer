@@ -3,10 +3,10 @@
 package fake
 
 import (
-	applyconfiguration "github.com/rancher-sandbox/runtime-enforcer/pkg/generated/applyconfiguration"
-	clientset "github.com/rancher-sandbox/runtime-enforcer/pkg/generated/clientset/versioned"
-	securityv1alpha1 "github.com/rancher-sandbox/runtime-enforcer/pkg/generated/clientset/versioned/typed/api/v1alpha1"
-	fakesecurityv1alpha1 "github.com/rancher-sandbox/runtime-enforcer/pkg/generated/clientset/versioned/typed/api/v1alpha1/fake"
+	applyconfiguration "github.com/kubewarden/runtime-enforcer/pkg/generated/applyconfiguration"
+	clientset "github.com/kubewarden/runtime-enforcer/pkg/generated/clientset/versioned"
+	runtimeenforcerv1alpha1 "github.com/kubewarden/runtime-enforcer/pkg/generated/clientset/versioned/typed/api/v1alpha1"
+	fakeruntimeenforcerv1alpha1 "github.com/kubewarden/runtime-enforcer/pkg/generated/clientset/versioned/typed/api/v1alpha1/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
@@ -120,7 +120,7 @@ var (
 	_ testing.FakeClient  = &Clientset{}
 )
 
-// SecurityV1alpha1 retrieves the SecurityV1alpha1Client
-func (c *Clientset) SecurityV1alpha1() securityv1alpha1.SecurityV1alpha1Interface {
-	return &fakesecurityv1alpha1.FakeSecurityV1alpha1{Fake: &c.Fake}
+// RuntimeEnforcerV1alpha1 retrieves the RuntimeEnforcerV1alpha1Client
+func (c *Clientset) RuntimeEnforcerV1alpha1() runtimeenforcerv1alpha1.RuntimeEnforcerV1alpha1Interface {
+	return &fakeruntimeenforcerv1alpha1.FakeRuntimeEnforcerV1alpha1{Fake: &c.Fake}
 }

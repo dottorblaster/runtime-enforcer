@@ -7,11 +7,12 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/rancher-sandbox/runtime-enforcer/internal/tlsutil"
-	pb "github.com/rancher-sandbox/runtime-enforcer/proto/agent/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/kubewarden/runtime-enforcer/internal/tlsutil"
+	pb "github.com/kubewarden/runtime-enforcer/proto/agent/v1"
 )
 
 // AgentClientFactory is responsible for creating agent clients.

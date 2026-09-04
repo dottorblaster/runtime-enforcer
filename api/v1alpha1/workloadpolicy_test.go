@@ -4,9 +4,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rancher-sandbox/runtime-enforcer/internal/types/policymode"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/kubewarden/runtime-enforcer/internal/types/policymode"
 )
 
 func TestWorkloadPolicyNamespacedName(t *testing.T) {

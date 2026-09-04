@@ -6,10 +6,10 @@ import (
 	context "context"
 	time "time"
 
-	runtimeenforcerapiv1alpha1 "github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
-	versioned "github.com/rancher-sandbox/runtime-enforcer/pkg/generated/clientset/versioned"
-	internalinterfaces "github.com/rancher-sandbox/runtime-enforcer/pkg/generated/informers/externalversions/internalinterfaces"
-	apiv1alpha1 "github.com/rancher-sandbox/runtime-enforcer/pkg/generated/listers/api/v1alpha1"
+	runtimeenforcerapiv1alpha1 "github.com/kubewarden/runtime-enforcer/api/v1alpha1"
+	versioned "github.com/kubewarden/runtime-enforcer/pkg/generated/clientset/versioned"
+	internalinterfaces "github.com/kubewarden/runtime-enforcer/pkg/generated/informers/externalversions/internalinterfaces"
+	apiv1alpha1 "github.com/kubewarden/runtime-enforcer/pkg/generated/listers/api/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -100,7 +100,7 @@ func NewWorkloadPolicyProposalInformerWithOptions(client versioned.Interface, na
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewTypedWorkloadPolicyProposalInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) WorkloadPolicyProposalIndexInformer {
-	gvr := schema.GroupVersionResource{Group: "security.rancher.io", Version: "v1alpha1", Resource: "workloadpolicyproposals"}
+	gvr := schema.GroupVersionResource{Group: "runtimeenforcer.kubewarden.io", Version: "v1alpha1", Resource: "workloadpolicyproposals"}
 	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
 	return cache.NewTypedSharedIndexInformer[*runtimeenforcerapiv1alpha1.WorkloadPolicyProposal](cache.NewSharedIndexInformerWithOptions(
@@ -109,25 +109,25 @@ func NewTypedWorkloadPolicyProposalInformerWithOptions(client versioned.Interfac
 				if tweakListOptions != nil {
 					tweakListOptions(&opts)
 				}
-				return client.SecurityV1alpha1().WorkloadPolicyProposals(namespace).List(context.Background(), opts)
+				return client.RuntimeEnforcerV1alpha1().WorkloadPolicyProposals(namespace).List(context.Background(), opts)
 			},
 			WatchFunc: func(opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&opts)
 				}
-				return client.SecurityV1alpha1().WorkloadPolicyProposals(namespace).Watch(context.Background(), opts)
+				return client.RuntimeEnforcerV1alpha1().WorkloadPolicyProposals(namespace).Watch(context.Background(), opts)
 			},
 			ListWithContextFunc: func(ctx context.Context, opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&opts)
 				}
-				return client.SecurityV1alpha1().WorkloadPolicyProposals(namespace).List(ctx, opts)
+				return client.RuntimeEnforcerV1alpha1().WorkloadPolicyProposals(namespace).List(ctx, opts)
 			},
 			WatchFuncWithContext: func(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&opts)
 				}
-				return client.SecurityV1alpha1().WorkloadPolicyProposals(namespace).Watch(ctx, opts)
+				return client.RuntimeEnforcerV1alpha1().WorkloadPolicyProposals(namespace).Watch(ctx, opts)
 			},
 		}, client),
 		&runtimeenforcerapiv1alpha1.WorkloadPolicyProposal{},

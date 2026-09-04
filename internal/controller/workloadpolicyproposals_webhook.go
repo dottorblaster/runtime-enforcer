@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"net/http"
 
-	securityv1alpha1 "github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
-	"github.com/rancher-sandbox/runtime-enforcer/internal/types/policymode"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -18,9 +16,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+
+	securityv1alpha1 "github.com/kubewarden/runtime-enforcer/api/v1alpha1"
+	"github.com/kubewarden/runtime-enforcer/internal/types/policymode"
 )
 
-// +kubebuilder:webhook:path=/validate-security-rancher-io-v1alpha1-workloadpolicyproposal,mutating=false,failurePolicy=fail,sideEffects=None,groups=security.rancher.io,resources=workloadpolicyproposals,verbs=create;update,versions=v1alpha1,name=validate-workloadpolicyproposals.rancher.io,admissionReviewVersions=v1
+// +kubebuilder:webhook:path=/validate-runtimeenforcer-kubewarden-io-v1alpha1-workloadpolicyproposal,mutating=false,failurePolicy=fail,sideEffects=None,groups=runtimeenforcer.kubewarden.io,resources=workloadpolicyproposals,verbs=create;update,versions=v1alpha1,name=validate-workloadpolicyproposals.kubewarden.io,admissionReviewVersions=v1
 
 type ProposalWebhook struct {
 	Client client.Client
@@ -223,7 +224,7 @@ func (p *ProposalWebhook) validatePromotionLabel(proposal *securityv1alpha1.Work
 		return nil
 	}
 	return apierrors.NewInvalid(
-		schema.GroupKind{Group: "security.rancher.io", Kind: "WorkloadPolicyProposal"},
+		schema.GroupKind{Group: "runtimeenforcer.kubewarden.io", Kind: "WorkloadPolicyProposal"},
 		proposal.Name,
 		field.ErrorList{
 			field.Invalid(

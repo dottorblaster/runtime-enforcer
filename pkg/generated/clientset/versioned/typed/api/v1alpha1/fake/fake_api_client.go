@@ -3,26 +3,26 @@
 package fake
 
 import (
-	v1alpha1 "github.com/rancher-sandbox/runtime-enforcer/pkg/generated/clientset/versioned/typed/api/v1alpha1"
+	v1alpha1 "github.com/kubewarden/runtime-enforcer/pkg/generated/clientset/versioned/typed/api/v1alpha1"
 	rest "k8s.io/client-go/rest"
 	testing "k8s.io/client-go/testing"
 )
 
-type FakeSecurityV1alpha1 struct {
+type FakeRuntimeEnforcerV1alpha1 struct {
 	*testing.Fake
 }
 
-func (c *FakeSecurityV1alpha1) WorkloadPolicies(namespace string) v1alpha1.WorkloadPolicyInterface {
+func (c *FakeRuntimeEnforcerV1alpha1) WorkloadPolicies(namespace string) v1alpha1.WorkloadPolicyInterface {
 	return newFakeWorkloadPolicies(c, namespace)
 }
 
-func (c *FakeSecurityV1alpha1) WorkloadPolicyProposals(namespace string) v1alpha1.WorkloadPolicyProposalInterface {
+func (c *FakeRuntimeEnforcerV1alpha1) WorkloadPolicyProposals(namespace string) v1alpha1.WorkloadPolicyProposalInterface {
 	return newFakeWorkloadPolicyProposals(c, namespace)
 }
 
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
-func (c *FakeSecurityV1alpha1) RESTClient() rest.Interface {
+func (c *FakeRuntimeEnforcerV1alpha1) RESTClient() rest.Interface {
 	var ret *rest.RESTClient
 	return ret
 }

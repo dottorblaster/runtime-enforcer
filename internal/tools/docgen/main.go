@@ -5,8 +5,9 @@ import (
 	"log"
 	"os"
 
-	"github.com/rancher-sandbox/runtime-enforcer/internal/kubectlplugin"
 	"github.com/spf13/cobra/doc"
+
+	"github.com/kubewarden/runtime-enforcer/internal/kubectlplugin"
 )
 
 const defaultOut = "docs/kubectl-plugin"

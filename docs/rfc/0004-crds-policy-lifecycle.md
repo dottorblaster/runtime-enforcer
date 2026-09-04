@@ -3,7 +3,7 @@
 | Feature Name | CRD revisit and user workflow                               |
 | Start Date   | 20 Nov 2025                                                 |
 | Category     | CRDs                                                        |
-| RFC PR       | https://github.com/rancher-sandbox/runtime-enforcer/pull/45 |
+| RFC PR       | https://github.com/kubewarden/runtime-enforcer/pull/45 |
 | State        | **ACCEPTED**                                                |
 
 # Summary
@@ -12,7 +12,7 @@
 
 This RFC tries to summarize the disccusion happened to far about the policy lifecycle, and tries to also stabilize CRDs in terms of lifecycle, names, and possible interactions.
 
-This RFC supersedes [RFC-001](https://github.com/rancher-sandbox/runtime-enforcer/blob/main/docs/rfc/0001-workloadgroup.md).
+This RFC supersedes [RFC-001](https://github.com/kubewarden/runtime-enforcer/blob/main/docs/rfc/0001-workloadgroup.md).
 
 # Motivation
 
@@ -59,7 +59,7 @@ Changes from the previous version:
 During learning mode, we create WorkloadPolicyProposal resources. These resources are structured in this way:
 
 ```yaml
-apiVersion: security.rancher.io/v1alpha1
+apiVersion: runtimeenforcer.kubewarden.io/v1alpha1
 kind: WorkloadPolicyProposal
 metadata:
   name: statefulsets-pgsql # <workload_type>-<workload_name>
@@ -100,7 +100,7 @@ Notes on the behavior:
 Policies are defined using the WorkloadPolicy resource. This is how this resource looks:
 
 ```yaml
-apiVersion: security.rancher.io/v1alpha1
+apiVersion: runtimeenforcer.kubewarden.io/v1alpha1
 kind: WorkloadPolicy
 metadata:
   name: statefulsets-pgsql
@@ -138,7 +138,7 @@ Notes on the behavior:
 - In case of workload rollout, the WorkloadPolicy remains unchanged. If it causes issues with the rollout, the user is in charge of rolling back to the previous version or destroying the policy
 
 ## Binding a WorkloadPolicy
-A workload is protected by a WorkloadPolicy the usage of a unique label `security.rancher.io/policy: <policy-name>`.
+A workload is protected by a WorkloadPolicy the usage of a unique label `runtimeenforcer.kubewarden.io/policy: <policy-name>`.
 
 Since the label is mandatory, we can rely on it to understand if a workload is covered by a policy or not.  A rollout could be required if the workload was initially created without the label.
 
@@ -153,7 +153,7 @@ Vendors already distribute maintained container images through their platforms. 
 Let's define an ImagePolicy:
 
 ```yaml
-apiVersion: security.rancher.io/v1alpha1
+apiVersion: runtimeenforcer.kubewarden.io/v1alpha1
 kind: ImagePolicy
 metadata:
   name: otel-collector
@@ -172,7 +172,7 @@ spec:
 Then it can be consumed by a WorkloadPolicy in this way:
 
 ```yaml
-apiVersion: security.rancher.io/v1alpha1
+apiVersion: runtimeenforcer.kubewarden.io/v1alpha1
 kind: WorkloadSecurityPolicy
 metadata:
   name: postgres-policy
@@ -219,7 +219,7 @@ When the policy is in protect mode, the only way of getting a notification about
 At the moment, the idea is to use the tuning CRD in order to save space on the WorkloadPolicy one.
 
 ```yaml
-apiVersion: security.rancher.io/v1alpha1
+apiVersion: runtimeenforcer.kubewarden.io/v1alpha1
 kind: WorkloadPolicyTuning
 metadata:
   name: postgres-policy
@@ -282,12 +282,12 @@ Our controller will examine the policy and, for each container rule it will crea
 
 The tetragon policy will identify the containers by using two information:
 
-- Identify the pod by using the `security.rancher.io/policy: <policy-name>` label. In this case, `security.rancher.io/policy:pgsql`.
+- Identify the pod by using the `runtimeenforcer.kubewarden.io/policy: <policy-name>` label. In this case, `runtimeenforcer.kubewarden.io/policy:pgsql`.
 - Identify the container by using the name of the container mentioned inside of the `.spec.rulesByContainer.[]`
 
 Depending on the mode of the WorkloadPolicy, we will reconcile a different type of tetragon policy, like we’re currently doing. At this point, the job or our controller is done.
 
-The Tetragon policy will stay “dormant” until a user assigns the special `security.rancher.io/policy: <policy-name>` to their workload.
+The Tetragon policy will stay “dormant” until a user assigns the special `runtimeenforcer.kubewarden.io/policy: <policy-name>` to their workload.
 
 We’re currently discussing with Tetragon maintainers to revisit how policies can be defined, to make them more “workload centric”. The work with upstream began before we did this refinement of our CRDs. Nevertheless, the proposal we made upstream remains valid also with this new set of CRDs and workflow.
 
@@ -315,7 +315,7 @@ We didn't observe any particular drawback in the workflow. Anyway, there are con
 We considered a bunch of alternatives. For example putting the ImagePolicy and the WorkloadPolicy together:
 
 ```yaml
-apiVersion: security.rancher.io/v1alpha1
+apiVersion: runtimeenforcer.kubewarden.io/v1alpha1
 kind: WorkloadSecurityPolicy
 metadata:
   name: database

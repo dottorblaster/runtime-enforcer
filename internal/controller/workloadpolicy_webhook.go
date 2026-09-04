@@ -5,19 +5,20 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/rancher-sandbox/runtime-enforcer/api/v1alpha1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+
+	"github.com/kubewarden/runtime-enforcer/api/v1alpha1"
 )
 
 // maxPodNames avoids oversized response.
 const maxPodNames = 10
 
-// +kubebuilder:webhook:path=/validate-security-rancher-io-v1alpha1-workloadpolicy,mutating=false,failurePolicy=fail,sideEffects=None,groups=security.rancher.io,resources=workloadpolicies,verbs=delete,versions=v1alpha1,name=validate-workloadpolicies.rancher.io,admissionReviewVersions=v1
+// +kubebuilder:webhook:path=/validate-runtimeenforcer-kubewarden-io-v1alpha1-workloadpolicy,mutating=false,failurePolicy=fail,sideEffects=None,groups=runtimeenforcer.kubewarden.io,resources=workloadpolicies,verbs=delete,versions=v1alpha1,name=validate-workloadpolicies.kubewarden.io,admissionReviewVersions=v1
 
 type PolicyCustomValidator struct {
 	Client client.Client
@@ -80,7 +81,7 @@ func (v *PolicyCustomValidator) ValidateDelete(
 
 	return nil, apierrors.NewForbidden(
 		schema.GroupResource{
-			Group:    "security.rancher.io",
+			Group:    "runtimeenforcer.kubewarden.io",
 			Resource: "workloadpolicies",
 		},
 		policy.Name,

@@ -1,4 +1,4 @@
-apiVersion: security.rancher.io/v1alpha1
+apiVersion: runtimeenforcer.kubewarden.io/v1alpha1
 kind: WorkloadPolicyProposal
 metadata:
   name: workloadpolicyproposal-sample

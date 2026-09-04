@@ -3,8 +3,9 @@ package debugger
 import (
 	"testing"
 
-	agentv1 "github.com/rancher-sandbox/runtime-enforcer/proto/agent/v1"
 	"github.com/stretchr/testify/require"
+
+	agentv1 "github.com/kubewarden/runtime-enforcer/proto/agent/v1"
 )
 
 func TestAgentPodViewHelpers(t *testing.T) {
