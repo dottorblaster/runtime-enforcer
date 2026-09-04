@@ -15,11 +15,17 @@ import (
 
 	"github.com/avast/retry-go/v4"
 	"github.com/go-logr/logr"
-
+	otellog "go.opentelemetry.io/otel/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	securityv1alpha1 "github.com/kubewarden/runtime-enforcer/api/v1alpha1"
 	"github.com/kubewarden/runtime-enforcer/internal/bpf"
@@ -30,17 +36,8 @@ import (
 	"github.com/kubewarden/runtime-enforcer/internal/nri"
 	"github.com/kubewarden/runtime-enforcer/internal/resolver"
 	"github.com/kubewarden/runtime-enforcer/internal/types/loglevel"
-	"github.com/kubewarden/runtime-enforcer/internal/workloadpolicyhandler"
-
-	otellog "go.opentelemetry.io/otel/log"
-	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
-
 	"github.com/kubewarden/runtime-enforcer/internal/violationbuf"
+	"github.com/kubewarden/runtime-enforcer/internal/workloadpolicyhandler"
 )
 
 const wpSyncInProgressMsg = "waiting for WorkloadPolicy synchronization to complete"
