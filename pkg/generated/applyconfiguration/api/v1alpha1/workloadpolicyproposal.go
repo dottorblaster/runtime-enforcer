@@ -41,7 +41,7 @@ func WorkloadPolicyProposal(name, namespace string) *WorkloadPolicyProposalApply
 // applied if another fieldManager has updated or force applied any of the previously applied fields.
 func ExtractWorkloadPolicyProposalFrom(workloadPolicyProposal *apiv1alpha1.WorkloadPolicyProposal, fieldManager string, subresource string) (*WorkloadPolicyProposalApplyConfiguration, error) {
 	b := &WorkloadPolicyProposalApplyConfiguration{}
-	err := managedfields.ExtractInto(workloadPolicyProposal, internal.Parser().Type("com.github.kubewarden.runtimeenforcer.api.v1alpha1.WorkloadPolicyProposal"), fieldManager, b, subresource)
+	err := managedfields.ExtractInto(workloadPolicyProposal, internal.Parser().Type("com.github.kubewarden.runtime-enforcer.api.v1alpha1.WorkloadPolicyProposal"), fieldManager, b, subresource)
 	if err != nil {
 		return nil, err
 	}
