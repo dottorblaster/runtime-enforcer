@@ -179,7 +179,7 @@ func (r *cgroupRunner) populatePolicyForRunnerCgroup(policyID uint64, mode polic
 		return fmt.Errorf("Failed to add policy values: %w", err)
 	}
 
-	err = r.manager.GetPolicyModeUpdateFunc()(policyID, mode, UpdateMode)
+	err = r.manager.GetPolicySettingsUpdateFunc()(policyID, mode, false, UpdateSettings)
 	if err != nil {
 		return fmt.Errorf("Failed to set policy mode: %w", err)
 	}
