@@ -361,7 +361,7 @@ A value of "1" or "true" turns the behavior on. Any other value, or an +
 absent key, leaves the behavior off. The enforcer ignores keys that it does +
 not recognize. It logs a warning for each one. The set of recognized keys +
 depends on the enforcer version. See the runtime-enforcer documentation for +
-the keys that your version supports. + |  | Optional: \{} +
+the keys that your version supports. + |  | Optional +
 
 |===
 
