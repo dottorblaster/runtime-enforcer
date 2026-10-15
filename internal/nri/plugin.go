@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	retry "github.com/avast/retry-go/v4"
+	retry "github.com/avast/retry-go/v5"
 	"github.com/containerd/nri/pkg/api"
 	"github.com/containerd/nri/pkg/stub"
 

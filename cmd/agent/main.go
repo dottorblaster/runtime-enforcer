@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/avast/retry-go/v4"
+	"github.com/avast/retry-go/v5"
 	"github.com/go-logr/logr"
 	otellog "go.opentelemetry.io/otel/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -159,8 +159,7 @@ func waitForMutatingAdmissionWebhook(ctx context.Context) error {
 		return nil
 	}
 
-	return retry.Do(
-		tryConnect,
+	return retry.New(
 		retry.Context(ctx),
 		retry.Attempts(attempts),
 		retry.Delay(time.Second),
@@ -174,7 +173,7 @@ func waitForMutatingAdmissionWebhook(ctx context.Context) error {
 					"error", err,
 				)
 		}),
-	)
+	).Do(tryConnect)
 }
 
 func setupLearningReconciler(

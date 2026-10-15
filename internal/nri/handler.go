@@ -9,7 +9,7 @@ import (
 	"os"
 	"time"
 
-	retry "github.com/avast/retry-go/v4"
+	retry "github.com/avast/retry-go/v5"
 	"github.com/containerd/nri/pkg/stub"
 
 	"github.com/kubewarden/runtime-enforcer/internal/resolver"
@@ -100,8 +100,7 @@ func (h *Handler) checkNRISupport() error {
 		_ = conn.Close()
 		return nil
 	}
-	return retry.Do(
-		tryConnect,
+	return retry.New(
 		retry.Attempts(attempts),
 		retry.Delay(time.Second),
 		retry.DelayType(retry.BackOffDelay),
@@ -112,7 +111,7 @@ func (h *Handler) checkNRISupport() error {
 				"error", err,
 			)
 		}),
-	)
+	).Do(tryConnect)
 }
 
 func (h *Handler) startNRIPlugin(ctx context.Context) error {
@@ -156,10 +155,7 @@ func (h *Handler) Start(ctx context.Context) error {
 		return true
 	}
 
-	return retry.Do(
-		func() error {
-			return h.startNRIPlugin(ctx)
-		},
+	return retry.New(
 		retry.Context(ctx),
 		retry.Attempts(0), // infinite attempts
 		retry.Delay(time.Second),
@@ -173,5 +169,7 @@ func (h *Handler) Start(ctx context.Context) error {
 				"error", err,
 			)
 		}),
-	)
+	).Do(func() error {
+		return h.startNRIPlugin(ctx)
+	})
 }
