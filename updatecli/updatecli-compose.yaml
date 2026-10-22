@@ -1,5 +1,5 @@
 policies:
-  - name: Update Go version
+  - name: Update dependencies
     config:
       - "updatecli.d"
     values:
