@@ -20,7 +20,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cflags "-O2 -g" -target native -tags linux -type process_evt -type log_event_code -type log_evt bpf ../../bpf/main.c -- -I/usr/include/
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cflags "-O2 -g" -target native -tags linux -type process_evt -type log_event_code -type log_evt -type policy_settings bpf ../../bpf/main.c -- -I/usr/include/
 
 const (
 	loadTimeConfigBPFVar = "load_time_config"
