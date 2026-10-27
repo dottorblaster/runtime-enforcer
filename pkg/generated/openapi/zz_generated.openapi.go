@@ -220,7 +220,7 @@ func schema_kubewarden_runtime_enforcer_api_v1alpha1_ViolationRecord(ref common.
 					},
 					"occurrences": {
 						SchemaProps: spec.SchemaProps{
-							Description: "occurrences is the number of times this violation (identified by pod, container, executable and action) has been observed since the record was first created. It is a per-record counter, distinct from the policy-level violationCount aggregate: it is only incremented when a scraped event matches this exact record, so consumers can tell how many times this specific executable/container/pod combo fired.",
+							Description: "occurrences is the number of times this violation (identified by pod, container, executable, foreign-root flag and action) has been observed since the record was first created. It is a per-record counter, distinct from the policy-level violationCount aggregate: it is only incremented when a scraped event matches this exact record, so consumers can tell how many times this specific executable/container/pod combo fired.",
 							Type:        []string{"integer"},
 							Format:      "int64",
 						},
@@ -252,6 +252,13 @@ func schema_kubewarden_runtime_enforcer_api_v1alpha1_ViolationRecord(ref common.
 							Description: "executablePath is the path of the unauthorized executable.",
 							Default:     "",
 							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"foreignRoot": {
+						SchemaProps: spec.SchemaProps{
+							Description: "foreignRoot identifies an execution across a mount-namespace boundary. Allow-listing the executable path does not resolve this violation.",
+							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
@@ -756,6 +763,13 @@ func schema_kubewarden_runtime_enforcer_api_v1alpha1_violationRecordKey(ref comm
 							Format:  "",
 						},
 					},
+					"foreignRoot": {
+						SchemaProps: spec.SchemaProps{
+							Default: false,
+							Type:    []string{"boolean"},
+							Format:  "",
+						},
+					},
 					"action": {
 						SchemaProps: spec.SchemaProps{
 							Default: "",
@@ -764,7 +778,7 @@ func schema_kubewarden_runtime_enforcer_api_v1alpha1_violationRecordKey(ref comm
 						},
 					},
 				},
-				Required: []string{"podName", "containerName", "executablePath", "action"},
+				Required: []string{"podName", "containerName", "executablePath", "foreignRoot", "action"},
 			},
 		},
 	}

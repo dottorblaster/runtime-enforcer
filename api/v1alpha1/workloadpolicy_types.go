@@ -186,8 +186,8 @@ func (wp *WorkloadPolicy) RecomputeStatus(
 	// is coherent across syncs.
 	wp.Status.mergeScrapedViolations(scrapedViolations)
 
-	// Stale violations are violations for binaries that
-	// are now in the spec.
+	// Clear violations resolved by the current rules: local paths by the
+	// allow-list, foreign-root executions by the explicit opt-out.
 	wp.clearAllowedViolations()
 
 	// Acknowledge any violations that have been acknowledged

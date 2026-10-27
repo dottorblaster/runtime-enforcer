@@ -25,7 +25,7 @@ type ViolationRecord struct {
 	// lastObservedTimestamp is when the violation was last observed.
 	LastObservedTimestamp metav1.Time `json:"lastObservedTimestamp"`
 	// occurrences is the number of times this violation (identified by
-	// pod, container, executable and action) has been observed since the
+	// pod, container, executable, foreign-root flag and action) has been observed since the
 	// record was first created. It is a per-record counter, distinct from
 	// the policy-level violationCount aggregate: it is only incremented
 	// when a scraped event matches this exact record, so consumers can
@@ -49,6 +49,10 @@ type ViolationRecord struct {
 	ContainerName string `json:"containerName"`
 	// executablePath is the path of the unauthorized executable.
 	ExecutablePath string `json:"executablePath"`
+	// foreignRoot identifies an execution across a mount-namespace boundary.
+	// Allow-listing the executable path does not resolve this violation.
+	// +optional
+	ForeignRoot bool `json:"foreignRoot,omitempty"`
 	// nodeName is the node where the violation occurred.
 	NodeName string `json:"nodeName"`
 	// action is the enforcement action taken (monitor or protect).
@@ -83,6 +87,7 @@ type violationRecordKey struct {
 	podName        string
 	containerName  string
 	executablePath string
+	foreignRoot    bool
 	action         string
 }
 
@@ -91,6 +96,7 @@ func (r ViolationRecord) key() violationRecordKey {
 		podName:        r.PodName,
 		containerName:  r.ContainerName,
 		executablePath: r.ExecutablePath,
+		foreignRoot:    r.ForeignRoot,
 		action:         r.Action,
 	}
 }
@@ -98,7 +104,13 @@ func (r ViolationRecord) key() violationRecordKey {
 func (wp *WorkloadPolicy) clearAllowedViolations() {
 	wp.Status.Violations = slices.DeleteFunc(wp.Status.Violations, func(v ViolationRecord) bool {
 		rules := wp.Spec.RulesByContainer[v.ContainerName]
-		return rules != nil && slices.Contains(rules.Executables.Allowed, v.ExecutablePath)
+		if rules == nil {
+			return false
+		}
+		if v.ForeignRoot {
+			return rules.AllowForeignRootExec()
+		}
+		return slices.Contains(rules.Executables.Allowed, v.ExecutablePath)
 	})
 }
 

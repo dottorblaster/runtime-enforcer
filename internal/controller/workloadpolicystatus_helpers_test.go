@@ -249,7 +249,7 @@ func TestProcessWorkloadPolicyPersistsBeforeAcknowledging(t *testing.T) {
 	require.Equal(t, map[string]any{
 		"id": int64(7), "lastObservedTimestamp": "2026-01-01T12:00:00Z", "reason": "investigated",
 		"policy.name": "policy", "k8s.namespace.name": "default", "k8s.pod.name": "pod",
-		"container.name": "app", "proc.exepath": "/bin/blocked", "node.name": "node",
+		"container.name": "app", "proc.exepath": "/bin/blocked", "proc.foreign_root": false, "node.name": "node",
 		"action": "protect", "workload.name": "deployment", "workload.kind": "Deployment",
 	}, attributes)
 }

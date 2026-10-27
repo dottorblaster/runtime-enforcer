@@ -126,6 +126,21 @@ func TestGetViolationsByPolicy(t *testing.T) {
 		require.Equal(t, []v1alpha1.ViolationRecord{apiRec("pod-3", "node2")}, got[nnB])
 	})
 
+	t.Run("preserves the foreign-root distinction", func(t *testing.T) {
+		r := createTestWPStatusSync(t)
+		record := pbRec("default/policy-a", "pod-1", "node1")
+		record.ForeignRoot = true
+		clients := map[string]grpcexporter.AgentClientAPI{
+			"node1": &testAgentClient{violations: []*pb.ViolationRecord{record}},
+		}
+
+		got := r.getViolationsByPolicy(context.Background(), clients)
+
+		want := apiRec("pod-1", "node1")
+		want.ForeignRoot = true
+		require.Equal(t, []v1alpha1.ViolationRecord{want}, got["default/policy-a"])
+	})
+
 	t.Run("skips nodes without connection", func(t *testing.T) {
 		r := createTestWPStatusSync(t)
 		// No connections set up.

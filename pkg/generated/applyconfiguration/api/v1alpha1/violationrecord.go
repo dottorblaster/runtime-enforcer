@@ -24,7 +24,7 @@ type ViolationRecordApplyConfiguration struct {
 	// lastObservedTimestamp is when the violation was last observed.
 	LastObservedTimestamp *v1.Time `json:"lastObservedTimestamp,omitempty"`
 	// occurrences is the number of times this violation (identified by
-	// pod, container, executable and action) has been observed since the
+	// pod, container, executable, foreign-root flag and action) has been observed since the
 	// record was first created. It is a per-record counter, distinct from
 	// the policy-level violationCount aggregate: it is only incremented
 	// when a scraped event matches this exact record, so consumers can
@@ -45,6 +45,9 @@ type ViolationRecordApplyConfiguration struct {
 	ContainerName *string `json:"containerName,omitempty"`
 	// executablePath is the path of the unauthorized executable.
 	ExecutablePath *string `json:"executablePath,omitempty"`
+	// foreignRoot identifies an execution across a mount-namespace boundary.
+	// Allow-listing the executable path does not resolve this violation.
+	ForeignRoot *bool `json:"foreignRoot,omitempty"`
 	// nodeName is the node where the violation occurred.
 	NodeName *string `json:"nodeName,omitempty"`
 	// action is the enforcement action taken (monitor or protect).
@@ -120,6 +123,14 @@ func (b *ViolationRecordApplyConfiguration) WithContainerName(value string) *Vio
 // If called multiple times, the ExecutablePath field is set to the value of the last call.
 func (b *ViolationRecordApplyConfiguration) WithExecutablePath(value string) *ViolationRecordApplyConfiguration {
 	b.ExecutablePath = &value
+	return b
+}
+
+// WithForeignRoot sets the ForeignRoot field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the ForeignRoot field is set to the value of the last call.
+func (b *ViolationRecordApplyConfiguration) WithForeignRoot(value bool) *ViolationRecordApplyConfiguration {
+	b.ForeignRoot = &value
 	return b
 }
 

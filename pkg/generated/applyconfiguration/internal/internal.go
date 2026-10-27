@@ -81,6 +81,9 @@ var schemaYAML = typed.YAMLObject(`types:
     - name: firstObservedTimestamp
       type:
         namedType: io.k8s.apimachinery.pkg.apis.meta.v1.Time
+    - name: foreignRoot
+      type:
+        scalar: boolean
     - name: id
       type:
         scalar: numeric

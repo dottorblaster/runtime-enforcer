@@ -96,6 +96,7 @@ message ViolationRecord {
   string policy_name = 7;
   string workload_name = 8;
   string workload_kind = 9;
+  bool foreign_root = 10;
 }
 
 message ScrapeViolationsResponse {

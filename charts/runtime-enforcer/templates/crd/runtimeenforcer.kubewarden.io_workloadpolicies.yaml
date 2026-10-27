@@ -140,6 +140,11 @@ spec:
                             the last occurrence).
                           format: date-time
                           type: string
+                        foreignRoot:
+                          description: |-
+                            foreignRoot identifies an execution across a mount-namespace boundary.
+                            Allow-listing the executable path does not resolve this violation.
+                          type: boolean
                         id:
                           description: |-
                             id is a per-policy unique identifier allocated by the controller
@@ -165,7 +170,7 @@ spec:
                           default: 1
                           description: |-
                             occurrences is the number of times this violation (identified by
-                            pod, container, executable and action) has been observed since the
+                            pod, container, executable, foreign-root flag and action) has been observed since the
                             record was first created. It is a per-record counter, distinct from
                             the policy-level violationCount aggregate: it is only incremented
                             when a scraped event matches this exact record, so consumers can
@@ -317,6 +322,11 @@ spec:
                         the last occurrence).
                       format: date-time
                       type: string
+                    foreignRoot:
+                      description: |-
+                        foreignRoot identifies an execution across a mount-namespace boundary.
+                        Allow-listing the executable path does not resolve this violation.
+                      type: boolean
                     id:
                       description: |-
                         id is a per-policy unique identifier allocated by the controller
@@ -342,7 +352,7 @@ spec:
                       default: 1
                       description: |-
                         occurrences is the number of times this violation (identified by
-                        pod, container, executable and action) has been observed since the
+                        pod, container, executable, foreign-root flag and action) has been observed since the
                         record was first created. It is a per-record counter, distinct from
                         the policy-level violationCount aggregate: it is only incremented
                         when a scraped event matches this exact record, so consumers can
