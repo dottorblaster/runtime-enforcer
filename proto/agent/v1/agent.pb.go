@@ -592,6 +592,7 @@ type ViolationRecord struct {
 	PolicyName     string                 `protobuf:"bytes,7,opt,name=policy_name,json=policyName,proto3" json:"policy_name,omitempty"`
 	WorkloadName   string                 `protobuf:"bytes,8,opt,name=workload_name,json=workloadName,proto3" json:"workload_name,omitempty"`
 	WorkloadKind   string                 `protobuf:"bytes,9,opt,name=workload_kind,json=workloadKind,proto3" json:"workload_kind,omitempty"`
+	ForeignRoot    bool                   `protobuf:"varint,10,opt,name=foreign_root,json=foreignRoot,proto3" json:"foreign_root,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -689,6 +690,13 @@ func (x *ViolationRecord) GetWorkloadKind() string {
 	return ""
 }
 
+func (x *ViolationRecord) GetForeignRoot() bool {
+	if x != nil {
+		return x.ForeignRoot
+	}
+	return false
+}
+
 type ScrapeViolationsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Violations    []*ViolationRecord     `protobuf:"bytes,1,rep,name=violations,proto3" json:"violations,omitempty"`
@@ -773,7 +781,7 @@ const file_proto_agent_v1_agent_proto_rawDesc = "" +
 	"\rPoliciesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12<\n" +
 	"\x05value\x18\x02 \x01(\v2&.runtimeenforcer.agent.v1.PolicyStatusR\x05value:\x028\x01\"\x19\n" +
-	"\x17ScrapeViolationsRequest\"\xd6\x02\n" +
+	"\x17ScrapeViolationsRequest\"\xf9\x02\n" +
 	"\x0fViolationRecord\x128\n" +
 	"\ttimestamp\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12\x19\n" +
 	"\bpod_name\x18\x02 \x01(\tR\apodName\x12%\n" +
@@ -784,7 +792,9 @@ const file_proto_agent_v1_agent_proto_rawDesc = "" +
 	"\vpolicy_name\x18\a \x01(\tR\n" +
 	"policyName\x12#\n" +
 	"\rworkload_name\x18\b \x01(\tR\fworkloadName\x12#\n" +
-	"\rworkload_kind\x18\t \x01(\tR\fworkloadKind\"e\n" +
+	"\rworkload_kind\x18\t \x01(\tR\fworkloadKind\x12!\n" +
+	"\fforeign_root\x18\n" +
+	" \x01(\bR\vforeignRoot\"e\n" +
 	"\x18ScrapeViolationsResponse\x12I\n" +
 	"\n" +
 	"violations\x18\x01 \x03(\v2).runtimeenforcer.agent.v1.ViolationRecordR\n" +

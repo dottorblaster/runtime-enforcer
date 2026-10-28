@@ -20,7 +20,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cflags "-O2 -g" -target native -tags linux -type process_evt -type log_event_code -type log_evt bpf ../../bpf/main.c -- -I/usr/include/
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cflags "-O2 -g" -target native -tags linux -type process_evt -type log_event_code -type log_evt -type policy_settings bpf ../../bpf/main.c -- -I/usr/include/
 
 const (
 	loadTimeConfigBPFVar = "load_time_config"
@@ -40,12 +40,16 @@ type ProcessEvent struct {
 	CgTrackerID uint64
 	ExePath     string
 	Mode        string
+	// ForeignRoot is true when the exec resolves to a file on a foreign root file
+	// system, for example the host root file system through /proc/<pid>/root.
+	ForeignRoot bool
 }
 
 type bpfEventHeader struct {
 	CgTrackerID uint64
 	PathLen     uint16
 	Mode        uint8
+	Foreign     uint8
 }
 
 type Manager struct {

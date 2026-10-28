@@ -35,6 +35,16 @@ type WorkloadPolicyRules struct {
 	// executables defines a security policy for executables.
 	// +optional
 	Executables WorkloadPolicyExecutables `json:"executables,omitempty"`
+
+	// options is a free-form map of behavior flags for this container. Each key
+	// selects one behavior. The value is a string, like an environment variable.
+	// A value of "1" or "true" turns the behavior on. Any other value, or an
+	// absent key, leaves the behavior off. The enforcer ignores keys that it does
+	// not recognize. It logs a warning for each one. The set of recognized keys
+	// depends on the enforcer version. See the runtime-enforcer documentation for
+	// the keys that your version supports.
+	// +optional
+	Options map[string]string `json:"options,omitempty"`
 }
 
 type WorkloadPolicySpec struct {
@@ -176,8 +186,8 @@ func (wp *WorkloadPolicy) RecomputeStatus(
 	// is coherent across syncs.
 	wp.Status.mergeScrapedViolations(scrapedViolations)
 
-	// Stale violations are violations for binaries that
-	// are now in the spec.
+	// Clear violations resolved by the current rules: local paths by the
+	// allow-list, foreign-root executions by the explicit opt-out.
 	wp.clearAllowedViolations()
 
 	// Acknowledge any violations that have been acknowledged

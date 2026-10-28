@@ -81,6 +81,9 @@ var schemaYAML = typed.YAMLObject(`types:
     - name: firstObservedTimestamp
       type:
         namedType: io.k8s.apimachinery.pkg.apis.meta.v1.Time
+    - name: foreignRoot
+      type:
+        scalar: boolean
     - name: id
       type:
         scalar: numeric
@@ -167,6 +170,11 @@ var schemaYAML = typed.YAMLObject(`types:
       type:
         namedType: com.github.kubewarden.runtime-enforcer.api.v1alpha1.WorkloadPolicyExecutables
       default: {}
+    - name: options
+      type:
+        map:
+          elementType:
+            scalar: string
 - name: com.github.kubewarden.runtime-enforcer.api.v1alpha1.WorkloadPolicySpec
   map:
     fields:

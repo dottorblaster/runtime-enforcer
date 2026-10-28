@@ -13,6 +13,7 @@ type ViolationRecord struct {
 	PodName       string
 	ContainerName string
 	ExePath       string
+	ForeignRoot   bool
 	NodeName      string
 	Action        string
 	WorkloadName  string

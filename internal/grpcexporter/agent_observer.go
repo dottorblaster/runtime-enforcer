@@ -113,6 +113,7 @@ func (s *agentObserver) ScrapeViolations(
 			PodName:        rec.PodName,
 			ContainerName:  rec.ContainerName,
 			ExecutablePath: rec.ExePath,
+			ForeignRoot:    rec.ForeignRoot,
 			NodeName:       rec.NodeName,
 			Action:         rec.Action,
 			PolicyName:     rec.Namespace + "/" + rec.PolicyName,
