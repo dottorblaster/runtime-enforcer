@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"strings"
 
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -21,7 +23,7 @@ const maxPodNames = 10
 // +kubebuilder:webhook:path=/validate-runtimeenforcer-kubewarden-io-v1alpha1-workloadpolicy,mutating=false,failurePolicy=fail,sideEffects=None,groups=runtimeenforcer.kubewarden.io,resources=workloadpolicies,verbs=delete,versions=v1alpha1,name=validate-workloadpolicies.kubewarden.io,admissionReviewVersions=v1
 
 type PolicyCustomValidator struct {
-	Client client.Client
+	Reader client.Reader
 }
 
 var _ admission.Validator[*v1alpha1.WorkloadPolicy] = &PolicyCustomValidator{}
@@ -55,9 +57,13 @@ func (v *PolicyCustomValidator) ValidateDelete(
 		Kind:    "PodList",
 	})
 
-	if err := v.Client.List(ctx, podList,
+	if err := v.Reader.List(ctx, podList,
 		client.InNamespace(policy.Namespace),
 		client.MatchingLabels{v1alpha1.PolicyLabelKey: policy.Name},
+		client.MatchingFieldsSelector{Selector: fields.AndSelectors(
+			fields.OneTermNotEqualSelector("status.phase", string(corev1.PodSucceeded)),
+			fields.OneTermNotEqualSelector("status.phase", string(corev1.PodFailed)),
+		)},
 	); err != nil {
 		return nil, fmt.Errorf("list pods for WorkloadPolicy %q: %w", policy.Name, err)
 	}
