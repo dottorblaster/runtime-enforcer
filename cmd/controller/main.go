@@ -435,7 +435,7 @@ func main() {
 	}
 
 	err = builder.WebhookManagedBy(mgr, &securityv1alpha1.WorkloadPolicy{}).
-		WithValidator(&controller.PolicyCustomValidator{Client: mgr.GetClient()}).
+		WithValidator(&controller.PolicyCustomValidator{Reader: mgr.GetAPIReader()}).
 		Complete()
 	if err != nil {
 		setupLog.Error(err, "unable to create WorkloadPolicy webhook")
